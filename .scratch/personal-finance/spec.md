@@ -73,7 +73,7 @@ The app supports manual versioned JSON Backup export and import through Android'
 - The project uses one app module, Gradle Kotlin DSL, a version catalog, Kotlin/JVM 17, and stable AndroidX/Kotlin dependencies.
 - The application ID is `com.toshlol.finance`.
 - The app uses layered unidirectional data flow: Compose UI, state holders/ViewModels, application use cases, repositories, and local data sources.
-- Room owns relational finance data. DataStore owns small preferences such as selected currency and theme configuration.
+- Room owns relational finance data and all Backup-owned settings, including selected currency, so import and export can use one database transaction. DataStore owns only preferences excluded from Backups, such as theme configuration.
 - Kotlin serialization defines versioned Backup DTOs separately from persistence entities.
 - Dependencies use manual construction initially rather than a dependency-injection framework.
 - The app requests no `INTERNET` permission. Google Drive support comes through Android's document picker rather than a Google Drive API or continuous synchronization.
@@ -86,8 +86,10 @@ The app supports manual versioned JSON Backup export and import through Android'
 - Account types are display metadata only: Cash, Bank, Credit Card, or Other. Provider integrations and transfers are out of scope.
 - A Budget is one positive monthly limit for one Category. Budgets do not roll over, and income budgets are out of scope.
 - Amounts and Budgets are greater than zero and limited to two decimal places for the selected currency. Monetary values use precise minor-unit storage rather than floating-point arithmetic.
-- Export/import is explicit and manual. A Backup includes schema version, selected currency, settings, entities, records, IDs, and timestamps.
-- Merge validates the complete Backup before mutation, adds missing records, applies newer imported versions when IDs collide, and does not propagate deletions. Overwrite validates and then atomically replaces the complete local dataset after confirmation.
+- Export/import is explicit and manual. Export reads one consistent Room snapshot. A Backup includes schema version, selected currency, Backup-owned settings, entities, records, IDs, and timestamps.
+- One deep Backup import module owns decoding, complete validation, and atomic mutation for both Merge and Overwrite. The Android document-provider adapter supplies bytes, while confirmation and displayed outcomes remain UI concerns.
+- Merge accepts only a self-contained Backup with the local currency, adds missing records, replaces a complete local record only when the imported `updatedAt` is newer, and does not propagate deletions. It rejects equal-timestamp divergent records and any reconciled dataset that violates finance rules rather than inventing conflict resolution.
+- Overwrite validates and then atomically replaces the complete local dataset and Backup-owned settings after confirmation. Import is cancellable before its non-cancellable Room transaction begins; failures leave the previous complete dataset visible.
 - Room uses explicit tested migrations; production does not use destructive migration.
 - The app produces debug APKs and locally signed release APKs for sideloading. It does not produce Play Store publishing automation or require an App Bundle workflow.
 - Signing credentials remain outside the repository and are supplied locally or through CI secrets.
@@ -97,12 +99,13 @@ The app supports manual versioned JSON Backup export and import through Android'
 
 - Tests verify external behavior through public seams rather than private methods, implementation details, or direct table assertions.
 - Each feature is built as a vertical red-green-refactor slice, starting with a Given/When/Then behavior scenario.
-- The finance application/use-case seam covers amount validation, mandatory Accounts, optional Categories, Tags, monthly Budgets, lifecycle rules, monthly boundaries, calculations, and UUID/timestamp Merge behavior.
+- The finance application/use-case seam covers amount validation, mandatory Accounts, optional Categories, Tags, monthly Budgets, lifecycle rules, monthly boundaries, calculations, and Backup import behavior.
 - The repository seam covers Room persistence and migrations through repository operations against an in-memory database.
 - Compose screen tests cover critical journeys: first-run Account creation, Transaction entry, Budget display, filters, validation, and Merge versus Overwrite choice.
 - UI Automator covers the Android document-provider boundary for export/import and system UI. Espresso is used only if View-based or hybrid screens exist.
 - Time and UUID providers are deterministic in tests. In-memory fakes are preferred over mocks; mocks are reserved for genuine external boundaries.
-- Backup tests cover valid round trips, malformed JSON, unsupported schema versions, missing mandatory Accounts, Merge idempotency, timestamp conflicts, non-propagating deletions, and Overwrite behavior.
+- Backup format tests cover strict decoding, supported-version normalization, malformed JSON, unsupported schema versions, bounded input, self-contained references, and valid round trips.
+- Backup import tests exercise the public module interface with Room's in-memory configuration and cover currency mismatches, Merge idempotency, whole-record timestamp conflicts, equal-timestamp divergence, non-propagating deletions, final-dataset conflicts, Overwrite, cancellation, and rollback after injected transaction failures.
 - Migration tests open representative data from prior schemas and verify preservation after migration.
 - Accessibility tests assert semantics, labels, actions, and important state. Manual TalkBack and Switch Access checks remain necessary.
 - CI runs JVM tests on every change and Android tests on Android 10 plus a current API emulator when available.

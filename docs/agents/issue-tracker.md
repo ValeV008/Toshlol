@@ -1,25 +1,27 @@
-# Issue tracker: GitHub
+# Issue tracker: Local Markdown
 
-Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+Issues and specs for this repo live as markdown files in `.scratch/`.
 
 ## Conventions
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`
-- **Read an issue**: `gh issue view <number> --json number,title,body,labels,comments`
-- **List issues**: `gh issue list --state open --json number,title,body,labels,comments`
-- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh issue close <number> --comment "..."`
-
-Infer the repo from `git remote -v`; `gh` does this automatically inside the clone.
-
-## Pull requests as a triage surface
-
-**PRs as a request surface: no.**
+- One feature per directory: `.scratch/<feature-slug>/`
+- The spec is `.scratch/<feature-slug>/spec.md`
+- Implementation issues use `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`
+- Triage state is recorded as a `Status:` line near the top of each issue file
+- Comments append to the bottom under a `## Comments` heading
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue.
+Create a new file under `.scratch/<feature-slug>/`.
 
 ## When a skill says "fetch the relevant ticket"
 
-Read it using `gh issue view <number>`.
+Read the referenced file path.
+
+## Wayfinding operations
+
+- **Map**: `.scratch/<effort>/map.md`
+- **Child ticket**: `.scratch/<effort>/issues/NN-<slug>.md`
+- **Blocking**: use a `Blocked by: NN, NN` line near the top
+- **Claim**: set `Status: claimed`
+- **Resolve**: append an `## Answer`, set `Status: resolved`, and update the map

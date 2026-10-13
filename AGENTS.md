@@ -1,5 +1,9 @@
 ## Agent skills
 
+### Coding guidelines
+
+Use guidelines for android development found in `AI-CODING-RULES.md`.
+
 ### Issue tracker
 
 Issues and specs live as markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.

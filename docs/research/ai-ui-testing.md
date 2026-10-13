@@ -83,7 +83,16 @@ Source: [Android Debug Bridge](https://developer.android.com/tools/adb)
 
 ### Local or CI command line
 
-The Gradle Wrapper is the reproducible entry point. Unit tests can run with `test<Variant>UnitTest`; connected instrumented tests can run with `connected<Variant>AndroidTest`. Gradle emits HTML and XML reports suitable for CI artifacts.
+The Gradle Wrapper is the reproducible entry point. Use JDK 17 and install the Android SDK platform and build tools required by the project. Android Studio's bundled JDK is suitable; otherwise install a separate JDK 17. Set the SDK and JDK paths for the current PowerShell session (replace the example paths with the locations on your machine):
+
+```powershell
+$env:JAVA_HOME = 'C:\Path\To\JDK-17'
+$env:ANDROID_HOME = 'C:\Path\To\Android\Sdk'
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
+$env:PATH = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:PATH"
+```
+
+From the repository root, unit tests can run with `test<Variant>UnitTest`; connected instrumented tests can run with `connected<Variant>AndroidTest`. Gradle emits HTML and XML reports suitable for CI artifacts.
 
 Use non-interactive, plain-console execution so an agent can parse the result:
 

@@ -124,7 +124,7 @@ The app supports manual versioned JSON Backup export and import through Android'
 - Backup format tests cover strict decoding, supported-version normalization including older backups without Transfers or opening balances, malformed JSON, unsupported schema versions, bounded input, self-contained references, and valid round trips.
 - Backup import tests exercise the public module interface with Room's in-memory configuration and cover currency mismatches, Merge idempotency, whole-record timestamp conflicts, equal-timestamp divergence, non-propagating deletions, final-dataset conflicts, Overwrite, cancellation, and rollback after injected transaction failures.
 - Migration tests open representative data from prior schemas and verify preservation after migration.
-- Accessibility tests assert semantics, labels, actions, and important state. Manual TalkBack and Switch Access checks remain necessary.
+- Accessibility tests assert semantics, labels, actions, and important state.
 - CI runs JVM tests on every change and Android tests on Android 10 (API 29). A newer API emulator is not required.
 - No arbitrary global coverage percentage is required. Every agreed financial rule and critical user journey must have explicit coverage.
 - Each locally signed release APK receives a manual smoke test covering launch, Account creation, Transaction entry, Budget display, export, import, and both import modes.

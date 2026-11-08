@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] The project builds as a native Android app for Android 10 (API 29) with the agreed Compose, Room, DataStore, and test foundation.
 - [x] The app uses the light theme and starts without network permission or seeded Accounts and Categories.
@@ -40,9 +40,6 @@ Reproduce with JDK 17 and the Android SDK configured:
 
 On a memory-constrained workstation, append `'-Dorg.gradle.jvmargs=-Xmx1024m -Dfile.encoding=UTF-8'` and `'-Pkotlin.compiler.execution.strategy=in-process'`.
 
-### Manual accessibility review pending
+## Comments
 
-The issue is ready for human review because `AI-CODING-RULES.md` also requires manual TalkBack and Switch Access testing. Automated checks passed; the following checks have not been performed:
-
-- With TalkBack, complete setup, correct validation errors, and verify currency, Account type, and Overview announcements and focus order.
-- With Switch Access, reach and activate every control, including with the keyboard open and large text enabled.
+The user removed the manual TalkBack and Switch Access testing requirements. Those checks were not performed. All required automated checks passed, so this issue is resolved.

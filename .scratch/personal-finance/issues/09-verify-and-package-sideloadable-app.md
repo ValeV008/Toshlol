@@ -8,7 +8,7 @@
 
 - [ ] GitHub Actions runs formatting/lint, JVM tests, and available Android tests.
 - [ ] Critical Android tests run on Android 10 (API 29); testing on newer Android versions is not required.
-- [ ] Accessibility checks cover semantics, labels, actions, and important state; manual TalkBack and Switch Access checks are documented.
+- [ ] Accessibility checks cover semantics, labels, actions, and important state.
 - [ ] A locally signed release APK can be produced without committing signing credentials.
 - [ ] The release smoke test covers launch, Account creation, Transaction entry, Budget display, export, import Merge, and import Overwrite.
 - [ ] The project does not contain Play Store, App Bundle, or publishing automation.

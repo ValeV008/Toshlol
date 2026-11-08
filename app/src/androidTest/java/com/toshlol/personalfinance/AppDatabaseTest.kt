@@ -17,20 +17,23 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseTest {
     @Test
-    fun `database persists first account and currency`() = runTest {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        val repository = AccountRepository(database, AppPreferences(context))
+    fun `database persists first account and currency`() =
+        runTest {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val database =
+                Room
+                    .inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+                    .allowMainThreadQueries()
+                    .build()
+            val repository = AccountRepository(database, AppPreferences(context))
 
-        val accountId = repository.createAccount("Main checking", AccountType.BANK)
-        repository.saveCurrency("EUR")
+            val accountId = repository.createAccount("Main checking", AccountType.BANK)
+            repository.saveCurrency("EUR")
 
-        assertTrue(accountId > 0)
-        assertEquals(1, database.accountDao().countAccounts())
-        assertEquals("EUR", repository.loadCurrency())
+            assertTrue(accountId > 0)
+            assertEquals(1, database.accountDao().countAccounts())
+            assertEquals("EUR", repository.loadCurrency())
 
-        database.close()
-    }
+            database.close()
+        }
 }

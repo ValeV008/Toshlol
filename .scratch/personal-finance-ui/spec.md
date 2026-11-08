@@ -85,7 +85,7 @@ Show selected-calendar-month Income and Expense lists and totals, Account balanc
 
 ## Implementation Decisions
 
-- The app is a native Android application targeting Android 10 and newer, built with Kotlin, Jetpack Compose, and Material 3.
+- The app is a native Android application for Android 10 (API 29), built with Kotlin, Jetpack Compose, and Material 3. Android 10 is the only required development and test environment; compatibility with newer Android versions is not a project requirement.
 - Use a light-theme visual system based on the supplied designs. Preserve their monthly Income and Expense list layouts, transaction cards, add controls, entry amount keypad, and navigation drawer while adding the agreed Transfer, Account balance, and Budget interactions.
 - The app is for one local user and stores finance data on device. It requests no network permission and provides no bank connection or continuous synchronization.
 - A Transaction is one Income or Expense movement with a positive amount, local calendar date, mandatory Account, optional Category, optional Note, optional Tags, stable ID, and timestamps.

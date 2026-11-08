@@ -24,10 +24,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
             ToshlolTheme {
-                PersonalFinanceApp(uiState = uiState, onCurrencyChanged = viewModel::updateCurrency,
+                PersonalFinanceApp(
+                    uiState = uiState,
+                    onCurrencyChanged = viewModel::updateCurrency,
                     onAccountNameChanged = viewModel::updateAccountName,
                     onAccountTypeChanged = viewModel::updateAccountType,
-                    onSubmit = viewModel::submit)
+                    onSubmit = viewModel::submit,
+                )
             }
         }
     }

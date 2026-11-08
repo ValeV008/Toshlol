@@ -29,25 +29,26 @@ fun SetupScreen(
     onCurrencyChanged: (String) -> Unit,
     onAccountNameChanged: (String) -> Unit,
     onAccountTypeChanged: (AccountType) -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.Start
+        horizontalAlignment = Alignment.Start,
     ) {
         Text(
             text = "Set up your first account",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
             text = "Choose a base currency and create the account you will use to track spending.",
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -55,36 +56,38 @@ fun SetupScreen(
         OutlinedTextField(
             value = state.currency,
             onValueChange = onCurrencyChanged,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Currency" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Currency" },
             label = { Text("Currency") },
-            singleLine = true
+            singleLine = true,
         )
 
         Spacer(modifier = Modifier.height(18.dp))
 
         Text(
             text = "Account type",
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleMedium,
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         ) {
             AccountType.entries.forEach { accountType ->
                 OutlinedButton(
                     onClick = { onAccountTypeChanged(accountType) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .selectable(
-                            selected = state.selectedType == accountType,
-                            onClick = { onAccountTypeChanged(accountType) }
-                        ),
-                    enabled = true
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .selectable(
+                                selected = state.selectedType == accountType,
+                                onClick = { onAccountTypeChanged(accountType) },
+                            ),
+                    enabled = true,
                 ) {
                     Text(accountType.label)
                 }
@@ -96,11 +99,12 @@ fun SetupScreen(
         OutlinedTextField(
             value = state.accountName,
             onValueChange = onAccountNameChanged,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Account name" },
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Account name" },
             label = { Text("Account name") },
-            singleLine = true
+            singleLine = true,
         )
 
         if (state.error != null) {
@@ -108,7 +112,7 @@ fun SetupScreen(
             Text(
                 text = state.error,
                 color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
 
@@ -116,9 +120,10 @@ fun SetupScreen(
 
         Button(
             onClick = onSubmit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Create account" }
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Create account" },
         ) {
             Text("Create account")
         }

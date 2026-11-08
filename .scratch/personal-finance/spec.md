@@ -8,7 +8,7 @@ A person needs a private, dependable way to track personal income and expenses, 
 
 ## Solution
 
-Build a native Android personal finance app for Android 10 and newer. The app stores one user's finance data locally, requires a user-created Account for every Transaction, allows users to create their own Categories and Tags, provides monthly Category Budgets, and presents an Overview of the current month. It also records Transfers between the user's Accounts and shows signed Account balances.
+Build a native Android personal finance app for Android 10 (API 29). Android 10 is the only required development and test environment; compatibility with newer Android versions is not a project requirement. The app stores one user's finance data locally, requires a user-created Account for every Transaction, allows users to create their own Categories and Tags, provides monthly Category Budgets, and presents an Overview of the current month. It also records Transfers between the user's Accounts and shows signed Account balances.
 
 The app supports manual versioned JSON Backup export and import through Android's document picker. Import offers validated Merge or Overwrite. The app does not provide continuous synchronization, bank connections, shared users, recurring rules, or Play Store publishing.
 
@@ -59,7 +59,7 @@ The app supports manual versioned JSON Backup export and import through Android'
 43. As a user, I want all records to have stable unique IDs, so that references and Backup operations remain reliable even when timestamps collide.
 44. As a user, I want the app to remain usable without network access, so that my finance data is available offline.
 45. As a user, I want a light interface with readable amounts and clear status colors, so that the app is easy to scan.
-46. As a user, I want to use the app on Android 10 and newer, so that the MVP supports my device.
+46. As a user, I want to use the app on Android 10 (API 29), so that the MVP supports my device.
 47. As a maintainer, I want the app to be distributed as a locally signed APK, so that it can be sideloaded without Play Store publishing.
 48. As a maintainer, I want signing credentials kept outside the repository, so that release secrets are not exposed.
 49. As a maintainer, I want financial rules tested through public behavior seams, so that refactoring implementation details does not erase confidence.
@@ -79,7 +79,7 @@ The app supports manual versioned JSON Backup export and import through Android'
 ## Implementation Decisions
 
 - The application is native Kotlin Android using Jetpack Compose and Material 3.
-- The minimum supported Android version is API 29 (Android 10). The compile and target SDK use the latest stable SDK available when implementation begins.
+- Android 10 (API 29) is the required development and test environment. The app uses `minSdk 29`; compatibility with newer Android versions is not a project requirement. The compile and target SDK use the latest stable SDK available when implementation begins.
 - The project uses one app module, Gradle Kotlin DSL, a version catalog, Kotlin/JVM 17, and stable AndroidX/Kotlin dependencies.
 - The application ID is `com.toshlol.finance`.
 - The app uses layered unidirectional data flow: Compose UI, state holders/ViewModels, application use cases, repositories, and local data sources.
@@ -125,7 +125,7 @@ The app supports manual versioned JSON Backup export and import through Android'
 - Backup import tests exercise the public module interface with Room's in-memory configuration and cover currency mismatches, Merge idempotency, whole-record timestamp conflicts, equal-timestamp divergence, non-propagating deletions, final-dataset conflicts, Overwrite, cancellation, and rollback after injected transaction failures.
 - Migration tests open representative data from prior schemas and verify preservation after migration.
 - Accessibility tests assert semantics, labels, actions, and important state. Manual TalkBack and Switch Access checks remain necessary.
-- CI runs JVM tests on every change and Android tests on Android 10 plus a current API emulator when available.
+- CI runs JVM tests on every change and Android tests on Android 10 (API 29). A newer API emulator is not required.
 - No arbitrary global coverage percentage is required. Every agreed financial rule and critical user journey must have explicit coverage.
 - Each locally signed release APK receives a manual smoke test covering launch, Account creation, Transaction entry, Budget display, export, import, and both import modes.
 

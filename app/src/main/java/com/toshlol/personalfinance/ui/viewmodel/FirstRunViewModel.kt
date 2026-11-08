@@ -16,14 +16,14 @@ data class FirstRunUiState(
     val selectedType: AccountType = AccountType.CASH,
     val error: String? = null,
     val hasAccount: Boolean = false,
-    val isLoaded: Boolean = false
+    val isLoaded: Boolean = false,
 ) {
     val isSetupComplete: Boolean
         get() = currency.isNotBlank() && hasAccount
 }
 
 class FirstRunViewModel(
-    private val repository: AccountRepository
+    private val repository: AccountRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FirstRunUiState())
     val uiState: StateFlow<FirstRunUiState> = _uiState.asStateFlow()
@@ -32,11 +32,12 @@ class FirstRunViewModel(
         viewModelScope.launch {
             val savedCurrency = repository.loadCurrency() ?: ""
             val hasAccount = repository.hasAccount()
-            _uiState.value = FirstRunUiState(
-                currency = savedCurrency,
-                hasAccount = hasAccount,
-                isLoaded = true
-            )
+            _uiState.value =
+                FirstRunUiState(
+                    currency = savedCurrency,
+                    hasAccount = hasAccount,
+                    isLoaded = true,
+                )
         }
     }
 
@@ -54,11 +55,12 @@ class FirstRunViewModel(
 
     fun submit() {
         val currentState = _uiState.value
-        val validation = AccountSetupValidator.validate(
-            currency = currentState.currency,
-            accountName = currentState.accountName,
-            selectedType = currentState.selectedType
-        )
+        val validation =
+            AccountSetupValidator.validate(
+                currency = currentState.currency,
+                accountName = currentState.accountName,
+                selectedType = currentState.selectedType,
+            )
 
         if (!validation.isValid) {
             _uiState.value = currentState.copy(error = validation.errorMessage)
@@ -68,14 +70,15 @@ class FirstRunViewModel(
         viewModelScope.launch {
             repository.saveCurrency(validation.currency)
             repository.createAccount(validation.accountName, validation.selectedType)
-            _uiState.value = currentState.copy(
-                currency = validation.currency,
-                accountName = validation.accountName,
-                selectedType = validation.selectedType,
-                error = null,
-                hasAccount = true,
-                isLoaded = true
-            )
+            _uiState.value =
+                currentState.copy(
+                    currency = validation.currency,
+                    accountName = validation.accountName,
+                    selectedType = validation.selectedType,
+                    error = null,
+                    hasAccount = true,
+                    isLoaded = true,
+                )
         }
     }
 }

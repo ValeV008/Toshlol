@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "personal_finance_prefs")
 
-class AppPreferences(private val context: Context) {
+class AppPreferences(
+    private val context: Context,
+) {
     private val currencyKey = stringPreferencesKey("selected_currency")
     private val setupCompleteKey = booleanPreferencesKey("setup_complete")
 
@@ -26,7 +28,10 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    suspend fun getCurrency(): String? = context.dataStore.data.map { it[currencyKey] }.firstOrNull()
+    suspend fun getCurrency(): String? =
+        context.dataStore.data
+            .map { it[currencyKey] }
+            .firstOrNull()
 
     suspend fun markSetupComplete() {
         context.dataStore.edit { preferences ->
@@ -34,7 +39,8 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    fun hasCompletedSetup(): Flow<Boolean> = context.dataStore.data.map { preferences ->
-        preferences[setupCompleteKey] ?: false
-    }
+    fun hasCompletedSetup(): Flow<Boolean> =
+        context.dataStore.data.map { preferences ->
+            preferences[setupCompleteKey] ?: false
+        }
 }

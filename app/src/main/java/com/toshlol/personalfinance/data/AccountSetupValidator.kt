@@ -5,24 +5,34 @@ data class AccountSetupValidationResult(
     val currency: String = "",
     val accountName: String = "",
     val selectedType: AccountType = AccountType.CASH,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 )
 
 object AccountSetupValidator {
-    private val supportedCurrencies = setOf(
-        "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "SEK", "NOK", "DKK"
-    )
+    private val supportedCurrencies =
+        setOf(
+            "USD",
+            "EUR",
+            "GBP",
+            "JPY",
+            "CAD",
+            "AUD",
+            "CHF",
+            "SEK",
+            "NOK",
+            "DKK",
+        )
 
     fun validate(
         currency: String,
         accountName: String,
-        selectedType: AccountType?
+        selectedType: AccountType?,
     ): AccountSetupValidationResult {
         val trimmedCurrency = currency.trim().uppercase()
         if (trimmedCurrency.isEmpty() || trimmedCurrency.length != 3 || !supportedCurrencies.contains(trimmedCurrency)) {
             return AccountSetupValidationResult(
                 isValid = false,
-                errorMessage = "Pick a supported currency before continuing."
+                errorMessage = "Pick a supported currency before continuing.",
             )
         }
 
@@ -30,14 +40,14 @@ object AccountSetupValidator {
         if (trimmedName.isEmpty()) {
             return AccountSetupValidationResult(
                 isValid = false,
-                errorMessage = "Enter an account name."
+                errorMessage = "Enter an account name.",
             )
         }
 
         if (selectedType == null) {
             return AccountSetupValidationResult(
                 isValid = false,
-                errorMessage = "Choose an account type."
+                errorMessage = "Choose an account type.",
             )
         }
 
@@ -45,7 +55,7 @@ object AccountSetupValidator {
             isValid = true,
             currency = trimmedCurrency,
             accountName = trimmedName,
-            selectedType = selectedType
+            selectedType = selectedType,
         )
     }
 }

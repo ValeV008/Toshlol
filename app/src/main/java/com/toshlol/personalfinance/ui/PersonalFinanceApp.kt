@@ -10,7 +10,7 @@ fun PersonalFinanceApp(
     onCurrencyChanged: (String) -> Unit,
     onAccountNameChanged: (String) -> Unit,
     onAccountTypeChanged: (AccountType) -> Unit,
-    onSubmit: () -> Unit
+    onSubmit: () -> Unit,
 ) {
     if (uiState.isSetupComplete) {
         OverviewScreen(currency = uiState.currency)
@@ -20,7 +20,7 @@ fun PersonalFinanceApp(
             onCurrencyChanged = onCurrencyChanged,
             onAccountNameChanged = onAccountNameChanged,
             onAccountTypeChanged = onAccountTypeChanged,
-            onSubmit = onSubmit
+            onSubmit = onSubmit,
         )
     }
 }

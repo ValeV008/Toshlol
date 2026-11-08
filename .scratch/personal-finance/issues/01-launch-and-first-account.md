@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] The project builds as a native Android app for Android 10 and newer with the agreed Compose, Room, DataStore, and test foundation.
+- [ ] The project builds as a native Android app for Android 10 (API 29) with the agreed Compose, Room, DataStore, and test foundation.
 - [ ] The app uses the light theme and starts without network permission or seeded Accounts and Categories.
 - [ ] First-run setup requires a currency and a valid user-created Account with a supported type.
 - [ ] The Account and currency persist across relaunch.

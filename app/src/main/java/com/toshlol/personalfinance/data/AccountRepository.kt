@@ -4,22 +4,24 @@ import kotlinx.coroutines.flow.Flow
 
 class AccountRepository(
     private val database: AppDatabase,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
 ) {
     suspend fun saveCurrency(currency: String) {
         appPreferences.saveCurrency(currency)
     }
 
-    suspend fun loadCurrency(): String? {
-        return appPreferences.getCurrency()
-    }
+    suspend fun loadCurrency(): String? = appPreferences.getCurrency()
 
-    suspend fun createAccount(name: String, type: AccountType): Long {
+    suspend fun createAccount(
+        name: String,
+        type: AccountType,
+    ): Long {
         val trimmedName = name.trim()
-        val created = AccountEntity(
-            name = trimmedName,
-            type = type.name
-        )
+        val created =
+            AccountEntity(
+                name = trimmedName,
+                type = type.name,
+            )
         return database.accountDao().insert(created)
     }
 

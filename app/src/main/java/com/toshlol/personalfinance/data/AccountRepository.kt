@@ -1,31 +1,23 @@
 package com.toshlol.personalfinance.data
 
-import kotlinx.coroutines.flow.Flow
+data class Account(
+    val id: String,
+    val name: String,
+    val type: AccountType,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
 
-class AccountRepository(
-    private val database: AppDatabase,
-    private val appPreferences: AppPreferences,
+data class FirstRunSnapshot(
+    val currency: String = "",
+    val accounts: List<Account> = emptyList(),
 ) {
-    suspend fun saveCurrency(currency: String) {
-        appPreferences.saveCurrency(currency)
-    }
+    val isSetupComplete: Boolean
+        get() = currency.isNotBlank() && accounts.isNotEmpty()
+}
 
-    suspend fun loadCurrency(): String? = appPreferences.getCurrency()
+interface AccountRepository {
+    suspend fun loadSetup(): FirstRunSnapshot
 
-    suspend fun createAccount(
-        name: String,
-        type: AccountType,
-    ): Long {
-        val trimmedName = name.trim()
-        val created =
-            AccountEntity(
-                name = trimmedName,
-                type = type.name,
-            )
-        return database.accountDao().insert(created)
-    }
-
-    suspend fun hasAccount(): Boolean = database.accountDao().countAccounts() > 0
-
-    fun observeAccounts(): Flow<List<AccountEntity>> = database.accountDao().observeAccounts()
+    suspend fun createFirstAccount(setup: AccountSetupValidationResult): FirstRunSnapshot
 }

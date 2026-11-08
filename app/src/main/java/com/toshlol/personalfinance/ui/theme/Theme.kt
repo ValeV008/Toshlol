@@ -1,36 +1,26 @@
 package com.toshlol.personalfinance.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val ToshlolLightColors =
+private val ToshlolLightColors: ColorScheme =
     lightColorScheme(
         primary = Color(0xFF0F766E),
-        secondary = Color(0xFF14B8A6),
-        tertiary = Color(0xFFEEF2FF),
+        secondary = Color(0xFF0F766E),
         background = Color(0xFFF8FAFC),
-        surface = Color(0xFFFFFFFF),
+        surface = Color.White,
         onPrimary = Color.White,
         onSecondary = Color.White,
         onBackground = Color(0xFF0F172A),
         onSurface = Color(0xFF0F172A),
     )
-
-private val ToshlolTypography = Typography()
+private val ToshlolTypography: Typography = Typography()
 
 @Composable
-fun ToshlolTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
-    val colors = if (darkTheme) ToshlolLightColors else ToshlolLightColors
-    MaterialTheme(
-        colorScheme = colors,
-        typography = ToshlolTypography,
-        content = content,
-    )
+fun ToshlolTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = ToshlolLightColors, typography = ToshlolTypography, content = content)
 }

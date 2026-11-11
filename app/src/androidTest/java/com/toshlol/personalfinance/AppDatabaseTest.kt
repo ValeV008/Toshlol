@@ -9,6 +9,9 @@ import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.FirstRunSnapshot
 import com.toshlol.personalfinance.data.RoomAccountRepository
+import com.toshlol.personalfinance.data.RoomTransactionRepository
+import com.toshlol.personalfinance.data.TransactionDirection
+import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.domain.FirstRunSetup
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -25,6 +28,38 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun persistTransactionAndPreserveIdentityAndCreationTimeWhenEdited(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val account: com.toshlol.personalfinance.data.Account =
+                    FirstRunSetup(RoomAccountRepository(database, { "account-id" }, { 100L }))
+                        .createFirstAccount("EUR", "Cash", AccountType.CASH)
+                        .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
+                val repository: RoomTransactionRepository = RoomTransactionRepository(database, { "transaction-id" }, { 200L })
+                val initial: List<com.toshlol.personalfinance.data.FinanceTransaction> =
+                    repository.save(
+                        TransactionDraft(account.id, account.id, 1250, TransactionDirection.EXPENSE, 20600, "Lunch"),
+                    )
+                val edited: List<com.toshlol.personalfinance.data.FinanceTransaction> =
+                    repository.save(
+                        TransactionDraft("transaction-id", account.id, 1500, TransactionDirection.EXPENSE, 20601, null),
+                    )
+                assertEquals(1, initial.size)
+                assertEquals(1, edited.size)
+                assertEquals("transaction-id", edited.single().id)
+                assertEquals(200L, edited.single().createdAt)
+                assertEquals(200L, edited.single().updatedAt)
+                assertEquals(1500L, edited.single().amountMinor)
+                assertEquals(TransactionDirection.EXPENSE, edited.single().direction)
+                assertEquals(20601L, edited.single().date)
+                assertEquals(null, edited.single().note)
+            } finally {
+                database.close()
+            }
+        }
 
     @Test
     fun loadFreshDatabaseWithoutSeededAccountsOrCurrency(): Unit =
@@ -225,5 +260,6 @@ class AppDatabaseTest {
         Room
             .databaseBuilder(context, AppDatabase::class.java, name)
             .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_2_3)
             .build()
 }

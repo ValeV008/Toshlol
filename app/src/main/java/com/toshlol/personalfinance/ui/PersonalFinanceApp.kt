@@ -16,7 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.AccountType
+import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
+import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
 @Composable
 fun PersonalFinanceApp(
@@ -26,11 +29,37 @@ fun PersonalFinanceApp(
     onAccountTypeChanged: (AccountType) -> Unit,
     onSubmit: () -> Unit,
     onRetry: () -> Unit = {},
+    transactionsState: TransactionsUiState = TransactionsUiState(),
+    onCreateTransaction: (TransactionDirection) -> Unit = {},
+    onEditTransaction: (FinanceTransaction) -> Unit = {},
+    onDeleteTransaction: (String) -> Unit = {},
+    onCancelDelete: () -> Unit = {},
+    onConfirmDelete: () -> Unit = {},
+    onAmountChanged: (String) -> Unit = {},
+    onDateChanged: (String) -> Unit = {},
+    onNoteChanged: (String) -> Unit = {},
+    onDirectionChanged: (TransactionDirection) -> Unit = {},
+    onSaveTransaction: () -> Unit = {},
+    onCloseTransactionForm: () -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         when {
             !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, onRetry)
-            uiState.isSetupComplete -> OverviewScreen(currency = uiState.currency)
+            uiState.isSetupComplete ->
+                OverviewScreen(
+                    transactionsState.copy(currency = uiState.currency),
+                    onCreateTransaction,
+                    onEditTransaction,
+                    onDeleteTransaction,
+                    onCancelDelete,
+                    onConfirmDelete,
+                    onAmountChanged,
+                    onDateChanged,
+                    onNoteChanged,
+                    onDirectionChanged,
+                    onSaveTransaction,
+                    onCloseTransactionForm,
+                )
             else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
         }
     }

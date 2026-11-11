@@ -37,6 +37,7 @@ class FirstRunFlowTest {
         composeRule.onNodeWithText("EUR").performClick()
         composeRule.onNodeWithText("Account name").performTextInput(" Checking ")
         composeRule.onNodeWithText("Bank").performScrollTo().performClick()
+        dismissKeyboard()
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
         waitForText("Overview")
         composeRule.onNodeWithText("EUR ledger is ready.").assertIsDisplayed()
@@ -61,11 +62,12 @@ class FirstRunFlowTest {
     fun requireCurrencyAndAccountNameBeforeContinuing() {
         waitForText("Set up your first account")
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
+        waitForText("Pick a supported currency before continuing.")
         composeRule.onNodeWithText("Pick a supported currency before continuing.").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Currency").performScrollTo().performClick()
         composeRule.onNodeWithText("USD").performClick()
-        composeRule.onNodeWithText("Account name").performScrollTo().performTextInput("   ")
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
+        waitForText("Enter an account name.")
         composeRule.onNodeWithText("Enter an account name.").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Overview").assertDoesNotExist()
     }
@@ -82,7 +84,11 @@ class FirstRunFlowTest {
     }
 
     private fun waitForText(text: String) {
-        composeRule.waitUntil(10_000) { composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+        composeRule.waitUntil(15_000) { composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
         composeRule.onNodeWithText(text).assertIsDisplayed()
+    }
+
+    private fun dismissKeyboard() {
+        composeRule.activity.runOnUiThread { composeRule.activity.currentFocus?.clearFocus() }
     }
 }

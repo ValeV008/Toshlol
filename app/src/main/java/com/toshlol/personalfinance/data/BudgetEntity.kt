@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.time.YearMonth
 
 @Entity(
     tableName = "budgets",
@@ -31,7 +32,7 @@ data class CategoryBudget(
     val categoryId: String,
     val categoryName: String,
     val isCategoryArchived: Boolean,
-    val month: String,
+    val month: YearMonth,
     val limitMinor: Long,
     val spentMinor: Long,
 ) {
@@ -41,6 +42,6 @@ data class CategoryBudget(
 
 data class BudgetDraft(
     val categoryId: String,
-    val month: String,
+    val month: YearMonth,
     val amountMinor: Long,
 )

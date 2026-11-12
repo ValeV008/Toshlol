@@ -151,6 +151,7 @@ class TransactionFlowTest {
         composeRule.onNodeWithText("Budgets").performClick()
         waitForText("Budgets")
         composeRule.onNodeWithText("Food").performClick()
+        composeRule.waitUntil(15_000) { transactionsViewModelState().budgetCategoryId != null }
         composeRule.onNodeWithText("Budget amount").performScrollTo().performTextInput("10.00")
         dismissKeyboard()
         composeRule.onNodeWithText("Save budget").performScrollTo().performClick()
@@ -161,6 +162,8 @@ class TransactionFlowTest {
         )
         waitForText("Spent  EUR 12.50")
         composeRule.onNodeWithText("Over budget  EUR 2.50").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Back to overview").performClick()
+        waitForText("Budget progress")
     }
 
     private fun waitForText(text: String) {

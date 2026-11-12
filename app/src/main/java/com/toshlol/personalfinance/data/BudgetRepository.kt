@@ -41,19 +41,13 @@ class RoomBudgetRepository(
 
     override suspend fun save(draft: BudgetDraft): List<CategoryBudget> {
         require(draft.amountMinor > 0) { "Enter a positive budget amount." }
-        val month: YearMonth =
-            runCatching {
-                YearMonth.parse(
-                    draft.month,
-                )
-            }.getOrElse { throw IllegalArgumentException("Choose a valid month.") }
+        val monthKey: String = draft.month.toString()
         return executeStorageOperation {
             database.withTransaction {
                 val category: CategoryEntity? = database.categoryTagDao().loadCategory(draft.categoryId)
                 require(category != null && category.direction == TransactionDirection.EXPENSE.name && !category.archived) {
                     "Choose an active expense category."
                 }
-                val monthKey: String = month.toString()
                 val existing: BudgetEntity? = database.budgetDao().load(draft.categoryId, monthKey)
                 val timestamp: Long = currentTime()
                 database.budgetDao().save(
@@ -87,7 +81,7 @@ class RoomBudgetRepository(
                     .filter { it.categoryId == budget.categoryId }
                     .filter { YearMonth.from(java.time.LocalDate.ofEpochDay(it.date)) == month }
                     .sumOf(TransactionEntity::amountMinor)
-            CategoryBudget(budget.id, category.id, category.name, category.archived, budget.month, budget.amountMinor, spent)
+            CategoryBudget(budget.id, category.id, category.name, category.archived, month, budget.amountMinor, spent)
         }
     }
 

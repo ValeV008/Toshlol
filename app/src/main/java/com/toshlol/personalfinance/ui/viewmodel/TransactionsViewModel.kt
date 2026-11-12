@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.Currency
 
 data class TransactionsUiState(
@@ -261,13 +262,14 @@ class TransactionsViewModel(
                 ?.movePointRight(
                     fractionDigits(state.currency),
                 )?.longValueExactOrNull()
-        if (amountMinor == null || amountMinor <= 0 || runCatching { java.time.YearMonth.parse(state.budgetMonth) }.isFailure) {
+        val budgetMonth: YearMonth? = runCatching { YearMonth.parse(state.budgetMonth) }.getOrNull()
+        if (amountMinor == null || amountMinor <= 0 || budgetMonth == null) {
             mutableUiState.value = state.copy(error = "Enter a positive amount and a valid month.")
             return
         }
         viewModelScope.launch {
             try {
-                val budgets: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, state.budgetMonth, amountMinor))
+                val budgets: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, budgetMonth, amountMinor))
                 mutableUiState.value = uiState.value.copy(budgets = budgets, budgetAmount = "", budgetCategoryId = null, error = null)
             } catch (exception: Exception) {
                 mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not save budget.")

@@ -27,12 +27,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.Currency
 
 @Composable
@@ -65,6 +67,8 @@ fun OverviewScreen(
         }
     val income: Long = currentMonth.filter { it.direction == TransactionDirection.INCOME }.sumOf { it.amountMinor }
     val expense: Long = currentMonth.filter { it.direction == TransactionDirection.EXPENSE }.sumOf { it.amountMinor }
+    val currentBudgetMonth: YearMonth = YearMonth.now()
+    val currentBudgets: List<CategoryBudget> = state.budgets.filter { it.month == currentBudgetMonth }
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Overview", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Text("${state.currency} ledger is ready.", style = MaterialTheme.typography.bodyLarge)
@@ -79,6 +83,20 @@ fun OverviewScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onCreate(TransactionDirection.INCOME) }) { Text("Add income") }
             Button(onClick = { onCreate(TransactionDirection.EXPENSE) }) { Text("Add expense") }
+        }
+        if (currentBudgets.isNotEmpty()) {
+            Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            currentBudgets.forEach { budget: CategoryBudget ->
+                Text(
+                    "${budget.categoryName} · ${state.currency} ${formatMoney(
+                        budget.spentMinor,
+                        state.currency,
+                    )} / ${formatMoney(
+                        budget.limitMinor,
+                        state.currency,
+                    )} · ${if (budget.isOverBudget) "Over budget" else "Remaining ${formatMoney(budget.remainingMinor, state.currency)}"}",
+                )
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onOpenOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
@@ -197,7 +215,7 @@ fun OverviewScreen(
     }
 }
 
-private fun formatMoney(
+internal fun formatMoney(
     amountMinor: Long,
     currency: String,
 ): String {

@@ -16,6 +16,6 @@
 
 ## Answer
 
-Implemented monthly Category Budgets with precise minor-unit values, Room persistence and a database version 4 to 5 migration, monthly Expense-only calculations, duplicate prevention, archived Category history, and a dedicated Budgets screen linked from Overview. Added Room behavior coverage and a Compose journey for creating a Budget and viewing over-budget progress.
+Implemented monthly Category Budgets with precise minor-unit values, Room persistence and a database version 4 to 5 migration, monthly Expense-only calculations, duplicate prevention, archived Category history, and a dedicated Budgets screen linked from Overview. Current-month Budget progress also appears on Overview. Added Room behavior coverage and a Compose journey for creating a Budget and viewing over-budget progress.
 
-Verification: unit tests, lint, the focused Budget repository and Compose tests passed. The focused Budget repository and Compose tests pass on the Android 10 emulator. The full Android 10 suite has intermittent Compose interaction failures in TransactionFlowTest, including setup assertions; they are recorded in the test output.
+Verification: unit tests and lint passed. Focused Budget repository and Compose tests passed on the Android 10 emulator. The full Android 10 suite has intermittent Compose interaction failures in TransactionFlowTest, including setup assertions; they are recorded in the test output.

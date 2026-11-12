@@ -5,10 +5,13 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.BudgetDraft
+import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.CategoryDraft
+import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FirstRunSnapshot
 import com.toshlol.personalfinance.data.RoomAccountRepository
 import com.toshlol.personalfinance.data.RoomBudgetRepository
@@ -39,13 +42,14 @@ class AppDatabaseTest {
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
             try {
-                val account =
+                val account: Account =
                     FirstRunSetup(RoomAccountRepository(database, { "budget-account" }, { 100L }))
                         .createFirstAccount("EUR", "Cash", AccountType.CASH)
                         .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
                 var categoryIndex: Int = 0
-                val categoryRepository = RoomCategoryTagRepository(database, { "budget-category-${++categoryIndex}" }, { 200L })
-                val categoryId =
+                val categoryRepository: RoomCategoryTagRepository =
+                    RoomCategoryTagRepository(database, { "budget-category-${++categoryIndex}" }, { 200L })
+                val categoryId: String =
                     categoryRepository
                         .saveCategory(
                             CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE),
@@ -54,7 +58,7 @@ class AppDatabaseTest {
                             it.name ==
                                 "Food"
                         }.id
-                val incomeCategoryId =
+                val incomeCategoryId: String =
                     categoryRepository
                         .saveCategory(
                             CategoryDraft(name = "Pay", direction = TransactionDirection.INCOME),
@@ -64,7 +68,8 @@ class AppDatabaseTest {
                                 "Pay"
                         }.id
                 var transactionIndex: Int = 0
-                val transactionRepository = RoomTransactionRepository(database, { "budget-transaction-${++transactionIndex}" }, { 300L })
+                val transactionRepository: RoomTransactionRepository =
+                    RoomTransactionRepository(database, { "budget-transaction-${++transactionIndex}" }, { 300L })
                 transactionRepository.save(
                     TransactionDraft(
                         account.id,
@@ -104,7 +109,8 @@ class AppDatabaseTest {
                         categoryId,
                     ),
                 )
-                val savedExpenses = transactionRepository.loadTransactions().filter { it.direction == TransactionDirection.EXPENSE }
+                val savedExpenses: List<FinanceTransaction> =
+                    transactionRepository.loadTransactions().filter { it.direction == TransactionDirection.EXPENSE }
                 assertEquals(categoryId, savedExpenses.first().categoryId)
                 assertTrue(
                     "Unexpected expense transactions: $savedExpenses",
@@ -115,13 +121,13 @@ class AppDatabaseTest {
                                 .toString() == "2026-01"
                     },
                 )
-                val budgetRepository = RoomBudgetRepository(database, { "budget-id" }, { 400L })
-                var actual = budgetRepository.save(BudgetDraft(categoryId, "2026-01", 1000))
+                val budgetRepository: RoomBudgetRepository = RoomBudgetRepository(database, { "budget-id" }, { 400L })
+                var actual: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, java.time.YearMonth.of(2026, 1), 1000))
                 assertEquals(1, actual.size)
                 assertEquals(1200L, actual.single().spentMinor)
                 assertEquals(-200L, actual.single().remainingMinor)
                 assertTrue(actual.single().isOverBudget)
-                actual = budgetRepository.save(BudgetDraft(categoryId, "2026-01", 1500))
+                actual = budgetRepository.save(BudgetDraft(categoryId, java.time.YearMonth.of(2026, 1), 1500))
                 assertEquals(1, actual.size)
                 assertEquals(1500L, actual.single().limitMinor)
                 assertEquals(1200L, actual.single().spentMinor)
@@ -129,7 +135,7 @@ class AppDatabaseTest {
                 actual = budgetRepository.load()
                 assertTrue(actual.single().isCategoryArchived)
                 try {
-                    budgetRepository.save(BudgetDraft(categoryId, "2026-02", 1000))
+                    budgetRepository.save(BudgetDraft(categoryId, java.time.YearMonth.of(2026, 2), 1000))
                     fail("Expected archived categories to reject new budgets")
                 } catch (expectedException: IllegalArgumentException) {
                     assertTrue(expectedException.message!!.contains("active expense category"))

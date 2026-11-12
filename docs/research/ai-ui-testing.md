@@ -92,17 +92,28 @@ $env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:PATH = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:PATH"
 ```
 
-From the repository root, unit tests can run with `test<Variant>UnitTest`; connected instrumented tests can run with `connected<Variant>AndroidTest`. Gradle emits HTML and XML reports suitable for CI artifacts.
+From the repository root, unit tests can run with `test<Variant>UnitTest`; connected instrumented tests can run with `connected<Variant>AndroidTest`. Gradle emits HTML and XML reports suitable for CI artifacts. Run the fast unit, lint, and formatting checks before the slower connected emulator tests.
 
-Use non-interactive, plain-console execution so an agent can parse the result:
+Use plain-console execution so an agent can parse the result:
 
 ```powershell
-.\gradlew.bat testDebugUnitTest --non-interactive --console=plain
-.\gradlew.bat lintDebug --non-interactive --console=plain
-.\gradlew.bat connectedDebugAndroidTest --non-interactive --console=plain
+.\gradlew.bat testDebugUnitTest --console=plain
+.\gradlew.bat lintDebug --console=plain
+.\gradlew.bat ktlintCheck --console=plain
+.\gradlew.bat connectedDebugAndroidTest --console=plain
 ```
 
 Target an individual test when diagnosing a failure with Gradle's `--tests` option.
+
+### Local Git hooks
+
+The repository includes local hooks and does not require a Git hosting service. Enable them once in each clone from PowerShell:
+
+```powershell
+.\scripts\install_git_hooks.ps1
+```
+
+The pre-commit hook runs unit tests, lint, and ktlint. The pre-push hook runs connected Android tests, so make an Android 10 (API 29) emulator available before pushing.
 
 Sources:
 

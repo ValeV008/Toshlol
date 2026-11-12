@@ -131,6 +131,38 @@ class TransactionFlowTest {
         composeRule.onNodeWithText("Wallet", substring = true).performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun createBudgetAndSeeExpenseProgressInBudgetsScreen() {
+        waitForText("Overview")
+        composeRule.onNodeWithText("Organize categories and tags").performClick()
+        waitForText("Categories and tags")
+        composeRule.onNodeWithText("Category name").performTextInput("Food")
+        composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Add category"))
+        composeRule.onNodeWithText("Add category").performClick()
+        composeRule.waitUntil(15_000) { transactionsViewModelState().categories.any { it.name == "Food" } }
+        composeRule.onNodeWithText("Back to overview").performClick()
+        composeRule.onNodeWithText("Add expense").performClick()
+        composeRule.onNodeWithText("Amount").performTextInput("12.50")
+        composeRule.onNodeWithText("Category (optional)").performScrollTo()
+        composeRule.onNodeWithText("Food").performClick()
+        composeRule.onNodeWithText("Save").performClick()
+        waitForText("Expense · EUR 12.50")
+        dismissKeyboard()
+        composeRule.onNodeWithText("Budgets").performClick()
+        waitForText("Budgets")
+        composeRule.onNodeWithText("Food").performClick()
+        composeRule.onNodeWithText("Budget amount").performScrollTo().performTextInput("10.00")
+        dismissKeyboard()
+        composeRule.onNodeWithText("Save budget").performScrollTo().performClick()
+        composeRule.waitUntil(15_000) { transactionsViewModelState().budgets.isNotEmpty() || transactionsViewModelState().error != null }
+        assertTrue(
+            "Budget save state was ${transactionsViewModelState().error}; category was ${transactionsViewModelState().budgetCategoryId}.",
+            transactionsViewModelState().budgets.isNotEmpty(),
+        )
+        waitForText("Spent  EUR 12.50")
+        composeRule.onNodeWithText("Over budget  EUR 2.50").performScrollTo().assertIsDisplayed()
+    }
+
     private fun waitForText(text: String) {
         composeRule.waitUntil(15_000) { composeRule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
     }

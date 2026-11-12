@@ -16,8 +16,9 @@ import java.util.UUID
         CategoryEntity::class,
         TagEntity::class,
         TransactionTagCrossRef::class,
+        BudgetEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +29,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
 
     abstract fun categoryTagDao(): CategoryTagDao
+
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         @Volatile
@@ -86,6 +89,16 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_4_5: Migration =
+            object : Migration(4, 5) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE budgets (id TEXT NOT NULL PRIMARY KEY, categoryId TEXT NOT NULL, month TEXT NOT NULL, amountMinor INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, FOREIGN KEY(categoryId) REFERENCES categories(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE UNIQUE INDEX index_budgets_categoryId_month ON budgets(categoryId, month)")
+                }
+            }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room
@@ -93,6 +106,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(MIGRATION_1_2)
                     .addMigrations(MIGRATION_2_3)
                     .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_4_5)
                     .build()
                     .also { instance = it }
             }

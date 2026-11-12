@@ -7,9 +7,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.FirstRunSnapshot
 import com.toshlol.personalfinance.data.RoomAccountRepository
+import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomCategoryTagRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
 import com.toshlol.personalfinance.data.TagDraft
@@ -31,6 +33,111 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun calculateMonthlyBudgetFromExpenseTransactionsAndKeepArchivedHistory(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val account =
+                    FirstRunSetup(RoomAccountRepository(database, { "budget-account" }, { 100L }))
+                        .createFirstAccount("EUR", "Cash", AccountType.CASH)
+                        .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
+                var categoryIndex: Int = 0
+                val categoryRepository = RoomCategoryTagRepository(database, { "budget-category-${++categoryIndex}" }, { 200L })
+                val categoryId =
+                    categoryRepository
+                        .saveCategory(
+                            CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE),
+                        ).categories
+                        .single {
+                            it.name ==
+                                "Food"
+                        }.id
+                val incomeCategoryId =
+                    categoryRepository
+                        .saveCategory(
+                            CategoryDraft(name = "Pay", direction = TransactionDirection.INCOME),
+                        ).categories
+                        .single {
+                            it.name ==
+                                "Pay"
+                        }.id
+                var transactionIndex: Int = 0
+                val transactionRepository = RoomTransactionRepository(database, { "budget-transaction-${++transactionIndex}" }, { 300L })
+                transactionRepository.save(
+                    TransactionDraft(
+                        account.id,
+                        account.id,
+                        1200,
+                        TransactionDirection.EXPENSE,
+                        java.time.LocalDate
+                            .parse("2026-01-31")
+                            .toEpochDay(),
+                        null,
+                        categoryId,
+                    ),
+                )
+                transactionRepository.save(
+                    TransactionDraft(
+                        "income-id",
+                        account.id,
+                        8000,
+                        TransactionDirection.INCOME,
+                        java.time.LocalDate
+                            .parse("2026-01-31")
+                            .toEpochDay(),
+                        null,
+                        incomeCategoryId,
+                    ),
+                )
+                transactionRepository.save(
+                    TransactionDraft(
+                        "feb-id",
+                        account.id,
+                        500,
+                        TransactionDirection.EXPENSE,
+                        java.time.LocalDate
+                            .parse("2026-02-01")
+                            .toEpochDay(),
+                        null,
+                        categoryId,
+                    ),
+                )
+                val savedExpenses = transactionRepository.loadTransactions().filter { it.direction == TransactionDirection.EXPENSE }
+                assertEquals(categoryId, savedExpenses.first().categoryId)
+                assertTrue(
+                    "Unexpected expense transactions: $savedExpenses",
+                    savedExpenses.any {
+                        it.amountMinor == 1200L &&
+                            java.time.YearMonth
+                                .from(java.time.LocalDate.ofEpochDay(it.date))
+                                .toString() == "2026-01"
+                    },
+                )
+                val budgetRepository = RoomBudgetRepository(database, { "budget-id" }, { 400L })
+                var actual = budgetRepository.save(BudgetDraft(categoryId, "2026-01", 1000))
+                assertEquals(1, actual.size)
+                assertEquals(1200L, actual.single().spentMinor)
+                assertEquals(-200L, actual.single().remainingMinor)
+                assertTrue(actual.single().isOverBudget)
+                actual = budgetRepository.save(BudgetDraft(categoryId, "2026-01", 1500))
+                assertEquals(1, actual.size)
+                assertEquals(1500L, actual.single().limitMinor)
+                assertEquals(1200L, actual.single().spentMinor)
+                categoryRepository.archiveCategory(categoryId)
+                actual = budgetRepository.load()
+                assertTrue(actual.single().isCategoryArchived)
+                try {
+                    budgetRepository.save(BudgetDraft(categoryId, "2026-02", 1000))
+                    fail("Expected archived categories to reject new budgets")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("active expense category"))
+                }
+            } finally {
+                database.close()
+            }
+        }
 
     @Test
     fun persistTransactionAndPreserveIdentityAndCreationTimeWhenEdited(): Unit =
@@ -426,5 +533,6 @@ class AppDatabaseTest {
             .addMigrations(AppDatabase.MIGRATION_1_2)
             .addMigrations(AppDatabase.MIGRATION_2_3)
             .addMigrations(AppDatabase.MIGRATION_3_4)
+            .addMigrations(AppDatabase.MIGRATION_4_5)
             .build()
 }

@@ -59,6 +59,12 @@ fun PersonalFinanceApp(
     onSaveTag: () -> Unit = {},
     onEditTag: (FinanceTag) -> Unit = {},
     onArchiveTag: (String) -> Unit = {},
+    onOpenBudgets: () -> Unit = {},
+    onCloseBudgets: () -> Unit = {},
+    onBudgetMonthChanged: (String) -> Unit = {},
+    onBudgetCategoryChanged: (String?) -> Unit = {},
+    onBudgetAmountChanged: (String) -> Unit = {},
+    onSaveBudget: () -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         when {
@@ -81,6 +87,15 @@ fun PersonalFinanceApp(
                     onOrganizerAccountNameChanged,
                     onSaveAccountName,
                 )
+            uiState.isSetupComplete && transactionsState.isBudgetsVisible ->
+                BudgetsScreen(
+                    transactionsState.copy(currency = uiState.currency),
+                    onCloseBudgets,
+                    onBudgetMonthChanged,
+                    onBudgetCategoryChanged,
+                    onBudgetAmountChanged,
+                    onSaveBudget,
+                )
             uiState.isSetupComplete ->
                 OverviewScreen(
                     transactionsState.copy(currency = uiState.currency),
@@ -98,6 +113,7 @@ fun PersonalFinanceApp(
                     onOpenOrganizer,
                     onCategoryChanged,
                     onTagToggled,
+                    onOpenBudgets,
                 )
             else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
         }

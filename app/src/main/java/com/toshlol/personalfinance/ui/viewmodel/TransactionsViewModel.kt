@@ -2,6 +2,9 @@ package com.toshlol.personalfinance.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.toshlol.personalfinance.data.BudgetDraft
+import com.toshlol.personalfinance.data.BudgetRepository
+import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.CategoryTagRepository
 import com.toshlol.personalfinance.data.FinanceCategory
@@ -45,6 +48,14 @@ data class TransactionsUiState(
     val tagName: String = "",
     val tagCategoryId: String? = null,
     val editingTagId: String? = null,
+    val isBudgetsVisible: Boolean = false,
+    val budgets: List<CategoryBudget> = emptyList(),
+    val budgetMonth: String =
+        java.time.YearMonth
+            .now()
+            .toString(),
+    val budgetCategoryId: String? = null,
+    val budgetAmount: String = "",
 )
 
 class TransactionsViewModel(
@@ -53,6 +64,7 @@ class TransactionsViewModel(
     private val renameAccount: suspend (String, String) -> Pair<String, String>,
     private val loadCurrency: suspend () -> String,
     private val categoryTagRepository: CategoryTagRepository,
+    private val budgetRepository: BudgetRepository,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
@@ -64,6 +76,7 @@ class TransactionsViewModel(
                 val currency: String = loadCurrency()
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
                 val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
+                val budgets: List<CategoryBudget> = budgetRepository.load()
                 mutableUiState.value =
                     uiState.value.copy(
                         accountId = account.first,
@@ -74,6 +87,7 @@ class TransactionsViewModel(
                         transactions = transactions,
                         categories = organization.categories,
                         tags = organization.tags,
+                        budgets = budgets,
                     )
             } catch (
                 exception: IOException,
@@ -193,6 +207,70 @@ class TransactionsViewModel(
                 mutableUiState.value = uiState.value.copy(categories = organization.categories, tags = organization.tags)
             } catch (exception: IOException) {
                 mutableUiState.value = uiState.value.copy(error = "Could not load categories and tags.")
+            }
+        }
+    }
+
+    fun showBudgets() {
+        viewModelScope.launch {
+            try {
+                mutableUiState.value =
+                    uiState.value.copy(
+                        isBudgetsVisible = true,
+                        budgets = budgetRepository.load(),
+                        budgetMonth =
+                            java.time.YearMonth
+                                .now()
+                                .toString(),
+                        budgetCategoryId = null,
+                        budgetAmount = "",
+                        error = null,
+                    )
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not load budgets.")
+            }
+        }
+    }
+
+    fun closeBudgets() {
+        mutableUiState.value = uiState.value.copy(isBudgetsVisible = false, error = null)
+    }
+
+    fun updateBudgetMonth(value: String) {
+        mutableUiState.value = uiState.value.copy(budgetMonth = value, error = null)
+    }
+
+    fun updateBudgetCategory(value: String?) {
+        mutableUiState.value = uiState.value.copy(budgetCategoryId = value, error = null)
+    }
+
+    fun updateBudgetAmount(value: String) {
+        mutableUiState.value = uiState.value.copy(budgetAmount = value, error = null)
+    }
+
+    fun saveBudget() {
+        val state: TransactionsUiState = uiState.value
+        val categoryId: String =
+            state.budgetCategoryId ?: run {
+                mutableUiState.value = state.copy(error = "Choose an expense category.")
+                return
+            }
+        val amountMinor: Long? =
+            state.budgetAmount
+                .toBigDecimalOrNull()
+                ?.movePointRight(
+                    fractionDigits(state.currency),
+                )?.longValueExactOrNull()
+        if (amountMinor == null || amountMinor <= 0 || runCatching { java.time.YearMonth.parse(state.budgetMonth) }.isFailure) {
+            mutableUiState.value = state.copy(error = "Enter a positive amount and a valid month.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val budgets: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, state.budgetMonth, amountMinor))
+                mutableUiState.value = uiState.value.copy(budgets = budgets, budgetAmount = "", budgetCategoryId = null, error = null)
+            } catch (exception: Exception) {
+                mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not save budget.")
             }
         }
     }

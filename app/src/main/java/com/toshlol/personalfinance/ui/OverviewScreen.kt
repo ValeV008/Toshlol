@@ -52,6 +52,7 @@ fun OverviewScreen(
     onOpenOrganizer: () -> Unit,
     onCategoryChanged: (String?) -> Unit,
     onTagToggled: (String) -> Unit,
+    onOpenBudgets: () -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
@@ -79,7 +80,10 @@ fun OverviewScreen(
             Button(onClick = { onCreate(TransactionDirection.INCOME) }) { Text("Add income") }
             Button(onClick = { onCreate(TransactionDirection.EXPENSE) }) { Text("Add expense") }
         }
-        OutlinedButton(onClick = onOpenOrganizer) { Text("Organize categories and tags") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onOpenOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
+            OutlinedButton(onClick = onOpenBudgets, modifier = Modifier.weight(1f)) { Text("Budgets") }
+        }
         if (state.transactions.isEmpty()) {
             Text("No transactions yet")
             Text("Record income or an expense to start your history.")

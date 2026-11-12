@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
                             .accounts
                             .first()
                     account.id to account.name
-                }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository)
+                }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository, application.budgetRepository)
             }
         }
     }
@@ -87,6 +87,12 @@ class MainActivity : ComponentActivity() {
                     onSaveTag = transactionsViewModel::saveTag,
                     onEditTag = transactionsViewModel::beginTagEdit,
                     onArchiveTag = transactionsViewModel::archiveTag,
+                    onOpenBudgets = transactionsViewModel::showBudgets,
+                    onCloseBudgets = transactionsViewModel::closeBudgets,
+                    onBudgetMonthChanged = transactionsViewModel::updateBudgetMonth,
+                    onBudgetCategoryChanged = transactionsViewModel::updateBudgetCategory,
+                    onBudgetAmountChanged = transactionsViewModel::updateBudgetAmount,
+                    onSaveBudget = transactionsViewModel::saveBudget,
                 )
             }
         }

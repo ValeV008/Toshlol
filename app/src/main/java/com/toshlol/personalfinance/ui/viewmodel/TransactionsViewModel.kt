@@ -2,7 +2,12 @@ package com.toshlol.personalfinance.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.toshlol.personalfinance.data.CategoryDraft
+import com.toshlol.personalfinance.data.CategoryTagRepository
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransactionRepository
@@ -14,24 +19,40 @@ import java.time.LocalDate
 import java.util.Currency
 
 data class TransactionsUiState(
+    val isLoaded: Boolean = false,
     val currency: String = "EUR",
     val accountId: String = "",
+    val accountName: String = "",
+    val accountNameDraft: String = "",
     val transactions: List<FinanceTransaction> = emptyList(),
+    val categories: List<FinanceCategory> = emptyList(),
+    val tags: List<FinanceTag> = emptyList(),
     val isFormVisible: Boolean = false,
     val editingId: String? = null,
     val amount: String = "",
     val direction: TransactionDirection = TransactionDirection.EXPENSE,
     val date: String = LocalDate.now().toString(),
     val note: String = "",
+    val categoryId: String? = null,
+    val tagIds: Set<String> = emptySet(),
     val error: String? = null,
     val isSaving: Boolean = false,
     val pendingDeleteId: String? = null,
+    val isOrganizerVisible: Boolean = false,
+    val categoryName: String = "",
+    val categoryDirection: TransactionDirection = TransactionDirection.EXPENSE,
+    val editingCategoryId: String? = null,
+    val tagName: String = "",
+    val tagCategoryId: String? = null,
+    val editingTagId: String? = null,
 )
 
 class TransactionsViewModel(
     private val repository: TransactionRepository,
     private val loadAccount: suspend () -> Pair<String, String>,
+    private val renameAccount: suspend (String, String) -> Pair<String, String>,
     private val loadCurrency: suspend () -> String,
+    private val categoryTagRepository: CategoryTagRepository,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
@@ -42,13 +63,23 @@ class TransactionsViewModel(
                 val account: Pair<String, String> = loadAccount()
                 val currency: String = loadCurrency()
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
+                val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
                 mutableUiState.value =
-                    uiState.value.copy(accountId = account.first, currency = currency, transactions = transactions)
+                    uiState.value.copy(
+                        accountId = account.first,
+                        accountName = account.second,
+                        accountNameDraft = account.second,
+                        isLoaded = true,
+                        currency = currency,
+                        transactions = transactions,
+                        categories = organization.categories,
+                        tags = organization.tags,
+                    )
             } catch (
                 exception: IOException,
             ) {
                 mutableUiState.value =
-                    uiState.value.copy(error = "Could not load transactions.")
+                    uiState.value.copy(isLoaded = true, error = "Could not load transactions.")
             }
         }
     }
@@ -62,6 +93,8 @@ class TransactionsViewModel(
                 direction = direction,
                 date = LocalDate.now().toString(),
                 note = "",
+                categoryId = null,
+                tagIds = emptySet(),
                 error = null,
             )
     }
@@ -79,6 +112,8 @@ class TransactionsViewModel(
                 direction = transaction.direction,
                 date = LocalDate.ofEpochDay(transaction.date).toString(),
                 note = transaction.note.orEmpty(),
+                categoryId = transaction.categoryId,
+                tagIds = transaction.tagIds.toSet(),
                 error = null,
             )
     }
@@ -97,6 +132,178 @@ class TransactionsViewModel(
 
     fun updateNote(value: String) {
         mutableUiState.value = uiState.value.copy(note = value, error = null)
+    }
+
+    fun updateCategory(value: String?) {
+        mutableUiState.value =
+            uiState.value.copy(
+                categoryId = value,
+                tagIds =
+                    uiState.value.tagIds.filterTo(mutableSetOf()) { tagId ->
+                        uiState.value.tags
+                            .firstOrNull { it.id == tagId }
+                            ?.categoryId
+                            .let { it == null || it == value }
+                    },
+                error = null,
+            )
+    }
+
+    fun toggleTag(id: String) {
+        val selected: Set<String> = uiState.value.tagIds
+        mutableUiState.value = uiState.value.copy(tagIds = if (id in selected) selected - id else selected + id, error = null)
+    }
+
+    fun showOrganizer() {
+        mutableUiState.value = uiState.value.copy(isOrganizerVisible = true, error = null)
+    }
+
+    fun updateAccountName(value: String) {
+        mutableUiState.value = uiState.value.copy(accountNameDraft = value, error = null)
+    }
+
+    fun saveAccountName() {
+        val state: TransactionsUiState = uiState.value
+        mutableUiState.value = state.copy(isSaving = true, error = null)
+        viewModelScope.launch {
+            try {
+                val account: Pair<String, String> = renameAccount(state.accountId, state.accountNameDraft)
+                val transactions: List<FinanceTransaction> = repository.loadTransactions()
+                mutableUiState.value =
+                    uiState.value.copy(
+                        accountName = account.second,
+                        accountNameDraft = account.second,
+                        transactions = transactions,
+                        isSaving = false,
+                        error = null,
+                    )
+            } catch (exception: IllegalArgumentException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not rename account.")
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not rename account.")
+            }
+        }
+    }
+
+    fun closeOrganizer() {
+        mutableUiState.value = uiState.value.copy(isOrganizerVisible = false, error = null)
+        viewModelScope.launch {
+            try {
+                val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
+                mutableUiState.value = uiState.value.copy(categories = organization.categories, tags = organization.tags)
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not load categories and tags.")
+            }
+        }
+    }
+
+    fun updateCategoryName(value: String) {
+        mutableUiState.value = uiState.value.copy(categoryName = value, error = null)
+    }
+
+    fun updateCategoryDirection(value: TransactionDirection) {
+        mutableUiState.value = uiState.value.copy(categoryDirection = value, error = null)
+    }
+
+    fun beginCategoryEdit(category: FinanceCategory) {
+        mutableUiState.value =
+            uiState.value.copy(
+                editingCategoryId = category.id,
+                categoryName = category.name,
+                categoryDirection = category.direction,
+                error = null,
+            )
+    }
+
+    fun saveCategory() {
+        val state: TransactionsUiState = uiState.value
+        mutableUiState.value = state.copy(isSaving = true, error = null)
+        viewModelScope.launch {
+            try {
+                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot =
+                    categoryTagRepository.saveCategory(
+                        CategoryDraft(state.editingCategoryId, state.categoryName, state.categoryDirection),
+                    )
+                mutableUiState.value =
+                    uiState.value.copy(
+                        categories = result.categories,
+                        tags = result.tags,
+                        categoryName = "",
+                        editingCategoryId = null,
+                        isSaving = false,
+                        error = null,
+                    )
+            } catch (exception: IllegalArgumentException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not save category.")
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not save category.")
+            }
+        }
+    }
+
+    fun archiveCategory(id: String) {
+        viewModelScope.launch {
+            try {
+                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.archiveCategory(id)
+                mutableUiState.value = uiState.value.copy(categories = result.categories, tags = result.tags, error = null)
+            } catch (exception: IllegalArgumentException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not archive category.")
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not archive category.")
+            }
+        }
+    }
+
+    fun updateTagName(value: String) {
+        mutableUiState.value = uiState.value.copy(tagName = value, error = null)
+    }
+
+    fun updateTagCategory(value: String?) {
+        mutableUiState.value = uiState.value.copy(tagCategoryId = value, error = null)
+    }
+
+    fun beginTagEdit(tag: FinanceTag) {
+        mutableUiState.value = uiState.value.copy(editingTagId = tag.id, tagName = tag.name, tagCategoryId = tag.categoryId, error = null)
+    }
+
+    fun saveTag() {
+        val state: TransactionsUiState = uiState.value
+        mutableUiState.value = state.copy(isSaving = true, error = null)
+        viewModelScope.launch {
+            try {
+                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot =
+                    categoryTagRepository.saveTag(
+                        TagDraft(state.editingTagId, state.tagName, state.tagCategoryId),
+                    )
+                mutableUiState.value =
+                    uiState.value.copy(
+                        categories = result.categories,
+                        tags = result.tags,
+                        tagName = "",
+                        tagCategoryId = null,
+                        editingTagId = null,
+                        isSaving = false,
+                        error = null,
+                    )
+            } catch (exception: IllegalArgumentException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not save tag.")
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not save tag.")
+            }
+        }
+    }
+
+    fun archiveTag(id: String) {
+        viewModelScope.launch {
+            try {
+                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.archiveTag(id)
+                mutableUiState.value = uiState.value.copy(categories = result.categories, tags = result.tags, error = null)
+            } catch (exception: IllegalArgumentException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not archive tag.")
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not archive tag.")
+            }
+        }
     }
 
     fun updateDirection(value: TransactionDirection) {
@@ -150,7 +357,16 @@ class TransactionsViewModel(
                 val epochDay: Long = localDate.toEpochDay()
                 val newState: List<FinanceTransaction> =
                     repository.save(
-                        TransactionDraft(state.editingId, state.accountId, minorAmount, state.direction, epochDay, state.note),
+                        TransactionDraft(
+                            state.editingId,
+                            state.accountId,
+                            minorAmount,
+                            state.direction,
+                            epochDay,
+                            state.note,
+                            state.categoryId,
+                            state.tagIds,
+                        ),
                     )
                 mutableUiState.value =
                     uiState.value.copy(transactions = newState, isFormVisible = false, isSaving = false)

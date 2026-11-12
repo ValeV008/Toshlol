@@ -14,8 +14,14 @@ import androidx.room.PrimaryKey
             childColumns = ["accountId"],
             onDelete = ForeignKey.RESTRICT,
         ),
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.RESTRICT,
+        ),
     ],
-    indices = [Index("accountId"), Index("date")],
+    indices = [Index("accountId"), Index("categoryId"), Index("date")],
 )
 data class TransactionEntity(
     @PrimaryKey val id: String,
@@ -23,6 +29,7 @@ data class TransactionEntity(
     val amountMinor: Long,
     val direction: String,
     val date: Long,
+    val categoryId: String?,
     val note: String?,
     val createdAt: Long,
     val updatedAt: Long,
@@ -37,6 +44,10 @@ data class FinanceTransaction(
     val amountMinor: Long,
     val direction: TransactionDirection,
     val date: Long,
+    val categoryId: String?,
+    val categoryName: String?,
+    val tagIds: List<String>,
+    val tagNames: List<String>,
     val note: String?,
     val createdAt: Long,
     val updatedAt: Long,
@@ -49,4 +60,6 @@ data class TransactionDraft(
     val direction: TransactionDirection,
     val date: Long,
     val note: String?,
+    val categoryId: String? = null,
+    val tagIds: Set<String> = emptySet(),
 )

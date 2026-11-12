@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.AccountType
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
@@ -41,10 +43,44 @@ fun PersonalFinanceApp(
     onDirectionChanged: (TransactionDirection) -> Unit = {},
     onSaveTransaction: () -> Unit = {},
     onCloseTransactionForm: () -> Unit = {},
+    onOpenOrganizer: () -> Unit = {},
+    onOrganizerAccountNameChanged: (String) -> Unit = {},
+    onSaveAccountName: () -> Unit = {},
+    onCloseOrganizer: () -> Unit = {},
+    onCategoryChanged: (String?) -> Unit = {},
+    onTagToggled: (String) -> Unit = {},
+    onCategoryNameChanged: (String) -> Unit = {},
+    onCategoryDirectionChanged: (TransactionDirection) -> Unit = {},
+    onSaveCategory: () -> Unit = {},
+    onEditCategory: (FinanceCategory) -> Unit = {},
+    onArchiveCategory: (String) -> Unit = {},
+    onTagNameChanged: (String) -> Unit = {},
+    onTagCategoryChanged: (String?) -> Unit = {},
+    onSaveTag: () -> Unit = {},
+    onEditTag: (FinanceTag) -> Unit = {},
+    onArchiveTag: (String) -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         when {
             !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, onRetry)
+            uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
+            uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
+                CategoryTagScreen(
+                    transactionsState,
+                    onCloseOrganizer,
+                    onCategoryNameChanged,
+                    onCategoryDirectionChanged,
+                    onSaveCategory,
+                    onEditCategory,
+                    onArchiveCategory,
+                    onTagNameChanged,
+                    onTagCategoryChanged,
+                    onSaveTag,
+                    onEditTag,
+                    onArchiveTag,
+                    onOrganizerAccountNameChanged,
+                    onSaveAccountName,
+                )
             uiState.isSetupComplete ->
                 OverviewScreen(
                     transactionsState.copy(currency = uiState.currency),
@@ -59,6 +95,9 @@ fun PersonalFinanceApp(
                     onDirectionChanged,
                     onSaveTransaction,
                     onCloseTransactionForm,
+                    onOpenOrganizer,
+                    onCategoryChanged,
+                    onTagToggled,
                 )
             else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
         }

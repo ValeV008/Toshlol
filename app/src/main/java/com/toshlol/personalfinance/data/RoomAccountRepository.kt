@@ -36,6 +36,24 @@ class RoomAccountRepository(
         }
     }
 
+    override suspend fun renameAccount(
+        id: String,
+        name: String,
+    ): FirstRunSnapshot =
+        executeStorageOperation {
+            database.withTransaction {
+                val trimmedName: String = name.trim()
+                require(trimmedName.isNotEmpty()) { "Enter an account name." }
+                val accounts: List<AccountEntity> = database.accountDao().loadAccounts()
+                val account: AccountEntity = requireNotNull(accounts.firstOrNull { it.id == id }) { "This account no longer exists." }
+                require(accounts.none { it.id != id && it.name.equals(trimmedName, ignoreCase = true) }) {
+                    "An account with this name already exists."
+                }
+                database.accountDao().saveAccount(account.copy(name = trimmedName, updatedAt = currentTime()))
+                loadSnapshot()
+            }
+        }
+
     private suspend fun migrateLegacySetup(snapshot: FirstRunSnapshot): FirstRunSnapshot {
         val legacyCurrency: String? = loadLegacyCurrency()
         if (legacyCurrency !in AccountSetupValidator.supportedCurrencies) return snapshot

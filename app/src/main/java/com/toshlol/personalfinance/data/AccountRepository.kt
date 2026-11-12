@@ -20,4 +20,9 @@ interface AccountRepository {
     suspend fun loadSetup(): FirstRunSnapshot
 
     suspend fun createFirstAccount(setup: AccountSetupValidationResult): FirstRunSnapshot
+
+    suspend fun renameAccount(
+        id: String,
+        name: String,
+    ): FirstRunSnapshot
 }

@@ -3,6 +3,7 @@ package com.toshlol.personalfinance.data
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Upsert
 
 @Dao
 interface AccountDao {
@@ -11,4 +12,7 @@ interface AccountDao {
 
     @Query("SELECT * FROM accounts ORDER BY createdAt, id")
     suspend fun loadAccounts(): List<AccountEntity>
+
+    @Upsert
+    suspend fun saveAccount(account: AccountEntity)
 }

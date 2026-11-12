@@ -21,6 +21,15 @@ interface TransactionDao {
 
     @Query("SELECT * FROM accounts ORDER BY createdAt, id")
     suspend fun loadAccounts(): List<AccountEntity>
+
+    @Query("SELECT * FROM categories")
+    suspend fun loadCategories(): List<CategoryEntity>
+
+    @Query("SELECT * FROM tags")
+    suspend fun loadTags(): List<TagEntity>
+
+    @Query("SELECT * FROM transaction_tags")
+    suspend fun loadAllTransactionTags(): List<TransactionTagCrossRef>
 }
 
 interface TransactionRepository {
@@ -50,18 +59,61 @@ class RoomTransactionRepository(
                         }
                     }
                 val timestamp: Long = currentTime()
+                val category: CategoryEntity? = draft.categoryId?.let { id -> database.categoryTagDao().loadCategory(id) }
+                val transactionId: String = existing?.id ?: nextIdentifier()
+                val oldTags: Set<String> =
+                    existing
+                        ?.let {
+                            database
+                                .categoryTagDao()
+                                .loadTransactionTags(it.id)
+                                .map(TransactionTagCrossRef::tagId)
+                                .toSet()
+                        }.orEmpty()
+                require(
+                    draft.categoryId == null ||
+                        category?.direction == draft.direction.name &&
+                        (!category.archived || category.id == existing?.let { it.categoryId }),
+                ) {
+                    "Choose an active category that matches the transaction direction."
+                }
+                val categories: List<CategoryEntity> = database.categoryTagDao().loadCategories()
+                val tagsById: Map<String, TagEntity> = database.categoryTagDao().loadTags().associateBy(TagEntity::id)
+                require(
+                    draft.tagIds.all { tagId ->
+                        tagsById[tagId] != null && (!tagsById.getValue(tagId).archived || tagId in oldTags)
+                    },
+                ) {
+                    "Choose active tags."
+                }
+                val compatibleTagIds: Set<String> =
+                    draft.tagIds
+                        .filter { tagId ->
+                            val tag: TagEntity? = tagsById[tagId]
+                            tag?.categoryId == null || tag?.categoryId == draft.categoryId
+                        }.filter { tagId ->
+                            val tag: TagEntity = tagsById.getValue(tagId)
+                            tag.categoryId == null ||
+                                categories.firstOrNull { it.id == tag.categoryId }?.archived == false ||
+                                tagId in oldTags
+                        }.toSet()
                 database.transactionDao().save(
                     TransactionEntity(
-                        id = existing?.id ?: nextIdentifier(),
+                        id = transactionId,
                         accountId = draft.accountId,
                         amountMinor = draft.amountMinor,
                         direction = draft.direction.name,
                         date = draft.date,
+                        categoryId = draft.categoryId,
                         note = draft.note?.trim()?.takeIf(String::isNotEmpty),
                         createdAt = existing?.createdAt ?: timestamp,
                         updatedAt = timestamp,
                     ),
                 )
+                database.categoryTagDao().clearTransactionTags(transactionId)
+                compatibleTagIds.forEach { tagId ->
+                    database.categoryTagDao().addTransactionTag(TransactionTagCrossRef(transactionId, tagId))
+                }
                 loadInsideTransaction()
             }
         }
@@ -79,7 +131,19 @@ class RoomTransactionRepository(
 
     private suspend fun loadInsideTransaction(): List<FinanceTransaction> {
         val accountNames: Map<String, String> = database.transactionDao().loadAccounts().associate { it.id to it.name }
+        val categoriesById: Map<String, CategoryEntity> = database.categoryTagDao().loadCategories().associateBy(CategoryEntity::id)
+        val tagsById: Map<String, TagEntity> = database.categoryTagDao().loadTags().associateBy(TagEntity::id)
+        val transactionTags: Map<String, List<String>> =
+            database
+                .transactionDao()
+                .loadAllTransactionTags()
+                .groupBy(
+                    TransactionTagCrossRef::transactionId,
+                ).mapValues { entry ->
+                    entry.value.map(TransactionTagCrossRef::tagId)
+                }
         return database.transactionDao().loadAll().map { entity: TransactionEntity ->
+            val tagIds: List<String> = transactionTags[entity.id].orEmpty()
             FinanceTransaction(
                 entity.id,
                 entity.accountId,
@@ -87,6 +151,10 @@ class RoomTransactionRepository(
                 entity.amountMinor,
                 TransactionDirection.valueOf(entity.direction),
                 entity.date,
+                entity.categoryId,
+                entity.categoryId?.let { categoriesById[it]?.name },
+                tagIds,
+                tagIds.mapNotNull { tagsById[it]?.name },
                 entity.note,
                 entity.createdAt,
                 entity.updatedAt,

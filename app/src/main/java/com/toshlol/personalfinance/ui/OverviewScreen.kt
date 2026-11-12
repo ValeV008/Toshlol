@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -18,10 +20,15 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
@@ -42,7 +49,14 @@ fun OverviewScreen(
     onDirectionChanged: (TransactionDirection) -> Unit,
     onSave: () -> Unit,
     onClose: () -> Unit,
+    onOpenOrganizer: () -> Unit,
+    onCategoryChanged: (String?) -> Unit,
+    onTagToggled: (String) -> Unit,
 ) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LaunchedEffect(state.isFormVisible) {
+        if (!state.isFormVisible) keyboardController?.hide()
+    }
     val currentMonth: List<FinanceTransaction> =
         state.transactions.filter {
             LocalDate.ofEpochDay(it.date).month == LocalDate.now().month &&
@@ -65,6 +79,7 @@ fun OverviewScreen(
             Button(onClick = { onCreate(TransactionDirection.INCOME) }) { Text("Add income") }
             Button(onClick = { onCreate(TransactionDirection.EXPENSE) }) { Text("Add expense") }
         }
+        OutlinedButton(onClick = onOpenOrganizer) { Text("Organize categories and tags") }
         if (state.transactions.isEmpty()) {
             Text("No transactions yet")
             Text("Record income or an expense to start your history.")
@@ -83,7 +98,14 @@ fun OverviewScreen(
                         Text(
                             "${LocalDate.ofEpochDay(
                                 transaction.date,
-                            )} · ${transaction.accountName}${transaction.note?.let { " · $it" }.orEmpty()}",
+                            )} · ${transaction.accountName}${transaction.categoryName?.let {
+                                " · $it"
+                            }.orEmpty()}${transaction.tagNames.takeIf {
+                                it
+                                    .isNotEmpty()
+                            }?.joinToString(
+                                prefix = " · ",
+                            ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
                         )
                         TextButton(onClick = { onDelete(transaction.id) }) { Text("Delete") }
                     }
@@ -103,7 +125,10 @@ fun OverviewScreen(
                 },
             )
         }, text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).testTag("transaction-form"),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Row {
                     TransactionDirection.entries.forEach { direction: TransactionDirection ->
                         Row(Modifier.clickable { onDirectionChanged(direction) }) {
@@ -119,6 +144,36 @@ fun OverviewScreen(
                 OutlinedTextField(state.amount, onAmountChanged, label = { Text("Amount") }, singleLine = true)
                 OutlinedTextField(state.date, onDateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
                 OutlinedTextField(state.note, onNoteChanged, label = { Text("Note (optional)") }, singleLine = true)
+                Text("Category (optional)", style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.clickable { onCategoryChanged(null) }) {
+                    RadioButton(selected = state.categoryId == null, onClick = { onCategoryChanged(null) })
+                    Text("Uncategorized")
+                }
+                state.categories
+                    .filter { !it.archived || it.id == state.categoryId }
+                    .filter { it.direction == state.direction }
+                    .forEach { category: FinanceCategory ->
+                        Row(Modifier.clickable { onCategoryChanged(category.id) }) {
+                            RadioButton(selected = state.categoryId == category.id, onClick = { onCategoryChanged(category.id) })
+                            Text(category.name + if (category.archived) " (archived)" else "")
+                        }
+                    }
+                Text("Tags (optional)", style = MaterialTheme.typography.titleSmall)
+                state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag: FinanceTag ->
+                    val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
+                    Row(Modifier.clickable(enabled = canAssignTag) { onTagToggled(tag.id) }) {
+                        androidx.compose.material3.Checkbox(
+                            checked = tag.id in state.tagIds,
+                            onCheckedChange = { if (canAssignTag) onTagToggled(tag.id) },
+                            enabled = canAssignTag,
+                        )
+                        Text(
+                            tag.name +
+                                tag.categoryName?.let { " · $it" }.orEmpty() +
+                                if (tag.archived) " (archived)" else "",
+                        )
+                    }
+                }
                 state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }, confirmButton = {

@@ -4,12 +4,18 @@
 
 **Blocked by:** 02: Record and review Transactions
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Users can create, rename, and archive Categories and Tags.
-- [ ] Names are trimmed and case-insensitively unique among active entities in their scope.
-- [ ] A Tag can be independent or associated with one Category.
-- [ ] A Transaction can have an optional Category and multiple Tags.
-- [ ] Renaming an Account, Category, or Tag updates its displayed name on historical Transactions.
-- [ ] Archiving preserves history and prevents new use.
-- [ ] Tests cover lifecycle rules, associations, historical references, and the critical Compose flow.
+- [x] Users can create, rename, and archive Categories and Tags.
+- [x] Names are trimmed and case-insensitively unique among active entities in their scope.
+- [x] A Tag can be independent or associated with one Category.
+- [x] A Transaction can have an optional Category and multiple Tags.
+- [x] Renaming an Account, Category, or Tag updates its displayed name on historical Transactions.
+- [x] Archiving preserves history and prevents new use.
+- [x] Tests cover lifecycle rules, associations, historical references, and the critical Compose flow.
+
+## Answer
+
+Implemented Category and Tag lifecycle management, Category/Tag assignments on Transactions, history-preserving renames and archives, and Account renaming. Added the Room 3→4 migration and tests for persistence, lifecycle rules, historical references, and the Compose flow.
+
+Verification passed: JVM tests, all 17 Android 10 instrumentation tests, lint, and ktlint.

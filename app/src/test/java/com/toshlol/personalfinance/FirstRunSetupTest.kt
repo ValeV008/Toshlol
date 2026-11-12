@@ -59,4 +59,13 @@ internal class InMemoryAccountRepository : AccountRepository {
         snapshot = FirstRunSnapshot(setup.currency, listOf(Account("test-account", setup.accountName, setup.selectedType, 1234L, 1234L)))
         return snapshot
     }
+
+    override suspend fun renameAccount(
+        id: String,
+        name: String,
+    ): FirstRunSnapshot {
+        val account: Account = snapshot.accounts.single { it.id == id }
+        snapshot = snapshot.copy(accounts = listOf(account.copy(name = name.trim())))
+        return snapshot
+    }
 }

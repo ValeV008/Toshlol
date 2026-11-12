@@ -8,13 +8,26 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import java.util.UUID
 
-@Database(entities = [AccountEntity::class, AppSettings::class, TransactionEntity::class], version = 3, exportSchema = true)
+@Database(
+    entities = [
+        AccountEntity::class,
+        AppSettings::class,
+        TransactionEntity::class,
+        CategoryEntity::class,
+        TagEntity::class,
+        TransactionTagCrossRef::class,
+    ],
+    version = 4,
+    exportSchema = true,
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
 
     abstract fun settingsDao(): AppSettingsDao
 
     abstract fun transactionDao(): TransactionDao
+
+    abstract fun categoryTagDao(): CategoryTagDao
 
     companion object {
         @Volatile
@@ -51,12 +64,35 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_3_4: Migration =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE categories (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, direction TEXT NOT NULL, archived INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
+                    )
+                    db.execSQL("CREATE INDEX index_categories_direction ON categories(direction)")
+                    db.execSQL("CREATE INDEX index_categories_archived ON categories(archived)")
+                    db.execSQL(
+                        "CREATE TABLE tags (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, categoryId TEXT, archived INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, FOREIGN KEY(categoryId) REFERENCES categories(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_tags_categoryId ON tags(categoryId)")
+                    db.execSQL("CREATE INDEX index_tags_archived ON tags(archived)")
+                    db.execSQL("ALTER TABLE transactions ADD COLUMN categoryId TEXT REFERENCES categories(id) ON DELETE RESTRICT")
+                    db.execSQL("CREATE INDEX index_transactions_categoryId ON transactions(categoryId)")
+                    db.execSQL(
+                        "CREATE TABLE transaction_tags (transactionId TEXT NOT NULL, tagId TEXT NOT NULL, PRIMARY KEY(transactionId, tagId), FOREIGN KEY(transactionId) REFERENCES transactions(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(tagId) REFERENCES tags(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_transaction_tags_tagId ON transaction_tags(tagId)")
+                }
+            }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room
                     .databaseBuilder(context.applicationContext, AppDatabase::class.java, "personal_finance.db")
                     .addMigrations(MIGRATION_1_2)
                     .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }

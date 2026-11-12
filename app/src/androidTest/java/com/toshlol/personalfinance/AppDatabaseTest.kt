@@ -7,9 +7,12 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.FirstRunSnapshot
 import com.toshlol.personalfinance.data.RoomAccountRepository
+import com.toshlol.personalfinance.data.RoomCategoryTagRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
+import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.domain.FirstRunSetup
@@ -58,6 +61,146 @@ class AppDatabaseTest {
                 assertEquals(null, edited.single().note)
             } finally {
                 database.close()
+            }
+        }
+
+    @Test
+    fun organizeCategoriesAndTagsWithoutDamagingHistoricalTransactions(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val account: com.toshlol.personalfinance.data.Account =
+                    FirstRunSetup(RoomAccountRepository(database, { "account-id" }, { 100L }))
+                        .createFirstAccount("EUR", "Cash", AccountType.CASH)
+                        .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
+                var nextOrganizationId: Int = 0
+                val organizationRepository: RoomCategoryTagRepository =
+                    RoomCategoryTagRepository(database, { "organization-${++nextOrganizationId}" }, { 200L })
+                var organization =
+                    organizationRepository.saveCategory(
+                        CategoryDraft(name = "  Food ", direction = TransactionDirection.EXPENSE),
+                    )
+                val foodId: String = organization.categories.single().id
+                try {
+                    organizationRepository.saveCategory(CategoryDraft(name = "food", direction = TransactionDirection.EXPENSE))
+                    fail("Expected active category names to be unique without case sensitivity")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("already exists"))
+                }
+                organization = organizationRepository.saveCategory(CategoryDraft(name = "Travel", direction = TransactionDirection.EXPENSE))
+                val travelId: String = organization.categories.single { it.name == "Travel" }.id
+                organization = organizationRepository.saveTag(TagDraft(name = " Lunch ", categoryId = foodId))
+                val lunchId: String = organization.tags.single { it.name == "Lunch" }.id
+                organization = organizationRepository.saveTag(TagDraft(name = "Reimbursable"))
+                val independentId: String = organization.tags.single { it.name == "Reimbursable" }.id
+                try {
+                    organizationRepository.saveTag(TagDraft(name = " reimbursable "))
+                    fail("Expected active tag names to be unique without case sensitivity")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("already exists"))
+                }
+                val transactionRepository: RoomTransactionRepository = RoomTransactionRepository(database, { "transaction-id" }, { 300L })
+                transactionRepository.save(
+                    TransactionDraft(
+                        account.id,
+                        account.id,
+                        1250,
+                        TransactionDirection.EXPENSE,
+                        20600,
+                        "Lunch",
+                        foodId,
+                        setOf(lunchId, independentId),
+                    ),
+                )
+                organizationRepository.saveCategory(CategoryDraft(foodId, "Dining", TransactionDirection.EXPENSE))
+                organizationRepository.saveTag(TagDraft(lunchId, "Meal", foodId))
+                var actual: com.toshlol.personalfinance.data.FinanceTransaction = transactionRepository.loadTransactions().single()
+                assertEquals("Dining", actual.categoryName)
+                assertEquals(listOf("Meal", "Reimbursable"), actual.tagNames.sorted())
+                try {
+                    organizationRepository.saveCategory(CategoryDraft(foodId, "Dining", TransactionDirection.INCOME))
+                    fail("Expected a category used by transactions to keep its direction")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("cannot change its direction"))
+                }
+                try {
+                    organizationRepository.saveTag(TagDraft(lunchId, "Meal", travelId))
+                    fail("Expected a tag used by transactions to keep its category")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("cannot change its category"))
+                }
+                transactionRepository.save(
+                    TransactionDraft(
+                        "transaction-id",
+                        account.id,
+                        1250,
+                        TransactionDirection.EXPENSE,
+                        20600,
+                        "Lunch",
+                        travelId,
+                        setOf(lunchId, independentId),
+                    ),
+                )
+                val renamedAccountSnapshot: FirstRunSnapshot =
+                    RoomAccountRepository(database, currentTime = {
+                        350L
+                    }).renameAccount(account.id, "  Everyday cash  ")
+                assertEquals("Everyday cash", renamedAccountSnapshot.accounts.single().name)
+                assertEquals("Everyday cash", transactionRepository.loadTransactions().single().accountName)
+                actual = transactionRepository.loadTransactions().single()
+                assertEquals("Travel", actual.categoryName)
+                assertEquals(listOf("Reimbursable"), actual.tagNames)
+                organizationRepository.archiveCategory(travelId)
+                actual = transactionRepository.loadTransactions().single()
+                assertEquals("Travel", actual.categoryName)
+                try {
+                    transactionRepository.save(TransactionDraft(null, account.id, 100, TransactionDirection.EXPENSE, 20601, null, travelId))
+                    fail("Expected an archived category to be unavailable for a new transaction")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("active category"))
+                }
+                organizationRepository.archiveTag(independentId)
+                assertEquals(listOf("Reimbursable"), transactionRepository.loadTransactions().single().tagNames)
+                try {
+                    transactionRepository.save(
+                        TransactionDraft(
+                            null,
+                            account.id,
+                            100,
+                            TransactionDirection.EXPENSE,
+                            20601,
+                            null,
+                            tagIds = setOf(independentId),
+                        ),
+                    )
+                    fail("Expected an archived tag to be unavailable for a new transaction")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("active tags"))
+                }
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun migrateVersionThreeTransactionsWithoutLosingHistory(): Unit =
+        runTest {
+            val databaseName: String = "categories-migration-${UUID.randomUUID()}.db"
+            createVersionThreeDatabase(databaseName)
+            val database: AppDatabase = openDatabase(databaseName)
+            try {
+                val actual: com.toshlol.personalfinance.data.FinanceTransaction =
+                    RoomTransactionRepository(database).loadTransactions().single()
+                assertEquals("legacy-transaction", actual.id)
+                assertEquals("Legacy cash", actual.accountName)
+                assertEquals(1250L, actual.amountMinor)
+                assertEquals(TransactionDirection.EXPENSE, actual.direction)
+                assertEquals(null, actual.categoryId)
+                assertTrue(actual.tagIds.isEmpty())
+                assertTrue(actual.tagNames.isEmpty())
+            } finally {
+                database.close()
+                context.deleteDatabase(databaseName)
             }
         }
 
@@ -256,10 +399,32 @@ class AppDatabaseTest {
         }
     }
 
+    private fun createVersionThreeDatabase(databaseName: String) {
+        context.getDatabasePath(databaseName).parentFile?.mkdirs()
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(databaseName), null).use { legacyDatabase: SQLiteDatabase ->
+            legacyDatabase.execSQL(
+                "CREATE TABLE accounts (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
+            )
+            legacyDatabase.execSQL("INSERT INTO accounts VALUES ('legacy-account', 'Legacy cash', 'CASH', 100, 100)")
+            legacyDatabase.execSQL("CREATE TABLE app_settings (id INTEGER NOT NULL PRIMARY KEY, currency TEXT NOT NULL)")
+            legacyDatabase.execSQL("INSERT INTO app_settings VALUES (1, 'EUR')")
+            legacyDatabase.execSQL(
+                "CREATE TABLE transactions (id TEXT NOT NULL PRIMARY KEY, accountId TEXT NOT NULL, amountMinor INTEGER NOT NULL, direction TEXT NOT NULL, date INTEGER NOT NULL, note TEXT, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, FOREIGN KEY(accountId) REFERENCES accounts(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+            )
+            legacyDatabase.execSQL("CREATE INDEX index_transactions_accountId ON transactions(accountId)")
+            legacyDatabase.execSQL("CREATE INDEX index_transactions_date ON transactions(date)")
+            legacyDatabase.execSQL(
+                "INSERT INTO transactions VALUES ('legacy-transaction', 'legacy-account', 1250, 'EXPENSE', 20600, 'Before categories', 200, 200)",
+            )
+            legacyDatabase.version = 3
+        }
+    }
+
     private fun openDatabase(name: String): AppDatabase =
         Room
             .databaseBuilder(context, AppDatabase::class.java, name)
             .addMigrations(AppDatabase.MIGRATION_1_2)
             .addMigrations(AppDatabase.MIGRATION_2_3)
+            .addMigrations(AppDatabase.MIGRATION_3_4)
             .build()
 }

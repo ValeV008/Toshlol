@@ -32,7 +32,14 @@ class MainActivity : ComponentActivity() {
                             it.name
                     }
                         ?: ("" to "")
-                }, { application.firstRunSetup.loadSetup().currency })
+                }, { id, name ->
+                    val account =
+                        application.accountRepository
+                            .renameAccount(id, name)
+                            .accounts
+                            .first()
+                    account.id to account.name
+                }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository)
             }
         }
     }
@@ -64,6 +71,22 @@ class MainActivity : ComponentActivity() {
                     onDirectionChanged = transactionsViewModel::updateDirection,
                     onSaveTransaction = transactionsViewModel::save,
                     onCloseTransactionForm = transactionsViewModel::closeForm,
+                    onOpenOrganizer = transactionsViewModel::showOrganizer,
+                    onOrganizerAccountNameChanged = transactionsViewModel::updateAccountName,
+                    onSaveAccountName = transactionsViewModel::saveAccountName,
+                    onCloseOrganizer = transactionsViewModel::closeOrganizer,
+                    onCategoryChanged = transactionsViewModel::updateCategory,
+                    onTagToggled = transactionsViewModel::toggleTag,
+                    onCategoryNameChanged = transactionsViewModel::updateCategoryName,
+                    onCategoryDirectionChanged = transactionsViewModel::updateCategoryDirection,
+                    onSaveCategory = transactionsViewModel::saveCategory,
+                    onEditCategory = transactionsViewModel::beginCategoryEdit,
+                    onArchiveCategory = transactionsViewModel::archiveCategory,
+                    onTagNameChanged = transactionsViewModel::updateTagName,
+                    onTagCategoryChanged = transactionsViewModel::updateTagCategory,
+                    onSaveTag = transactionsViewModel::saveTag,
+                    onEditTag = transactionsViewModel::beginTagEdit,
+                    onArchiveTag = transactionsViewModel::archiveTag,
                 )
             }
         }

@@ -18,6 +18,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.ContentResolverBackupWriter
+import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.ui.AccountEditorActions
 import com.toshlol.personalfinance.ui.AccountHistoryActions
 import com.toshlol.personalfinance.ui.AccountHistoryScreenActions
@@ -41,6 +44,9 @@ import com.toshlol.personalfinance.ui.viewmodel.TransactionsViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val backupExporter: RoomBackupExporter by lazy {
+        RoomBackupExporter(AppDatabase.getInstance(this), ContentResolverBackupWriter(contentResolver))
+    }
     private val viewModel: FirstRunViewModel by viewModels {
         viewModelFactory {
             initializer { FirstRunViewModel((application as PersonalFinanceApplication).firstRunSetup) }
@@ -76,7 +82,7 @@ class MainActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             backupStatus =
                                 try {
-                                    (application as PersonalFinanceApplication).backupExporter.exportTo(contentResolver, destination)
+                                    backupExporter.exportTo(destination)
                                     "Backup exported successfully."
                                 } catch (exception: Exception) {
                                     "Backup export failed: ${exception.message ?: "Unable to write the selected file."}"

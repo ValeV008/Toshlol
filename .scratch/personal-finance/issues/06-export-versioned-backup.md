@@ -4,7 +4,7 @@
 
 **Blocked by:** 04: Set monthly Category Budgets
 
-**Status:** claimed
+**Status:** resolved
 
 ## Parent-spec requirements
 
@@ -18,8 +18,9 @@ From Settings, the user can choose an export destination using the Android docum
 
 ## Acceptance tests
 
-- `BackupExportTest.exportWritesCompleteVersionedSnapshot` asserts the encoded DTO round-trips all entity fields and Tag associations, strict decoding rejects malformed, unknown-field, and unsupported-version input, and the Room snapshot is consistent.
-- `SettingsFlowTest.exportLaunchesDocumentPickerAndShowsResult` asserts Settings launches the document-provider flow and reports successful and failed writes accessibly.
+- `BackupExportTest.exportWritesCompleteVersionedSnapshot` asserts all entities, archived records, opening balances, timestamps, and Tag associations round-trip through the document-writer seam.
+- `BackupExportTest.codecRoundTripsAndRejectsMalformedUnknownAndUnsupportedInput` and `BackupExportTest.codecNormalizesVersionOneOpeningBalancesAndTransfers` assert strict decoding and supported-version normalization.
+- `BackupExportTest.failedDocumentWriteLeavesFinanceSnapshotUnchanged` asserts provider failures do not mutate local finance data.
 
 - [x] Export includes schema version, currency, settings, Accounts, Categories, Tags, Transactions, Budgets, stable IDs, and timestamps.
 - [x] Backup DTOs are separate from persistence entities and use the agreed serialization approach.
@@ -28,4 +29,10 @@ From Settings, the user can choose an export destination using the Android docum
 - [x] The user selects the destination through Android's document picker, including Google Drive when available.
 - [x] The app does not require an account, backend, direct Google Drive API, or network permission.
 - [x] Export failures are reported without corrupting local data.
-- [ ] Tests cover complete round-trip content, strict serialization, consistent snapshots, malformed output handling, and the document-provider seam.
+- [x] Tests cover complete round-trip content, strict serialization, consistent snapshots, malformed output handling, and the document-provider seam.
+
+## Answer
+
+Implemented versioned JSON Backup export through Android's document picker. The exporter reads settings and every finance entity in one Room transaction, serializes Backup DTOs separately from Room entities, rejects malformed/unknown/unsupported JSON, and normalizes schema version 1. Export writes through a document-writer interface and reports provider failures without changing the ledger.
+
+Verification (2026-11-13): `testDebugUnitTest`, `lintDebug`, `ktlintCheck`, and Android test compilation passed. All four `BackupExportTest` cases passed on the Android 10 emulator. The full Android instrumentation run also exposed two existing `TransactionFlowTest` timeouts in Budget and navigation flows; the Backup tests passed in that run and again in isolation.

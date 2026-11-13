@@ -180,21 +180,37 @@ object FinanceBackupCodec {
     }
 }
 
-class RoomBackupExporter(
-    private val database: AppDatabase,
-) {
-    suspend fun exportTo(
-        contentResolver: ContentResolver,
+fun interface BackupDocumentWriter {
+    suspend fun write(
         destination: Uri,
+        contents: String,
+    )
+}
+
+class ContentResolverBackupWriter(
+    private val contentResolver: ContentResolver,
+) : BackupDocumentWriter {
+    override suspend fun write(
+        destination: Uri,
+        contents: String,
     ): Unit =
         withContext(Dispatchers.IO) {
-            val backup: FinanceBackup = database.withTransaction { createSnapshot() }
-            val contents: String = FinanceBackupCodec.encode(backup)
             val output: OutputStream =
                 contentResolver.openOutputStream(destination, "wt")
                     ?: throw IOException("The selected destination could not be opened.")
             output.bufferedWriter(Charsets.UTF_8).use { writer: java.io.BufferedWriter -> writer.write(contents) }
         }
+}
+
+class RoomBackupExporter(
+    private val database: AppDatabase,
+    private val documentWriter: BackupDocumentWriter,
+) {
+    suspend fun exportTo(destination: Uri) {
+        val backup: FinanceBackup = database.withTransaction { createSnapshot() }
+        val contents: String = FinanceBackupCodec.encode(backup)
+        documentWriter.write(destination, contents)
+    }
 
     private suspend fun createSnapshot(): FinanceBackup {
         val settings: AppSettings =

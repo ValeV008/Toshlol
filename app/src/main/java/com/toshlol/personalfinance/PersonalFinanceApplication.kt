@@ -4,7 +4,6 @@ import android.app.Application
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.AppPreferences
 import com.toshlol.personalfinance.data.RoomAccountRepository
-import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomCategoryTagRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
@@ -14,7 +13,6 @@ import com.toshlol.personalfinance.domain.TransferManagement
 
 class PersonalFinanceApplication : Application() {
     val transactionRepository: RoomTransactionRepository by lazy { RoomTransactionRepository(AppDatabase.getInstance(this)) }
-    val backupExporter: RoomBackupExporter by lazy { RoomBackupExporter(AppDatabase.getInstance(this)) }
     val transferRepository: com.toshlol.personalfinance.data.RoomTransferRepository by lazy {
         com.toshlol.personalfinance.data
             .RoomTransferRepository(AppDatabase.getInstance(this))

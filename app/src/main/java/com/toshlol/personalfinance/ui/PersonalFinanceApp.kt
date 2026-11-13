@@ -113,13 +113,15 @@ fun PersonalFinanceApp(
                     uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
                         TransactionsScreen(
                             transactionsState.copy(currency = uiState.currency),
-                            onCreateTransaction,
-                            onEditTransaction,
-                            onDeleteTransaction,
-                            onMonthFilterChanged,
-                            onAccountFilterChanged,
-                            onCategoryFilterChanged,
-                            onTagFilterChanged,
+                            TransactionsScreenActions(
+                                create = onCreateTransaction,
+                                edit = onEditTransaction,
+                                delete = onDeleteTransaction,
+                                monthChanged = onMonthFilterChanged,
+                                accountChanged = onAccountFilterChanged,
+                                categoryChanged = onCategoryFilterChanged,
+                                tagChanged = onTagFilterChanged,
+                            ),
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
                         SettingsScreen(transactionsState, onOpenOrganizer) { onCreateTransaction(TransactionDirection.EXPENSE) }

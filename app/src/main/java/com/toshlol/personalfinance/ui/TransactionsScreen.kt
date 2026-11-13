@@ -30,16 +30,20 @@ import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.LocalDate
 import java.time.YearMonth
 
+data class TransactionsScreenActions(
+    val create: (TransactionDirection) -> Unit,
+    val edit: (FinanceTransaction) -> Unit,
+    val delete: (String) -> Unit,
+    val monthChanged: (String) -> Unit,
+    val accountChanged: (String?) -> Unit,
+    val categoryChanged: (String?) -> Unit,
+    val tagChanged: (String?) -> Unit,
+)
+
 @Composable
 fun TransactionsScreen(
     state: TransactionsUiState,
-    onCreate: (TransactionDirection) -> Unit,
-    onEdit: (FinanceTransaction) -> Unit,
-    onDelete: (String) -> Unit,
-    onMonthChanged: (String) -> Unit,
-    onAccountChanged: (String?) -> Unit,
-    onCategoryChanged: (String?) -> Unit,
-    onTagChanged: (String?) -> Unit,
+    actions: TransactionsScreenActions,
 ) {
     val month: YearMonth? = runCatching { YearMonth.parse(state.selectedMonth) }.getOrNull()
     val transactions: List<FinanceTransaction> =
@@ -56,17 +60,17 @@ fun TransactionsScreen(
         Text("Transactions", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         OutlinedTextField(
             value = state.selectedMonth,
-            onValueChange = onMonthChanged,
+            onValueChange = actions.monthChanged,
             label = { Text("Month (YYYY-MM, blank for all)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        FilterSelector("Account", state.accounts.map { it.id to it.name }, state.selectedAccountId, onAccountChanged)
-        FilterSelector("Category", state.categories.map { it.id to it.name }, state.selectedCategoryId, onCategoryChanged)
-        FilterSelector("Tag", state.tags.map { it.id to it.name }, state.selectedTagId, onTagChanged)
+        FilterSelector("Account", state.accounts.map { it.id to it.name }, state.selectedAccountId, actions.accountChanged)
+        FilterSelector("Category", state.categories.map { it.id to it.name }, state.selectedCategoryId, actions.categoryChanged)
+        FilterSelector("Tag", state.tags.map { it.id to it.name }, state.selectedTagId, actions.tagChanged)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onCreate(TransactionDirection.EXPENSE) }) { Text("Add expense") }
-            Button(onClick = { onCreate(TransactionDirection.INCOME) }) { Text("Add income") }
+            Button(onClick = { actions.create(TransactionDirection.EXPENSE) }) { Text("Add expense") }
+            Button(onClick = { actions.create(TransactionDirection.INCOME) }) { Text("Add income") }
         }
         if (transactions.isEmpty()) {
             Text("No transactions match these filters.", modifier = Modifier.semantics { heading() })
@@ -74,7 +78,7 @@ fun TransactionsScreen(
         } else {
             transactions.forEach { transaction: FinanceTransaction ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    TextButton(onClick = { onEdit(transaction) }) {
+                    TextButton(onClick = { actions.edit(transaction) }) {
                         Text(
                             "${transaction.direction.name.lowercase().replaceFirstChar(
                                 Char::uppercase,
@@ -90,7 +94,7 @@ fun TransactionsScreen(
                                 .orEmpty() +
                             transaction.note?.let { " · $it" }.orEmpty(),
                     )
-                    TextButton(onClick = { onDelete(transaction.id) }) { Text("Delete") }
+                    TextButton(onClick = { actions.delete(transaction.id) }) { Text("Delete") }
                 }
             }
         }

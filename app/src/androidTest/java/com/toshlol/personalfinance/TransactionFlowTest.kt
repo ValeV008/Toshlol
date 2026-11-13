@@ -161,17 +161,17 @@ class TransactionFlowTest {
         ui.showText("Expense · EUR 8.25")
         ui.clickText("Category: All Category")
         ui.clickText("Food")
-        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("EUR 5.00", substring = true).assertDoesNotExist()
         ui.clickText("Category: Food")
         ui.clickText("All Category")
-        ui.showText("EUR 6.00", substring = true)
+        ui.showText("EUR 5.00", substring = true)
         ui.showText("Expense · EUR 8.25")
         ui.clickText("Tag: All Tag")
         ui.clickText("Lunch")
-        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("EUR 3.00", substring = true).assertDoesNotExist()
         ui.clickText("Tag: Lunch")
         ui.clickText("All Tag")
-        ui.showText("EUR 6.00", substring = true)
+        ui.showText("EUR 3.00", substring = true)
         ui.showText("Expense · EUR 8.25")
         ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("EUR 4.00", substring = true)
@@ -296,6 +296,16 @@ class TransactionFlowTest {
                         .saveTag(TagDraft(name = "Lunch", categoryId = category.id))
                         .tags
                         .single()
+                val transportCategory: FinanceCategory =
+                    fixtures.organization
+                        .saveCategory(CategoryDraft(name = "Transport", direction = TransactionDirection.EXPENSE))
+                        .categories
+                        .single { it.name == "Transport" }
+                val dinnerTag: FinanceTag =
+                    fixtures.organization
+                        .saveTag(TagDraft(name = "Dinner", categoryId = category.id))
+                        .tags
+                        .single { it.name == "Dinner" }
                 fixtures.transactions.save(
                     TransactionDraft(
                         accountId = account.id,
@@ -314,6 +324,27 @@ class TransactionFlowTest {
                         direction = TransactionDirection.EXPENSE,
                         date = LocalDate.now().toEpochDay(),
                         note = null,
+                    ),
+                )
+                fixtures.transactions.save(
+                    TransactionDraft(
+                        accountId = account.id,
+                        amountMinor = 500,
+                        direction = TransactionDirection.EXPENSE,
+                        date = LocalDate.now().toEpochDay(),
+                        note = null,
+                        categoryId = transportCategory.id,
+                    ),
+                )
+                fixtures.transactions.save(
+                    TransactionDraft(
+                        accountId = account.id,
+                        amountMinor = 300,
+                        direction = TransactionDirection.EXPENSE,
+                        date = LocalDate.now().toEpochDay(),
+                        note = null,
+                        categoryId = category.id,
+                        tagIds = setOf(dinnerTag.id),
                     ),
                 )
                 fixtures.transactions.save(

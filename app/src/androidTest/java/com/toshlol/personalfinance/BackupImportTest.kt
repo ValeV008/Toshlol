@@ -128,6 +128,29 @@ class BackupImportTest {
         }
 
     @Test
+    fun importerNormalizesV1AndRejectsUnsupportedSchemaWithoutMutation(): Unit =
+        runTest {
+            val database: AppDatabase = createDatabase()
+            try {
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val legacyContents: String = createV1BackupJson()
+                val legacyResult: BackupImportOutcome = importer.import(legacyContents.toByteArray())
+                assertTrue(legacyResult is BackupImportOutcome.Success)
+                val expected: FinanceBackup =
+                    createBackup().copy(
+                        accounts = listOf(createBackup().accounts.single().copy(openingBalanceDate = 1L)),
+                    )
+                assertEquals(expected, captureBackup(database))
+                val unsupportedContents: ByteArray =
+                    legacyContents.replace("\"schemaVersion\":1", "\"schemaVersion\":3").toByteArray()
+                assertTrue(importer.import(unsupportedContents) is BackupImportOutcome.Failure)
+                assertEquals(expected, captureBackup(database))
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
     fun failedCommitRollsBackEveryEntityAndSetting(): Unit =
         runTest {
             val database: AppDatabase = createDatabase()
@@ -206,6 +229,9 @@ class BackupImportTest {
             transfers = emptyList(),
             budgets = emptyList(),
         )
+
+    private fun createV1BackupJson(): String =
+        """{"schemaVersion":1,"settings":{"currency":"EUR"},"accounts":[{"id":"account","name":"Cash","type":"CASH","createdAt":1,"updatedAt":2,"archived":false}],"categories":[{"id":"category","name":"Food","direction":"EXPENSE","archived":false,"createdAt":1,"updatedAt":2}],"tags":[],"transactions":[{"id":"transaction","accountId":"account","amountMinor":100,"direction":"EXPENSE","date":1,"categoryId":"category","tagIds":[],"note":null,"createdAt":1,"updatedAt":2}],"budgets":[]}"""
 
     private val context: Context
         get() = ApplicationProvider.getApplicationContext()

@@ -103,7 +103,16 @@ Use plain-console execution so an agent can parse the result:
 .\gradlew.bat connectedDebugAndroidTest --console=plain
 ```
 
-Target an individual test when diagnosing a failure with Gradle's `--tests` option.
+Gradle's `--tests` option filters local JVM tests; it does not select methods in an instrumented test run. To run one instrumented method, build and install both APKs, then pass the fully qualified class and method to `AndroidJUnitRunner`:
+
+```powershell
+.\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest --console=plain
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -e class "com.toshlol.personalfinance.TransactionFlowTest#navigateFilterTransactionsAndQuickAddFromEveryMainArea" "com.toshlol.finance.test/androidx.test.runner.AndroidJUnitRunner"
+```
+
+Replace the class and method with the test under investigation. The emulator or device must be connected to `adb`.
 
 ### Local Git hooks
 
@@ -161,9 +170,10 @@ Create one `FinanceTestFixtures(database)` per test/database. Its Account, Categ
 3. Run the focused Compose or instrumented test on a managed or connected emulator.
 4. For document-picker tests, use UI Automator at the system boundary.
 5. If a test fails, collect the Gradle report, logcat, screenshot, and semantics-tree output.
-6. Reproduce the failure with the narrowest test command before editing code.
-7. Make the smallest fix, rerun the same focused test, then run the broader relevant suite.
-8. Upload reports, screenshots, diffs, and logs as CI artifacts.
+6. Reproduce the failure with the narrowest class or method filter before editing code.
+7. Make the smallest fix and rerun that focused test. Repeat focused runs while implementation is changing.
+8. After related changes settle, run the broader relevant suite once. Use the pre-push hook's full connected suite as the final gate for the pushed revision; avoid running the same full suite separately immediately before that hook. If handing off without pushing, run the full connected suite once before handoff.
+9. Upload reports, screenshots, diffs, and logs as CI artifacts.
 
 For this app, the high-value automated journeys are account creation, transaction entry, budget display, export, import merge, import overwrite, and the mandatory-account validation path.
 

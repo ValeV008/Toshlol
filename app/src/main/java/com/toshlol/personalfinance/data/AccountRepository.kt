@@ -34,12 +34,12 @@ interface AccountRepository {
         name: String,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot
+    ): Account
 
     suspend fun createAccount(
         name: String,
         type: AccountType,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot
+    ): Account
 }

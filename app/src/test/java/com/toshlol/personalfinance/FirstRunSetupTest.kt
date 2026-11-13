@@ -5,7 +5,10 @@ import com.toshlol.personalfinance.data.AccountRepository
 import com.toshlol.personalfinance.data.AccountSetupValidationResult
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.FirstRunSnapshot
+import com.toshlol.personalfinance.domain.AccountDetailsDraft
+import com.toshlol.personalfinance.domain.AccountManagement
 import com.toshlol.personalfinance.domain.FirstRunSetup
+import com.toshlol.personalfinance.domain.NewAccountDraft
 import com.toshlol.personalfinance.domain.SetupOutcome
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -14,6 +17,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FirstRunSetupTest {
+    @Test
+    fun `account management creates and updates any account opening balance`(): Unit =
+        runTest {
+            val repository: InMemoryAccountRepository = InMemoryAccountRepository()
+            val setup: FirstRunSetup = FirstRunSetup(repository)
+            setup.createFirstAccount("EUR", "Cash", AccountType.CASH)
+            val accountManagement: AccountManagement = AccountManagement(repository)
+            val secondAccount: Account = accountManagement.createAccount(NewAccountDraft("Savings", AccountType.BANK, 2500L, 10L))
+            val updatedAccount: Account = accountManagement.saveDetails(AccountDetailsDraft(secondAccount.id, "Savings", 4000L, 20L))
+            assertEquals(4000L, updatedAccount.balanceMinor)
+            assertEquals(20L, updatedAccount.openingBalanceDate)
+            assertEquals(updatedAccount, accountManagement.loadAccounts().last())
+        }
+
     @Test
     fun `create first account normalizes currency and name and restores setup`(): Unit =
         runTest {
@@ -74,7 +91,7 @@ internal class InMemoryAccountRepository : AccountRepository {
         name: String,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot {
+    ): Account {
         val account: Account = snapshot.accounts.single { it.id == id }
         snapshot =
             snapshot.copy(
@@ -94,7 +111,7 @@ internal class InMemoryAccountRepository : AccountRepository {
                         }
                     },
             )
-        return snapshot
+        return snapshot.accounts.single { it.id == id }
     }
 
     override suspend fun createAccount(
@@ -102,10 +119,10 @@ internal class InMemoryAccountRepository : AccountRepository {
         type: AccountType,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot {
+    ): Account {
         val account: Account =
             Account("new-account", name, type, 1234L, 1234L, openingBalanceMinor, openingBalanceDate, openingBalanceMinor)
         snapshot = snapshot.copy(accounts = snapshot.accounts + account)
-        return snapshot
+        return account
     }
 }

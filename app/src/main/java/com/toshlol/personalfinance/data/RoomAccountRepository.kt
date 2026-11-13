@@ -68,7 +68,7 @@ class RoomAccountRepository(
         name: String,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot =
+    ): Account =
         executeStorageOperation {
             database.withTransaction {
                 val trimmedName: String = name.trim()
@@ -86,7 +86,7 @@ class RoomAccountRepository(
                         updatedAt = currentTime(),
                     ),
                 )
-                loadSnapshot()
+                requireNotNull(loadSnapshot().accounts.firstOrNull { it.id == id })
             }
         }
 
@@ -95,7 +95,7 @@ class RoomAccountRepository(
         type: AccountType,
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
-    ): FirstRunSnapshot =
+    ): Account =
         executeStorageOperation {
             database.withTransaction {
                 val trimmedName: String = name.trim()
@@ -109,7 +109,7 @@ class RoomAccountRepository(
                 database.accountDao().insertAccount(
                     AccountEntity(nextIdentifier(), trimmedName, type.name, timestamp, timestamp, openingBalanceMinor, openingBalanceDate),
                 )
-                loadSnapshot()
+                requireNotNull(loadSnapshot().accounts.firstOrNull { it.name == trimmedName })
             }
         }
 

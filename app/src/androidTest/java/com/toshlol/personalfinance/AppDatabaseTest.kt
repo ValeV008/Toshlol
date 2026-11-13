@@ -470,12 +470,20 @@ class AppDatabaseTest {
                 assertEquals("legacy-transaction", actual.id)
                 assertEquals("Legacy cash", actual.accountName)
                 assertEquals(
-                    0L,
+                    -1L,
                     RoomAccountRepository(database)
                         .loadSetup()
                         .accounts
                         .single()
                         .openingBalanceDate,
+                )
+                assertEquals(
+                    -1250L,
+                    RoomAccountRepository(database)
+                        .loadSetup()
+                        .accounts
+                        .single()
+                        .balanceMinor,
                 )
                 assertEquals(1250L, actual.amountMinor)
                 assertEquals(TransactionDirection.EXPENSE, actual.direction)
@@ -698,7 +706,7 @@ class AppDatabaseTest {
             legacyDatabase.execSQL("CREATE INDEX index_transactions_accountId ON transactions(accountId)")
             legacyDatabase.execSQL("CREATE INDEX index_transactions_date ON transactions(date)")
             legacyDatabase.execSQL(
-                "INSERT INTO transactions VALUES ('legacy-transaction', 'legacy-account', 1250, 'EXPENSE', 20600, 'Before categories', 200, 200)",
+                "INSERT INTO transactions VALUES ('legacy-transaction', 'legacy-account', 1250, 'EXPENSE', -1, 'Before categories', 200, 200)",
             )
             legacyDatabase.version = 3
         }

@@ -45,10 +45,11 @@ data class TransactionsScreenActions(
 )
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun TransactionsScreen(
     state: TransactionsUiState,
     actions: TransactionsScreenActions,
-) {
+): Unit {
     val month: YearMonth? = runCatching { YearMonth.parse(state.selectedMonth) }.getOrNull()
     val transactions: List<FinanceTransaction> =
         state.transactions
@@ -138,12 +139,13 @@ fun TransactionsScreen(
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun FilterSelector(
     label: String,
     options: List<Pair<String, String>>,
     selectedId: String?,
     onSelected: (String?) -> Unit,
-) {
+): Unit {
     var isExpanded: Boolean by remember { mutableStateOf(false) }
     val selectedName: String = options.firstOrNull { it.first == selectedId }?.second ?: "All $label"
     Column {

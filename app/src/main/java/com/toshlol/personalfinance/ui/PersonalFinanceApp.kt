@@ -1,4 +1,4 @@
-package com.toshlol.personalfinance.ui
+﻿package com.toshlol.personalfinance.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,154 +38,172 @@ data class LedgerNavigationActions(
     val tagChanged: (String?) -> Unit = {},
 )
 
+data class SetupActions(
+    val currencyChanged: (String) -> Unit,
+    val accountNameChanged: (String) -> Unit,
+    val accountTypeChanged: (AccountType) -> Unit,
+    val submit: () -> Unit,
+    val retry: () -> Unit,
+)
+
+data class TransactionActions(
+    val create: (TransactionDirection) -> Unit,
+    val edit: (FinanceTransaction) -> Unit,
+    val delete: (String) -> Unit,
+    val form: TransactionFormActions,
+    val deleteConfirmation: TransactionDeleteActions,
+)
+
+data class TransferActions(
+    val create: () -> Unit,
+    val edit: (FinanceTransfer) -> Unit,
+    val dialog: TransferDialogActions,
+)
+
+data class CategoryActions(
+    val nameChanged: (String) -> Unit,
+    val directionChanged: (TransactionDirection) -> Unit,
+    val save: () -> Unit,
+    val edit: (FinanceCategory) -> Unit,
+    val archive: (String) -> Unit,
+)
+
+data class TagActions(
+    val nameChanged: (String) -> Unit,
+    val categoryChanged: (String?) -> Unit,
+    val save: () -> Unit,
+    val edit: (FinanceTag) -> Unit,
+    val archive: (String) -> Unit,
+)
+
+data class AccountEditorActions(
+    val nameChanged: (String) -> Unit,
+    val select: (String) -> Unit,
+    val save: () -> Unit,
+    val openingBalanceChanged: (String) -> Unit,
+    val openingDateChanged: (String) -> Unit,
+    val newNameChanged: (String) -> Unit,
+    val newTypeChanged: (AccountType) -> Unit,
+    val newOpeningBalanceChanged: (String) -> Unit,
+    val newOpeningDateChanged: (String) -> Unit,
+    val create: () -> Unit,
+)
+
+data class OrganizerActions(
+    val open: () -> Unit,
+    val close: () -> Unit,
+    val categories: CategoryActions,
+    val tags: TagActions,
+    val accounts: AccountEditorActions,
+)
+
+data class BudgetActions(
+    val open: () -> Unit,
+    val close: () -> Unit,
+    val monthChanged: (String) -> Unit,
+    val categoryChanged: (String?) -> Unit,
+    val amountChanged: (String) -> Unit,
+    val save: () -> Unit,
+)
+
+data class AccountHistoryActions(
+    val open: (String) -> Unit,
+    val screen: AccountHistoryScreenActions,
+)
+
+data class PersonalFinanceActions(
+    val setup: SetupActions,
+    val transactions: TransactionActions,
+    val transfers: TransferActions,
+    val organizer: OrganizerActions,
+    val budgets: BudgetActions,
+    val accountHistory: AccountHistoryActions,
+    val navigation: LedgerNavigationActions,
+)
+
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun PersonalFinanceApp(
     uiState: FirstRunUiState,
-    onCurrencyChanged: (String) -> Unit,
-    onAccountNameChanged: (String) -> Unit,
-    onAccountTypeChanged: (AccountType) -> Unit,
-    onSubmit: () -> Unit,
-    onRetry: () -> Unit = {},
-    transactionsState: TransactionsUiState = TransactionsUiState(),
-    onCreateTransaction: (TransactionDirection) -> Unit = {},
-    onEditTransaction: (FinanceTransaction) -> Unit = {},
-    onDeleteTransaction: (String) -> Unit = {},
-    onCancelDelete: () -> Unit = {},
-    onConfirmDelete: () -> Unit = {},
-    onAmountChanged: (String) -> Unit = {},
-    onDateChanged: (String) -> Unit = {},
-    onNoteChanged: (String) -> Unit = {},
-    onDirectionChanged: (TransactionDirection) -> Unit = {},
-    onSaveTransaction: () -> Unit = {},
-    onCreateTransfer: () -> Unit = {},
-    onEditTransfer: (FinanceTransfer) -> Unit = {},
-    onCloseTransfer: () -> Unit = {},
-    onSaveTransfer: () -> Unit = {},
-    onTransferSourceChanged: (String) -> Unit = {},
-    onTransferDestinationChanged: (String) -> Unit = {},
-    onDeleteTransfer: (String) -> Unit = {},
-    onCancelDeleteTransfer: () -> Unit = {},
-    onConfirmDeleteTransfer: () -> Unit = {},
-    onCloseTransactionForm: () -> Unit = {},
-    onOpenOrganizer: () -> Unit = {},
-    onOrganizerAccountNameChanged: (String) -> Unit = {},
-    onSelectAccountForEditing: (String) -> Unit = {},
-    onSaveAccountDetails: () -> Unit = {},
-    onOpeningBalanceAmountChanged: (String) -> Unit = {},
-    onOpeningBalanceDateChanged: (String) -> Unit = {},
-    onNewAccountNameChanged: (String) -> Unit = {},
-    onNewAccountTypeChanged: (com.toshlol.personalfinance.data.AccountType) -> Unit = {},
-    onNewAccountOpeningBalanceChanged: (String) -> Unit = {},
-    onNewAccountOpeningDateChanged: (String) -> Unit = {},
-    onCreateAccount: () -> Unit = {},
-    onCloseOrganizer: () -> Unit = {},
-    onCategoryChanged: (String?) -> Unit = {},
-    onTagToggled: (String) -> Unit = {},
-    onCategoryNameChanged: (String) -> Unit = {},
-    onCategoryDirectionChanged: (TransactionDirection) -> Unit = {},
-    onSaveCategory: () -> Unit = {},
-    onEditCategory: (FinanceCategory) -> Unit = {},
-    onArchiveCategory: (String) -> Unit = {},
-    onTagNameChanged: (String) -> Unit = {},
-    onTagCategoryChanged: (String?) -> Unit = {},
-    onSaveTag: () -> Unit = {},
-    onEditTag: (FinanceTag) -> Unit = {},
-    onArchiveTag: (String) -> Unit = {},
-    onOpenBudgets: () -> Unit = {},
-    onCloseBudgets: () -> Unit = {},
-    onBudgetMonthChanged: (String) -> Unit = {},
-    onBudgetCategoryChanged: (String?) -> Unit = {},
-    onBudgetAmountChanged: (String) -> Unit = {},
-    onSaveBudget: () -> Unit = {},
-    navigationActions: LedgerNavigationActions = LedgerNavigationActions(),
-) {
+    transactionsState: TransactionsUiState,
+    actions: PersonalFinanceActions,
+): Unit {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         Column(modifier = Modifier.fillMaxSize()) {
             androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                 when {
-                    !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, onRetry)
+                    !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, actions.setup.retry)
                     uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
+                    uiState.isSetupComplete && transactionsState.accountHistoryAccountId != null ->
+                        AccountHistoryScreen(
+                            state = transactionsState.copy(currency = uiState.currency),
+                            actions = actions.accountHistory.screen,
+                        )
                     uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
                         CategoryTagScreen(
-                            transactionsState,
-                            onCloseOrganizer,
-                            onCategoryNameChanged,
-                            onCategoryDirectionChanged,
-                            onSaveCategory,
-                            onEditCategory,
-                            onArchiveCategory,
-                            onTagNameChanged,
-                            onTagCategoryChanged,
-                            onSaveTag,
-                            onEditTag,
-                            onArchiveTag,
-                            onOrganizerAccountNameChanged,
-                            onSelectAccountForEditing,
-                            onSaveAccountDetails,
-                            onOpeningBalanceAmountChanged,
-                            onOpeningBalanceDateChanged,
-                            onNewAccountNameChanged,
-                            onNewAccountTypeChanged,
-                            onNewAccountOpeningBalanceChanged,
-                            onNewAccountOpeningDateChanged,
-                            onCreateAccount,
+                            state = transactionsState,
+                            actions = actions.organizer,
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
                         BudgetsScreen(
                             transactionsState.copy(currency = uiState.currency),
-                            onCloseBudgets,
-                            onBudgetMonthChanged,
-                            onBudgetCategoryChanged,
-                            onBudgetAmountChanged,
-                            onSaveBudget,
-                            { onCreateTransaction(TransactionDirection.EXPENSE) },
-                            onCreateTransfer,
+                            actions.budgets.close,
+                            actions.budgets.monthChanged,
+                            actions.budgets.categoryChanged,
+                            actions.budgets.amountChanged,
+                            actions.budgets.save,
+                            { actions.transactions.create(TransactionDirection.EXPENSE) },
+                            actions.transfers.create,
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
                         TransactionsScreen(
                             transactionsState.copy(currency = uiState.currency),
                             TransactionsScreenActions(
-                                create = onCreateTransaction,
-                                edit = onEditTransaction,
-                                delete = onDeleteTransaction,
-                                monthChanged = navigationActions.monthChanged,
-                                accountChanged = navigationActions.accountChanged,
-                                categoryChanged = navigationActions.categoryChanged,
-                                tagChanged = navigationActions.tagChanged,
-                                createTransfer = onCreateTransfer,
-                                editTransfer = onEditTransfer,
-                                deleteTransfer = onDeleteTransfer,
+                                create = actions.transactions.create,
+                                edit = actions.transactions.edit,
+                                delete = actions.transactions.delete,
+                                monthChanged = actions.navigation.monthChanged,
+                                accountChanged = actions.navigation.accountChanged,
+                                categoryChanged = actions.navigation.categoryChanged,
+                                tagChanged = actions.navigation.tagChanged,
+                                createTransfer = actions.transfers.create,
+                                editTransfer = actions.transfers.edit,
+                                deleteTransfer = actions.transfers.dialog.delete,
                             ),
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
                         SettingsScreen(
-                            transactionsState,
-                            onOpenOrganizer,
-                            { onCreateTransaction(TransactionDirection.EXPENSE) },
-                            onCreateTransfer,
+                            state = transactionsState,
+                            actions =
+                                SettingsActions(
+                                    openOrganizer = actions.organizer.open,
+                                    createTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
+                                    createTransfer = actions.transfers.create,
+                                ),
                         )
                     uiState.isSetupComplete ->
                         OverviewScreen(
-                            transactionsState.copy(currency = uiState.currency),
-                            onCreateTransaction,
-                            onEditTransaction,
-                            onDeleteTransaction,
-                            onCancelDelete,
-                            onConfirmDelete,
-                            onAmountChanged,
-                            onDateChanged,
-                            onNoteChanged,
-                            onDirectionChanged,
-                            onSaveTransaction,
-                            onCloseTransactionForm,
-                            onOpenOrganizer,
-                            onCategoryChanged,
-                            onTagToggled,
-                            onOpenBudgets,
-                            onCreateTransfer,
-                            onEditTransfer,
+                            state = transactionsState.copy(currency = uiState.currency),
+                            actions =
+                                OverviewScreenActions(
+                                    create = actions.transactions.create,
+                                    edit = actions.transactions.edit,
+                                    delete = actions.transactions.delete,
+                                    openOrganizer = actions.organizer.open,
+                                    openBudgets = actions.budgets.open,
+                                    createTransfer = actions.transfers.create,
+                                    editTransfer = actions.transfers.edit,
+                                    openAccountHistory = actions.accountHistory.open,
+                                ),
                         )
-                    else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
+                    else ->
+                        SetupScreen(
+                            uiState,
+                            actions.setup.currencyChanged,
+                            actions.setup.accountNameChanged,
+                            actions.setup.accountTypeChanged,
+                            actions.setup.submit,
+                        )
                 }
                 if (uiState.isSetupComplete && transactionsState.isLoaded) {
                     TransactionDialogs(
@@ -193,38 +211,38 @@ fun PersonalFinanceApp(
                         TransactionDialogActions(
                             form =
                                 TransactionFormActions(
-                                    close = onCloseTransactionForm,
-                                    amountChanged = onAmountChanged,
-                                    dateChanged = onDateChanged,
-                                    noteChanged = onNoteChanged,
-                                    directionChanged = onDirectionChanged,
-                                    save = onSaveTransaction,
-                                    categoryChanged = onCategoryChanged,
-                                    tagToggled = onTagToggled,
+                                    close = actions.transactions.form.close,
+                                    amountChanged = actions.transactions.form.amountChanged,
+                                    dateChanged = actions.transactions.form.dateChanged,
+                                    noteChanged = actions.transactions.form.noteChanged,
+                                    directionChanged = actions.transactions.form.directionChanged,
+                                    save = actions.transactions.form.save,
+                                    categoryChanged = actions.transactions.form.categoryChanged,
+                                    tagToggled = actions.transactions.form.tagToggled,
                                 ),
-                            delete = TransactionDeleteActions(onCancelDelete, onConfirmDelete),
+                            delete =
+                                TransactionDeleteActions(
+                                    actions.transactions.deleteConfirmation.cancelDelete,
+                                    actions.transactions.deleteConfirmation.confirmDelete,
+                                ),
                         ),
                     )
                     TransferDialog(
                         transactionsState,
-                        onCloseTransfer,
-                        onSaveTransfer,
-                        onAmountChanged,
-                        onDateChanged,
-                        onTransferSourceChanged,
-                        onTransferDestinationChanged,
-                        onDeleteTransfer,
-                        onCancelDeleteTransfer,
-                        onConfirmDeleteTransfer,
+                        actions.transfers.dialog,
                     )
                 }
             }
-            if (uiState.isSetupComplete && transactionsState.isLoaded && !transactionsState.isOrganizerVisible) {
+            if (uiState.isSetupComplete &&
+                transactionsState.isLoaded &&
+                !transactionsState.isOrganizerVisible &&
+                transactionsState.accountHistoryAccountId == null
+            ) {
                 NavigationBar {
                     Row(Modifier.fillMaxWidth()) {
                         listOf("Overview", "Transactions", "Budgets", "Settings").forEach { area: String ->
                             Button(
-                                onClick = { navigationActions.selectArea(area) },
+                                onClick = { actions.navigation.selectArea(area) },
                                 modifier =
                                     Modifier.weight(1f).testTag("navigation-$area").semantics {
                                         stateDescription = if (transactionsState.selectedArea == area) "Current section" else "Section"
@@ -240,29 +258,35 @@ fun PersonalFinanceApp(
     }
 }
 
+private data class SettingsActions(
+    val openOrganizer: () -> Unit,
+    val createTransaction: () -> Unit,
+    val createTransfer: () -> Unit,
+)
+
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun SettingsScreen(
     state: TransactionsUiState,
-    onOpenOrganizer: () -> Unit,
-    onCreateTransaction: () -> Unit,
-    onCreateTransfer: () -> Unit,
-) {
+    actions: SettingsActions,
+): Unit {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
         Text("Currency: ${state.currency}")
         Text("Account: ${state.accountName}")
-        Button(onClick = onCreateTransaction) { Text("Add transaction") }
-        Button(onClick = onCreateTransfer) { Text("Transfer") }
+        Button(onClick = actions.createTransaction) { Text("Add transaction") }
+        Button(onClick = actions.createTransfer) { Text("Transfer") }
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-        Button(onClick = onOpenOrganizer) { Text("Manage categories and tags") }
+        Button(onClick = actions.openOrganizer) { Text("Manage categories and tags") }
     }
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun ShowLoading(
     hasFailed: Boolean,
     onRetry: () -> Unit,
-) {
+): Unit {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),

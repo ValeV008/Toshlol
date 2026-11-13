@@ -7,7 +7,9 @@ import com.toshlol.personalfinance.data.RoomAccountRepository
 import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomCategoryTagRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
+import com.toshlol.personalfinance.domain.AccountManagement
 import com.toshlol.personalfinance.domain.FirstRunSetup
+import com.toshlol.personalfinance.domain.TransferManagement
 
 class PersonalFinanceApplication : Application() {
     val transactionRepository: RoomTransactionRepository by lazy { RoomTransactionRepository(AppDatabase.getInstance(this)) }
@@ -26,4 +28,6 @@ class PersonalFinanceApplication : Application() {
         )
     }
     val firstRunSetup: FirstRunSetup by lazy { FirstRunSetup(accountRepository) }
+    val accountManagement: AccountManagement by lazy { AccountManagement(accountRepository) }
+    val transferManagement: TransferManagement by lazy { TransferManagement(transferRepository) }
 }

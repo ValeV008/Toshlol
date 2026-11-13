@@ -52,11 +52,24 @@ data class TransactionDialogActions(
     val delete: TransactionDeleteActions,
 )
 
+data class TransferDialogActions(
+    val close: () -> Unit,
+    val save: () -> Unit,
+    val amountChanged: (String) -> Unit,
+    val dateChanged: (String) -> Unit,
+    val sourceChanged: (String) -> Unit,
+    val destinationChanged: (String) -> Unit,
+    val delete: (String) -> Unit,
+    val cancelDelete: () -> Unit,
+    val confirmDelete: () -> Unit,
+)
+
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun TransactionDialogs(
     state: TransactionsUiState,
     actions: TransactionDialogActions,
-) {
+): Unit {
     val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
         if (!state.isFormVisible) keyboardController?.hide()
@@ -148,29 +161,22 @@ fun TransactionDialogs(
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun TransferDialog(
     state: TransactionsUiState,
-    onClose: () -> Unit,
-    onSave: () -> Unit,
-    onAmountChanged: (String) -> Unit,
-    onDateChanged: (String) -> Unit,
-    onSourceChanged: (String) -> Unit,
-    onDestinationChanged: (String) -> Unit,
-    onDelete: (String) -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: () -> Unit,
-) {
+    actions: TransferDialogActions,
+): Unit {
     if (state.isTransferFormVisible && state.pendingTransferDeleteId == null) {
         AlertDialog(
-            onDismissRequest = onClose,
+            onDismissRequest = actions.close,
             title = { Text(if (state.editingTransferId == null) "New Transfer" else "Edit Transfer") },
             text = {
                 Column(
                     Modifier.verticalScroll(rememberScrollState()).testTag("transfer-form"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    OutlinedTextField(state.amount, onAmountChanged, label = { Text("Amount") }, singleLine = true)
-                    OutlinedTextField(state.date, onDateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
+                    OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
+                    OutlinedTextField(state.date, actions.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
                     Text("From Account")
                     state.accounts.forEach { account ->
                         Row(
@@ -178,7 +184,7 @@ fun TransferDialog(
                                 selected =
                                     state.transferSourceAccountId == account.id,
                                 role = Role.RadioButton,
-                                onClick = { onSourceChanged(account.id) },
+                                onClick = { actions.sourceChanged(account.id) },
                             ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -193,7 +199,7 @@ fun TransferDialog(
                                 selected =
                                     state.transferDestinationAccountId == account.id,
                                 role = Role.RadioButton,
-                                onClick = { onDestinationChanged(account.id) },
+                                onClick = { actions.destinationChanged(account.id) },
                             ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -206,20 +212,20 @@ fun TransferDialog(
             },
             confirmButton = {
                 Row {
-                    state.editingTransferId?.let { id -> TextButton(onClick = { onDelete(id) }) { Text("Delete") } }
-                    Button(onClick = onSave) { Text("Save") }
+                    state.editingTransferId?.let { id -> TextButton(onClick = { actions.delete(id) }) { Text("Delete") } }
+                    Button(onClick = actions.save) { Text("Save") }
                 }
             },
-            dismissButton = { OutlinedButton(onClick = onClose) { Text("Cancel") } },
+            dismissButton = { OutlinedButton(onClick = actions.close) { Text("Cancel") } },
         )
     }
     if (state.pendingTransferDeleteId != null) {
-        AlertDialog(onDismissRequest = onCancelDelete, title = {
+        AlertDialog(onDismissRequest = actions.cancelDelete, title = {
             Text("Delete Transfer?")
         }, text = {
             Text("This Transfer will be permanently deleted.")
         }, confirmButton = {
-            Button(onClick = onConfirmDelete) { Text("Delete") }
-        }, dismissButton = { TextButton(onClick = onCancelDelete) { Text("Cancel") } })
+            Button(onClick = actions.confirmDelete) { Text("Delete") }
+        }, dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } })
     }
 }

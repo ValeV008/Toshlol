@@ -17,7 +17,11 @@ import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransactionRepository
 import com.toshlol.personalfinance.data.TransferDraft
-import com.toshlol.personalfinance.data.TransferRepository
+import com.toshlol.personalfinance.domain.AccountDetailsDraft
+import com.toshlol.personalfinance.domain.AccountManagement
+import com.toshlol.personalfinance.domain.FirstRunSetup
+import com.toshlol.personalfinance.domain.NewAccountDraft
+import com.toshlol.personalfinance.domain.TransferManagement
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -80,38 +84,38 @@ data class TransactionsUiState(
     val selectedCategoryId: String? = null,
     val selectedTagId: String? = null,
     val selectedArea: String = "Overview",
+    val accountHistoryAccountId: String? = null,
 )
 
 class TransactionsViewModel(
     private val repository: TransactionRepository,
-    private val loadAccount: suspend () -> Pair<String, String>,
-    private val saveAccount: suspend (String, String, Long, Long) -> Account,
-    private val createAccount: suspend (String, com.toshlol.personalfinance.data.AccountType, Long, Long) -> Account,
-    private val loadCurrency: suspend () -> String,
+    private val firstRunSetup: FirstRunSetup,
+    private val accountManagement: AccountManagement,
     private val categoryTagRepository: CategoryTagRepository,
     private val budgetRepository: BudgetRepository,
-    private val loadAccounts: suspend () -> List<Account>,
-    private val transferRepository: TransferRepository,
+    private val transferManagement: TransferManagement,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
 
-    fun refresh() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun refresh(): Unit {
         viewModelScope.launch {
             try {
-                val account: Pair<String, String> = loadAccount()
-                val currency: String = loadCurrency()
+                val setup: com.toshlol.personalfinance.data.FirstRunSnapshot = firstRunSetup.loadSetup()
+                val account: Account? = setup.accounts.firstOrNull()
+                val currency: String = setup.currency
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
                 val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
                 val budgets: List<CategoryBudget> = budgetRepository.load()
-                val accounts: List<Account> = loadAccounts()
-                val transfers: List<FinanceTransfer> = transferRepository.loadTransfers()
+                val accounts: List<Account> = setup.accounts
+                val transfers: List<FinanceTransfer> = transferManagement.loadTransfers()
                 mutableUiState.value =
                     uiState.value.copy(
-                        accountId = account.first,
-                        accountName = account.second,
+                        accountId = account?.id.orEmpty(),
+                        accountName = account?.name.orEmpty(),
                         editingAccountId = accounts.firstOrNull()?.id,
-                        accountNameDraft = account.second,
+                        accountNameDraft = account?.name.orEmpty(),
                         openingBalanceAmount = formatAmount(accounts.firstOrNull()?.openingBalanceMinor ?: 0L, currency),
                         openingBalanceDate =
                             accounts.firstOrNull()?.openingBalanceDate?.let { LocalDate.ofEpochDay(it).toString() }
@@ -134,8 +138,20 @@ class TransactionsViewModel(
         }
     }
 
-    fun selectArea(area: String) {
-        mutableUiState.value = uiState.value.copy(selectedArea = area)
+    @Suppress("ktlint:standard:no-unit-return")
+    fun selectArea(area: String): Unit {
+        mutableUiState.value = uiState.value.copy(selectedArea = area, accountHistoryAccountId = null)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    fun openAccountHistory(id: String): Unit {
+        if (uiState.value.accounts.none { it.id == id }) return
+        mutableUiState.value = uiState.value.copy(accountHistoryAccountId = id, selectedArea = "Overview")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    fun closeAccountHistory(): Unit {
+        mutableUiState.value = uiState.value.copy(accountHistoryAccountId = null)
     }
 
     fun updateSelectedMonth(value: String) {
@@ -169,7 +185,8 @@ class TransactionsViewModel(
             )
     }
 
-    fun beginTransfer() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun beginTransfer(): Unit {
         val accounts: List<Account> = uiState.value.accounts
         mutableUiState.value =
             uiState.value.copy(
@@ -183,7 +200,8 @@ class TransactionsViewModel(
             )
     }
 
-    fun beginEditTransfer(transfer: FinanceTransfer) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun beginEditTransfer(transfer: FinanceTransfer): Unit {
         val fractionDigits: Int = fractionDigits(uiState.value.currency)
         mutableUiState.value =
             uiState.value.copy(
@@ -200,19 +218,23 @@ class TransactionsViewModel(
             )
     }
 
-    fun closeTransferForm() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun closeTransferForm(): Unit {
         mutableUiState.value = uiState.value.copy(isTransferFormVisible = false, error = null)
     }
 
-    fun selectTransferSource(id: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun selectTransferSource(id: String): Unit {
         mutableUiState.value = uiState.value.copy(transferSourceAccountId = id, error = null)
     }
 
-    fun selectTransferDestination(id: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun selectTransferDestination(id: String): Unit {
         mutableUiState.value = uiState.value.copy(transferDestinationAccountId = id, error = null)
     }
 
-    fun saveTransfer() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun saveTransfer(): Unit {
         val state: TransactionsUiState = uiState.value
         val amountMinor: Long? =
             state.amount
@@ -233,34 +255,42 @@ class TransactionsViewModel(
         viewModelScope.launch {
             try {
                 val transfers: List<FinanceTransfer> =
-                    transferRepository.save(
+                    transferManagement.saveTransfer(
                         TransferDraft(state.editingTransferId, sourceId, destinationId, amountMinor, localDate.toEpochDay()),
                     )
                 mutableUiState.value =
-                    uiState.value.copy(transfers = transfers, accounts = loadAccounts(), isTransferFormVisible = false, error = null)
+                    uiState.value.copy(
+                        transfers = transfers,
+                        accounts = accountManagement.loadAccounts(),
+                        isTransferFormVisible = false,
+                        error = null,
+                    )
             } catch (exception: Exception) {
                 mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not save Transfer.")
             }
         }
     }
 
-    fun requestDeleteTransfer(id: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun requestDeleteTransfer(id: String): Unit {
         mutableUiState.value = uiState.value.copy(pendingTransferDeleteId = id)
     }
 
-    fun cancelDeleteTransfer() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun cancelDeleteTransfer(): Unit {
         mutableUiState.value = uiState.value.copy(pendingTransferDeleteId = null)
     }
 
-    fun confirmDeleteTransfer() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun confirmDeleteTransfer(): Unit {
         val id: String = uiState.value.pendingTransferDeleteId ?: return
         viewModelScope.launch {
             try {
-                val transfers: List<FinanceTransfer> = transferRepository.delete(id)
+                val transfers: List<FinanceTransfer> = transferManagement.deleteTransfer(id)
                 mutableUiState.value =
                     uiState.value.copy(
                         transfers = transfers,
-                        accounts = loadAccounts(),
+                        accounts = accountManagement.loadAccounts(),
                         pendingTransferDeleteId = null,
                         isTransferFormVisible = false,
                     )
@@ -333,7 +363,8 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(accountNameDraft = value, error = null)
     }
 
-    fun selectAccountForEditing(id: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun selectAccountForEditing(id: String): Unit {
         val state: TransactionsUiState = uiState.value
         val account: Account = state.accounts.firstOrNull { it.id == id } ?: return
         mutableUiState.value =
@@ -346,7 +377,8 @@ class TransactionsViewModel(
             )
     }
 
-    fun saveAccountDetails() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun saveAccountDetails(): Unit {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
@@ -355,9 +387,13 @@ class TransactionsViewModel(
                 val openingDate: LocalDate? = runCatching { LocalDate.parse(state.openingBalanceDate) }.getOrNull()
                 require(openingMinor != null && openingDate != null) { "Enter a valid opening balance and date." }
                 val accountId: String = state.editingAccountId ?: state.accountId
-                val account: Account = saveAccount(accountId, state.accountNameDraft, openingMinor, openingDate.toEpochDay())
+                val account: Account =
+                    accountManagement.saveDetails(
+                        AccountDetailsDraft(accountId, state.accountNameDraft, openingMinor, openingDate.toEpochDay()),
+                    )
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
-                val accounts: List<Account> = loadAccounts()
+                val accounts: List<Account> = accountManagement.loadAccounts()
+                val transfers: List<FinanceTransfer> = transferManagement.loadTransfers()
                 val primaryAccountName: String = accounts.firstOrNull { it.id == state.accountId }?.name ?: state.accountName
                 mutableUiState.value =
                     uiState.value.copy(
@@ -368,6 +404,7 @@ class TransactionsViewModel(
                         openingBalanceDate = LocalDate.ofEpochDay(account.openingBalanceDate).toString(),
                         accounts = accounts,
                         transactions = transactions,
+                        transfers = transfers,
                         isSaving = false,
                         error = null,
                     )
@@ -379,33 +416,40 @@ class TransactionsViewModel(
         }
     }
 
-    fun updateOpeningBalanceAmount(value: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateOpeningBalanceAmount(value: String): Unit {
         mutableUiState.value = uiState.value.copy(openingBalanceAmount = value, error = null)
     }
 
-    fun updateOpeningBalanceDate(value: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateOpeningBalanceDate(value: String): Unit {
         mutableUiState.value = uiState.value.copy(openingBalanceDate = value, error = null)
     }
 
-    fun updateNewAccountName(value: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateNewAccountName(value: String): Unit {
         mutableUiState.value = uiState.value.copy(newAccountName = value, error = null)
     }
 
-    fun updateNewAccountType(value: com.toshlol.personalfinance.data.AccountType) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateNewAccountType(value: com.toshlol.personalfinance.data.AccountType): Unit {
         mutableUiState.value =
             uiState.value.copy(newAccountType = value, error = null)
     }
 
-    fun updateNewAccountOpeningBalance(value: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateNewAccountOpeningBalance(value: String): Unit {
         mutableUiState.value =
             uiState.value.copy(newAccountOpeningBalance = value, error = null)
     }
 
-    fun updateNewAccountOpeningDate(value: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun updateNewAccountOpeningDate(value: String): Unit {
         mutableUiState.value = uiState.value.copy(newAccountOpeningDate = value, error = null)
     }
 
-    fun createAccount() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun createAccount(): Unit {
         val state: TransactionsUiState = uiState.value
         val amountMinor: Long? = parseAmount(state.newAccountOpeningBalance, state.currency)
         val date: LocalDate? = runCatching { LocalDate.parse(state.newAccountOpeningDate) }.getOrNull()
@@ -415,10 +459,13 @@ class TransactionsViewModel(
         }
         viewModelScope.launch {
             try {
-                val account: Account = createAccount(state.newAccountName, state.newAccountType, amountMinor, date.toEpochDay())
+                val account: Account =
+                    accountManagement.createAccount(
+                        NewAccountDraft(state.newAccountName, state.newAccountType, amountMinor, date.toEpochDay()),
+                    )
                 mutableUiState.value =
                     uiState.value.copy(
-                        accounts = loadAccounts(),
+                        accounts = accountManagement.loadAccounts(),
                         editingAccountId = account.id,
                         accountNameDraft = account.name,
                         openingBalanceAmount = formatAmount(account.openingBalanceMinor, state.currency),
@@ -653,7 +700,7 @@ class TransactionsViewModel(
             try {
                 val transactions: List<FinanceTransaction> = repository.delete(id)
                 val budgets: List<CategoryBudget> = budgetRepository.load()
-                val accounts: List<Account> = loadAccounts()
+                val accounts: List<Account> = accountManagement.loadAccounts()
                 mutableUiState.value =
                     uiState.value.copy(transactions = transactions, budgets = budgets, accounts = accounts, pendingDeleteId = null)
             } catch (
@@ -700,7 +747,7 @@ class TransactionsViewModel(
                         ),
                     )
                 val budgets: List<CategoryBudget> = budgetRepository.load()
-                val accounts: List<Account> = loadAccounts()
+                val accounts: List<Account> = accountManagement.loadAccounts()
                 mutableUiState.value =
                     uiState.value.copy(
                         transactions = newState,

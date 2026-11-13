@@ -30,27 +30,23 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Currency
 
+data class OverviewScreenActions(
+    val create: (TransactionDirection) -> Unit,
+    val edit: (FinanceTransaction) -> Unit,
+    val delete: (String) -> Unit,
+    val openOrganizer: () -> Unit,
+    val openBudgets: () -> Unit,
+    val createTransfer: () -> Unit,
+    val editTransfer: (FinanceTransfer) -> Unit,
+    val openAccountHistory: (String) -> Unit,
+)
+
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun OverviewScreen(
     state: TransactionsUiState,
-    onCreate: (TransactionDirection) -> Unit,
-    onEdit: (FinanceTransaction) -> Unit,
-    onDelete: (String) -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: () -> Unit,
-    onAmountChanged: (String) -> Unit,
-    onDateChanged: (String) -> Unit,
-    onNoteChanged: (String) -> Unit,
-    onDirectionChanged: (TransactionDirection) -> Unit,
-    onSave: () -> Unit,
-    onClose: () -> Unit,
-    onOpenOrganizer: () -> Unit,
-    onCategoryChanged: (String?) -> Unit,
-    onTagToggled: (String) -> Unit,
-    onOpenBudgets: () -> Unit,
-    onCreateTransfer: () -> Unit,
-    onEditTransfer: (FinanceTransfer) -> Unit,
-) {
+    actions: OverviewScreenActions,
+): Unit {
     val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
         if (!state.isFormVisible) keyboardController?.hide()
@@ -64,6 +60,7 @@ fun OverviewScreen(
     val expense: Long = currentMonth.filter { it.direction == TransactionDirection.EXPENSE }.sumOf { it.amountMinor }
     val currentBudgetMonth: YearMonth = YearMonth.now()
     val currentBudgets: List<CategoryBudget> = state.budgets.filter { it.month == currentBudgetMonth }
+    val recentActivity: List<OverviewActivityItem> = buildOverviewActivityItems(state.transactions, state.transfers)
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -79,9 +76,9 @@ fun OverviewScreen(
         )
         Text("Net  ${state.currency} ${formatMoney(income - expense, state.currency)}", style = MaterialTheme.typography.titleLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onCreate(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
-            Button(onClick = { onCreate(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
-            Button(onClick = onCreateTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
+            Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+            Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
+            Button(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
         }
         if (currentBudgets.isNotEmpty()) {
             Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
@@ -98,53 +95,77 @@ fun OverviewScreen(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onOpenOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
-            OutlinedButton(onClick = onOpenBudgets, modifier = Modifier.weight(1f).testTag("open-budgets")) { Text("Budgets") }
+            OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
+            OutlinedButton(onClick = actions.openBudgets, modifier = Modifier.weight(1f).testTag("open-budgets")) { Text("Budgets") }
         }
-        if (state.transactions.isEmpty() && state.transfers.isEmpty()) {
+        if (recentActivity.isEmpty()) {
             Text("No transactions yet")
             Text("Record income or an expense to start your history.")
         } else {
             Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-            state.transactions.forEach { transaction: FinanceTransaction ->
+            recentActivity.forEach { activity: OverviewActivityItem ->
+                val transaction: FinanceTransaction? = activity.transaction
+                val transfer: FinanceTransfer? = activity.transfer
                 Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                    TextButton(onClick = { onEdit(transaction) }) {
+                    if (transaction != null) {
+                        TextButton(onClick = { actions.edit(transaction) }) {
+                            Text(
+                                "${transaction.direction.name.lowercase().replaceFirstChar(
+                                    Char::uppercase,
+                                )} · ${state.currency} ${formatMoney(transaction.amountMinor, state.currency)}",
+                            )
+                        }
                         Text(
-                            "${transaction.direction.name.lowercase().replaceFirstChar(
-                                Char::uppercase,
-                            )} · ${state.currency} ${formatMoney(transaction.amountMinor, state.currency)}",
+                            "${LocalDate.ofEpochDay(
+                                transaction.date,
+                            )} · ${transaction.accountName}${transaction.categoryName?.let {
+                                " · $it"
+                            }.orEmpty()}${transaction.tagNames.takeIf {
+                                it
+                                    .isNotEmpty()
+                            }?.joinToString(
+                                prefix = " · ",
+                            ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
+                        )
+                        TextButton(onClick = { actions.delete(transaction.id) }) { Text("Delete") }
+                    } else if (transfer != null) {
+                        TextButton(onClick = { actions.editTransfer(transfer) }) {
+                            Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}")
+                        }
+                        Text(
+                            "${LocalDate.ofEpochDay(
+                                transfer.date,
+                            )} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}",
                         )
                     }
-                    Text(
-                        "${LocalDate.ofEpochDay(
-                            transaction.date,
-                        )} · ${transaction.accountName}${transaction.categoryName?.let {
-                            " · $it"
-                        }.orEmpty()}${transaction.tagNames.takeIf {
-                            it
-                                .isNotEmpty()
-                        }?.joinToString(
-                            prefix = " · ",
-                        ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
-                    )
-                    TextButton(onClick = { onDelete(transaction.id) }) { Text("Delete") }
-                }
-            }
-            state.transfers.forEach { transfer ->
-                Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                    TextButton(onClick = {
-                        onEditTransfer(transfer)
-                    }) { Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}") }
-                    Text("${LocalDate.ofEpochDay(transfer.date)} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}")
                 }
             }
         }
         Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.accounts.forEach { account ->
-            Text("${account.name}  ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+            TextButton(onClick = { actions.openAccountHistory(account.id) }) {
+                Text("${account.name}  ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+            }
         }
     }
 }
+
+private data class OverviewActivityItem(
+    val id: String,
+    val date: Long,
+    val createdAt: Long,
+    val transaction: FinanceTransaction? = null,
+    val transfer: FinanceTransfer? = null,
+)
+
+private fun buildOverviewActivityItems(
+    transactions: List<FinanceTransaction>,
+    transfers: List<FinanceTransfer>,
+): List<OverviewActivityItem> =
+    (
+        transactions.map { OverviewActivityItem(it.id, it.date, it.createdAt, transaction = it) } +
+            transfers.map { OverviewActivityItem(it.id, it.date, it.createdAt, transfer = it) }
+    ).sortedWith(compareByDescending<OverviewActivityItem> { it.date }.thenByDescending { it.createdAt }.thenByDescending { it.id })
 
 internal fun formatMoney(
     amountMinor: Long,

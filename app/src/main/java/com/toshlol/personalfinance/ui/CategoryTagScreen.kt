@@ -48,7 +48,8 @@ fun CategoryTagScreen(
     onEditTag: (FinanceTag) -> Unit,
     onArchiveTag: (String) -> Unit,
     onOrganizerAccountNameChanged: (String) -> Unit,
-    onSaveAccountName: () -> Unit,
+    onSelectAccountForEditing: (String) -> Unit,
+    onSaveAccountDetails: () -> Unit,
     onOpeningBalanceAmountChanged: (String) -> Unit,
     onOpeningBalanceDateChanged: (String) -> Unit,
     onNewAccountNameChanged: (String) -> Unit,
@@ -69,6 +70,13 @@ fun CategoryTagScreen(
                     Text(if (isAccountSectionVisible) "Hide accounts" else "Manage accounts")
                 }
                 if (isAccountSectionVisible) {
+                    Text("Accounts and balances", style = MaterialTheme.typography.titleMedium)
+                    state.accounts.forEach { account ->
+                        TextButton(onClick = { onSelectAccountForEditing(account.id) }) {
+                            val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
+                            Text("$accountAction ${account.name} · ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+                        }
+                    }
                     OutlinedTextField(
                         state.accountNameDraft,
                         onOrganizerAccountNameChanged,
@@ -87,14 +95,10 @@ fun CategoryTagScreen(
                     Button(
                         onClick = {
                             keyboardController?.hide()
-                            onSaveAccountName()
+                            onSaveAccountDetails()
                         },
                         enabled = !state.isSaving,
-                    ) { Text("Save account name") }
-                    Text("Accounts and balances", style = MaterialTheme.typography.titleMedium)
-                    state.accounts.forEach { account ->
-                        Text("${account.name} · ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
-                    }
+                    ) { Text("Save account details") }
                     Text("Add Account", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = state.newAccountName,

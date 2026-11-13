@@ -31,6 +31,7 @@ data class TransactionsUiState(
     val currency: String = "EUR",
     val accountId: String = "",
     val accountName: String = "",
+    val editingAccountId: String? = null,
     val accountNameDraft: String = "",
     val openingBalanceAmount: String = "0.00",
     val openingBalanceDate: String = LocalDate.now().toString(),
@@ -109,6 +110,7 @@ class TransactionsViewModel(
                     uiState.value.copy(
                         accountId = account.first,
                         accountName = account.second,
+                        editingAccountId = accounts.firstOrNull()?.id,
                         accountNameDraft = account.second,
                         openingBalanceAmount = formatAmount(accounts.firstOrNull()?.openingBalanceMinor ?: 0L, currency),
                         openingBalanceDate =
@@ -331,7 +333,20 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(accountNameDraft = value, error = null)
     }
 
-    fun saveAccountName() {
+    fun selectAccountForEditing(id: String) {
+        val state: TransactionsUiState = uiState.value
+        val account: Account = state.accounts.firstOrNull { it.id == id } ?: return
+        mutableUiState.value =
+            state.copy(
+                editingAccountId = account.id,
+                accountNameDraft = account.name,
+                openingBalanceAmount = formatAmount(account.openingBalanceMinor, state.currency),
+                openingBalanceDate = LocalDate.ofEpochDay(account.openingBalanceDate).toString(),
+                error = null,
+            )
+    }
+
+    fun saveAccountDetails() {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
@@ -339,12 +354,15 @@ class TransactionsViewModel(
                 val openingMinor: Long? = parseAmount(state.openingBalanceAmount, state.currency)
                 val openingDate: LocalDate? = runCatching { LocalDate.parse(state.openingBalanceDate) }.getOrNull()
                 require(openingMinor != null && openingDate != null) { "Enter a valid opening balance and date." }
-                val account: Account = saveAccount(state.accountId, state.accountNameDraft, openingMinor, openingDate.toEpochDay())
+                val accountId: String = state.editingAccountId ?: state.accountId
+                val account: Account = saveAccount(accountId, state.accountNameDraft, openingMinor, openingDate.toEpochDay())
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
                 val accounts: List<Account> = loadAccounts()
+                val primaryAccountName: String = accounts.firstOrNull { it.id == state.accountId }?.name ?: state.accountName
                 mutableUiState.value =
                     uiState.value.copy(
-                        accountName = account.name,
+                        accountName = primaryAccountName,
+                        editingAccountId = account.id,
                         accountNameDraft = account.name,
                         openingBalanceAmount = formatAmount(account.openingBalanceMinor, state.currency),
                         openingBalanceDate = LocalDate.ofEpochDay(account.openingBalanceDate).toString(),
@@ -354,9 +372,9 @@ class TransactionsViewModel(
                         error = null,
                     )
             } catch (exception: IllegalArgumentException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not rename account.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not save Account details.")
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not rename account.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not save Account details.")
             }
         }
     }
@@ -397,10 +415,14 @@ class TransactionsViewModel(
         }
         viewModelScope.launch {
             try {
-                createAccount(state.newAccountName, state.newAccountType, amountMinor, date.toEpochDay())
+                val account: Account = createAccount(state.newAccountName, state.newAccountType, amountMinor, date.toEpochDay())
                 mutableUiState.value =
                     uiState.value.copy(
                         accounts = loadAccounts(),
+                        editingAccountId = account.id,
+                        accountNameDraft = account.name,
+                        openingBalanceAmount = formatAmount(account.openingBalanceMinor, state.currency),
+                        openingBalanceDate = LocalDate.ofEpochDay(account.openingBalanceDate).toString(),
                         newAccountName = "",
                         newAccountOpeningBalance = "0.00",
                         newAccountOpeningDate = LocalDate.now().toString(),

@@ -2,6 +2,7 @@ package com.toshlol.personalfinance.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.BudgetRepository
 import com.toshlol.personalfinance.data.CategoryBudget
@@ -28,6 +29,7 @@ data class TransactionsUiState(
     val accountId: String = "",
     val accountName: String = "",
     val accountNameDraft: String = "",
+    val accounts: List<Account> = emptyList(),
     val transactions: List<FinanceTransaction> = emptyList(),
     val categories: List<FinanceCategory> = emptyList(),
     val tags: List<FinanceTag> = emptyList(),
@@ -57,6 +59,11 @@ data class TransactionsUiState(
             .toString(),
     val budgetCategoryId: String? = null,
     val budgetAmount: String = "",
+    val selectedMonth: String = "",
+    val selectedAccountId: String? = null,
+    val selectedCategoryId: String? = null,
+    val selectedTagId: String? = null,
+    val selectedArea: String = "Overview",
 )
 
 class TransactionsViewModel(
@@ -66,6 +73,7 @@ class TransactionsViewModel(
     private val loadCurrency: suspend () -> String,
     private val categoryTagRepository: CategoryTagRepository,
     private val budgetRepository: BudgetRepository,
+    private val loadAccounts: suspend () -> List<Account>,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
@@ -78,6 +86,7 @@ class TransactionsViewModel(
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
                 val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
                 val budgets: List<CategoryBudget> = budgetRepository.load()
+                val accounts: List<Account> = loadAccounts()
                 mutableUiState.value =
                     uiState.value.copy(
                         accountId = account.first,
@@ -89,6 +98,7 @@ class TransactionsViewModel(
                         categories = organization.categories,
                         tags = organization.tags,
                         budgets = budgets,
+                        accounts = accounts,
                     )
             } catch (
                 exception: IOException,
@@ -97,6 +107,26 @@ class TransactionsViewModel(
                     uiState.value.copy(isLoaded = true, error = "Could not load transactions.")
             }
         }
+    }
+
+    fun selectArea(area: String) {
+        mutableUiState.value = uiState.value.copy(selectedArea = area)
+    }
+
+    fun updateSelectedMonth(value: String) {
+        mutableUiState.value = uiState.value.copy(selectedMonth = value)
+    }
+
+    fun updateSelectedAccount(id: String?) {
+        mutableUiState.value = uiState.value.copy(selectedAccountId = id)
+    }
+
+    fun updateSelectedCategory(id: String?) {
+        mutableUiState.value = uiState.value.copy(selectedCategoryId = id)
+    }
+
+    fun updateSelectedTag(id: String?) {
+        mutableUiState.value = uiState.value.copy(selectedTagId = id)
     }
 
     fun beginCreate(direction: TransactionDirection) {
@@ -213,6 +243,7 @@ class TransactionsViewModel(
     }
 
     fun showBudgets() {
+        mutableUiState.value = uiState.value.copy(selectedArea = "Budgets")
         viewModelScope.launch {
             try {
                 mutableUiState.value =
@@ -234,7 +265,7 @@ class TransactionsViewModel(
     }
 
     fun closeBudgets() {
-        mutableUiState.value = uiState.value.copy(isBudgetsVisible = false, error = null)
+        mutableUiState.value = uiState.value.copy(isBudgetsVisible = false, selectedArea = "Overview", error = null)
     }
 
     fun updateBudgetMonth(value: String) {

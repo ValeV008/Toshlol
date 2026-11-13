@@ -2,18 +2,24 @@ package com.toshlol.personalfinance.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.FinanceCategory
@@ -65,58 +71,130 @@ fun PersonalFinanceApp(
     onBudgetCategoryChanged: (String?) -> Unit = {},
     onBudgetAmountChanged: (String) -> Unit = {},
     onSaveBudget: () -> Unit = {},
+    onAreaSelected: (String) -> Unit = {},
+    onMonthFilterChanged: (String) -> Unit = {},
+    onAccountFilterChanged: (String?) -> Unit = {},
+    onCategoryFilterChanged: (String?) -> Unit = {},
+    onTagFilterChanged: (String?) -> Unit = {},
 ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        when {
-            !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, onRetry)
-            uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
-            uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
-                CategoryTagScreen(
-                    transactionsState,
-                    onCloseOrganizer,
-                    onCategoryNameChanged,
-                    onCategoryDirectionChanged,
-                    onSaveCategory,
-                    onEditCategory,
-                    onArchiveCategory,
-                    onTagNameChanged,
-                    onTagCategoryChanged,
-                    onSaveTag,
-                    onEditTag,
-                    onArchiveTag,
-                    onOrganizerAccountNameChanged,
-                    onSaveAccountName,
-                )
-            uiState.isSetupComplete && transactionsState.isBudgetsVisible ->
-                BudgetsScreen(
-                    transactionsState.copy(currency = uiState.currency),
-                    onCloseBudgets,
-                    onBudgetMonthChanged,
-                    onBudgetCategoryChanged,
-                    onBudgetAmountChanged,
-                    onSaveBudget,
-                )
-            uiState.isSetupComplete ->
-                OverviewScreen(
-                    transactionsState.copy(currency = uiState.currency),
-                    onCreateTransaction,
-                    onEditTransaction,
-                    onDeleteTransaction,
-                    onCancelDelete,
-                    onConfirmDelete,
-                    onAmountChanged,
-                    onDateChanged,
-                    onNoteChanged,
-                    onDirectionChanged,
-                    onSaveTransaction,
-                    onCloseTransactionForm,
-                    onOpenOrganizer,
-                    onCategoryChanged,
-                    onTagToggled,
-                    onOpenBudgets,
-                )
-            else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
+        Column(modifier = Modifier.fillMaxSize()) {
+            androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
+                when {
+                    !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, onRetry)
+                    uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
+                    uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
+                        CategoryTagScreen(
+                            transactionsState,
+                            onCloseOrganizer,
+                            onCategoryNameChanged,
+                            onCategoryDirectionChanged,
+                            onSaveCategory,
+                            onEditCategory,
+                            onArchiveCategory,
+                            onTagNameChanged,
+                            onTagCategoryChanged,
+                            onSaveTag,
+                            onEditTag,
+                            onArchiveTag,
+                            onOrganizerAccountNameChanged,
+                            onSaveAccountName,
+                        )
+                    uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
+                        BudgetsScreen(
+                            transactionsState.copy(currency = uiState.currency),
+                            onCloseBudgets,
+                            onBudgetMonthChanged,
+                            onBudgetCategoryChanged,
+                            onBudgetAmountChanged,
+                            onSaveBudget,
+                            { onCreateTransaction(TransactionDirection.EXPENSE) },
+                        )
+                    uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
+                        TransactionsScreen(
+                            transactionsState.copy(currency = uiState.currency),
+                            onCreateTransaction,
+                            onEditTransaction,
+                            onDeleteTransaction,
+                            onMonthFilterChanged,
+                            onAccountFilterChanged,
+                            onCategoryFilterChanged,
+                            onTagFilterChanged,
+                        )
+                    uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
+                        SettingsScreen(transactionsState, onOpenOrganizer) { onCreateTransaction(TransactionDirection.EXPENSE) }
+                    uiState.isSetupComplete ->
+                        OverviewScreen(
+                            transactionsState.copy(currency = uiState.currency),
+                            onCreateTransaction,
+                            onEditTransaction,
+                            onDeleteTransaction,
+                            onCancelDelete,
+                            onConfirmDelete,
+                            onAmountChanged,
+                            onDateChanged,
+                            onNoteChanged,
+                            onDirectionChanged,
+                            onSaveTransaction,
+                            onCloseTransactionForm,
+                            onOpenOrganizer,
+                            onCategoryChanged,
+                            onTagToggled,
+                            onOpenBudgets,
+                        )
+                    else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
+                }
+                if (uiState.isSetupComplete && transactionsState.isLoaded) {
+                    TransactionDialogs(
+                        transactionsState,
+                        onCloseTransactionForm,
+                        onAmountChanged,
+                        onDateChanged,
+                        onNoteChanged,
+                        onDirectionChanged,
+                        onSaveTransaction,
+                        onCategoryChanged,
+                        onTagToggled,
+                        onCancelDelete,
+                        onConfirmDelete,
+                    )
+                }
+            }
+            if (uiState.isSetupComplete && transactionsState.isLoaded && !transactionsState.isOrganizerVisible) {
+                NavigationBar {
+                    Row(Modifier.fillMaxWidth()) {
+                        listOf("Overview", "Transactions", "Budgets", "Settings").forEach { area: String ->
+                            Button(
+                                onClick = { onAreaSelected(area) },
+                                modifier =
+                                    Modifier.weight(1f).testTag("navigation-$area").semantics {
+                                        stateDescription = if (transactionsState.selectedArea == area) "Current section" else "Section"
+                                    },
+                            ) {
+                                Text(area)
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    state: TransactionsUiState,
+    onOpenOrganizer: () -> Unit,
+    onCreateTransaction: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
+        Text("Currency: ${state.currency}")
+        Text("Account: ${state.accountName}")
+        Button(onClick = onCreateTransaction) { Text("Add transaction") }
+        Button(onClick = onOpenOrganizer) { Text("Manage categories and tags") }
+        Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+        Text("Backup and restore actions will be available here.")
     }
 }
 

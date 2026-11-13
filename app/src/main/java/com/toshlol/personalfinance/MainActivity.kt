@@ -39,7 +39,9 @@ class MainActivity : ComponentActivity() {
                             .accounts
                             .first()
                     account.id to account.name
-                }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository, application.budgetRepository)
+                }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository, application.budgetRepository, {
+                    application.firstRunSetup.loadSetup().accounts
+                })
             }
         }
     }
@@ -93,6 +95,11 @@ class MainActivity : ComponentActivity() {
                     onBudgetCategoryChanged = transactionsViewModel::updateBudgetCategory,
                     onBudgetAmountChanged = transactionsViewModel::updateBudgetAmount,
                     onSaveBudget = transactionsViewModel::saveBudget,
+                    onAreaSelected = transactionsViewModel::selectArea,
+                    onMonthFilterChanged = transactionsViewModel::updateSelectedMonth,
+                    onAccountFilterChanged = transactionsViewModel::updateSelectedAccount,
+                    onCategoryFilterChanged = transactionsViewModel::updateSelectedCategory,
+                    onTagFilterChanged = transactionsViewModel::updateSelectedTag,
                 )
             }
         }

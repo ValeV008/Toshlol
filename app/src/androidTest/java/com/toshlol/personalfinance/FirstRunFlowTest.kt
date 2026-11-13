@@ -3,6 +3,7 @@ package com.toshlol.personalfinance
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -85,7 +86,13 @@ class FirstRunFlowTest {
     }
 
     private fun waitForText(text: String) {
-        ui.showText(text)
+        if (text == "Overview") {
+            composeRule.waitUntil(15_000) {
+                composeRule.onAllNodesWithText("EUR ledger is ready.").fetchSemanticsNodes().isNotEmpty()
+            }
+        } else {
+            ui.showText(text)
+        }
     }
 
     private fun dismissKeyboard() {

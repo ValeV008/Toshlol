@@ -403,8 +403,10 @@ class TransactionsViewModel(
             uiState.value.pendingDeleteId ?: return
         viewModelScope.launch {
             try {
+                val transactions: List<FinanceTransaction> = repository.delete(id)
+                val budgets: List<CategoryBudget> = budgetRepository.load()
                 mutableUiState.value =
-                    uiState.value.copy(transactions = repository.delete(id), pendingDeleteId = null)
+                    uiState.value.copy(transactions = transactions, budgets = budgets, pendingDeleteId = null)
             } catch (
                 exception: IOException,
             ) {
@@ -448,8 +450,9 @@ class TransactionsViewModel(
                             state.tagIds,
                         ),
                     )
+                val budgets: List<CategoryBudget> = budgetRepository.load()
                 mutableUiState.value =
-                    uiState.value.copy(transactions = newState, isFormVisible = false, isSaving = false)
+                    uiState.value.copy(transactions = newState, budgets = budgets, isFormVisible = false, isSaving = false)
             } catch (
                 exception: Exception,
             ) {

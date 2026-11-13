@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -21,9 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -167,26 +172,48 @@ fun OverviewScreen(
                 OutlinedTextField(state.date, onDateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
                 OutlinedTextField(state.note, onNoteChanged, label = { Text("Note (optional)") }, singleLine = true)
                 Text("Category (optional)", style = MaterialTheme.typography.titleSmall)
-                Row(Modifier.clickable { onCategoryChanged(null) }) {
-                    RadioButton(selected = state.categoryId == null, onClick = { onCategoryChanged(null) })
+                Row(
+                    Modifier.heightIn(min = 48.dp).selectable(
+                        selected = state.categoryId == null,
+                        role = Role.RadioButton,
+                        onClick = { onCategoryChanged(null) },
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = state.categoryId == null, onClick = null)
                     Text("Uncategorized")
                 }
                 state.categories
                     .filter { !it.archived || it.id == state.categoryId }
                     .filter { it.direction == state.direction }
                     .forEach { category: FinanceCategory ->
-                        Row(Modifier.clickable { onCategoryChanged(category.id) }) {
-                            RadioButton(selected = state.categoryId == category.id, onClick = { onCategoryChanged(category.id) })
+                        Row(
+                            Modifier.heightIn(min = 48.dp).selectable(
+                                selected = state.categoryId == category.id,
+                                role = Role.RadioButton,
+                                onClick = { onCategoryChanged(category.id) },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = state.categoryId == category.id, onClick = null)
                             Text(category.name + if (category.archived) " (archived)" else "")
                         }
                     }
                 Text("Tags (optional)", style = MaterialTheme.typography.titleSmall)
                 state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag: FinanceTag ->
                     val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
-                    Row(Modifier.clickable(enabled = canAssignTag) { onTagToggled(tag.id) }) {
+                    Row(
+                        Modifier.heightIn(min = 48.dp).toggleable(
+                            value = tag.id in state.tagIds,
+                            enabled = canAssignTag,
+                            role = Role.Checkbox,
+                            onValueChange = { onTagToggled(tag.id) },
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         androidx.compose.material3.Checkbox(
                             checked = tag.id in state.tagIds,
-                            onCheckedChange = { if (canAssignTag) onTagToggled(tag.id) },
+                            onCheckedChange = null,
                             enabled = canAssignTag,
                         )
                         Text(

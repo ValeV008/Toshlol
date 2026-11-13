@@ -42,13 +42,9 @@ class AppDatabaseTest {
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
             try {
-                val account: Account =
-                    FirstRunSetup(RoomAccountRepository(database, { "budget-account" }, { 100L }))
-                        .createFirstAccount("EUR", "Cash", AccountType.CASH)
-                        .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
-                var categoryIndex: Int = 0
-                val categoryRepository: RoomCategoryTagRepository =
-                    RoomCategoryTagRepository(database, { "budget-category-${++categoryIndex}" }, { 200L })
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount()
+                val categoryRepository: RoomCategoryTagRepository = fixtures.organization
                 val categoryId: String =
                     categoryRepository
                         .saveCategory(
@@ -67,12 +63,10 @@ class AppDatabaseTest {
                             it.name ==
                                 "Pay"
                         }.id
-                var transactionIndex: Int = 0
-                val transactionRepository: RoomTransactionRepository =
-                    RoomTransactionRepository(database, { "budget-transaction-${++transactionIndex}" }, { 300L })
+                val transactionRepository: RoomTransactionRepository = fixtures.transactions
                 transactionRepository.save(
                     TransactionDraft(
-                        account.id,
+                        null,
                         account.id,
                         1200,
                         TransactionDirection.EXPENSE,
@@ -85,7 +79,7 @@ class AppDatabaseTest {
                 )
                 transactionRepository.save(
                     TransactionDraft(
-                        "income-id",
+                        null,
                         account.id,
                         8000,
                         TransactionDirection.INCOME,
@@ -98,7 +92,7 @@ class AppDatabaseTest {
                 )
                 transactionRepository.save(
                     TransactionDraft(
-                        "feb-id",
+                        null,
                         account.id,
                         500,
                         TransactionDirection.EXPENSE,
@@ -111,6 +105,8 @@ class AppDatabaseTest {
                 )
                 val savedExpenses: List<FinanceTransaction> =
                     transactionRepository.loadTransactions().filter { it.direction == TransactionDirection.EXPENSE }
+                assertEquals(2, savedExpenses.size)
+                assertEquals(2, savedExpenses.map(FinanceTransaction::id).toSet().size)
                 assertEquals(categoryId, savedExpenses.first().categoryId)
                 assertTrue(
                     "Unexpected expense transactions: $savedExpenses",
@@ -121,7 +117,7 @@ class AppDatabaseTest {
                                 .toString() == "2026-01"
                     },
                 )
-                val budgetRepository: RoomBudgetRepository = RoomBudgetRepository(database, { "budget-id" }, { 400L })
+                val budgetRepository: RoomBudgetRepository = fixtures.budgets
                 var actual: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, java.time.YearMonth.of(2026, 1), 1000))
                 assertEquals(1, actual.size)
                 assertEquals(1200L, actual.single().spentMinor)
@@ -146,6 +142,47 @@ class AppDatabaseTest {
         }
 
     @Test
+    fun persistDistinctFixtureRecordsAndEditOnlyTheRequestedTransaction(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount()
+                fixtures.organization.saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
+                val categories: List<com.toshlol.personalfinance.data.FinanceCategory> =
+                    fixtures.organization.saveCategory(CategoryDraft(name = "Travel", direction = TransactionDirection.EXPENSE)).categories
+                val foodId: String = categories.single { it.name == "Food" }.id
+                val travelId: String = categories.single { it.name == "Travel" }.id
+                fixtures.organization.saveTag(TagDraft(name = "Lunch", categoryId = foodId))
+                val tags: List<com.toshlol.personalfinance.data.FinanceTag> =
+                    fixtures.organization.saveTag(TagDraft(name = "Train", categoryId = travelId)).tags
+                fixtures.transactions.save(TransactionDraft(null, account.id, 500L, TransactionDirection.EXPENSE, 20600L, null, foodId))
+                val original: List<FinanceTransaction> =
+                    fixtures.transactions.save(
+                        TransactionDraft(null, account.id, 800L, TransactionDirection.EXPENSE, 20600L, null, travelId),
+                    )
+                fixtures.budgets.save(BudgetDraft(foodId, java.time.YearMonth.of(2026, 5), 1000L))
+                val budgets: List<CategoryBudget> = fixtures.budgets.save(BudgetDraft(travelId, java.time.YearMonth.of(2026, 5), 2000L))
+                val identifiers: List<String> =
+                    listOf(account.id) + categories.map { it.id } + tags.map { it.id } +
+                        original.map { it.id } + budgets.map { it.id }
+                assertEquals(9, identifiers.toSet().size)
+                assertEquals(listOf(500L, 800L), original.map { it.amountMinor }.sorted())
+                assertTrue(original.all { it.createdAt == FinanceTestFixtures.FIXED_TIME_MILLIS })
+                val editedId: String = original.single { it.categoryId == foodId }.id
+                val edited: List<FinanceTransaction> =
+                    fixtures.transactions.save(
+                        TransactionDraft(editedId, account.id, 600L, TransactionDirection.EXPENSE, 20600L, null, foodId),
+                    )
+                assertEquals(original.map { it.id }.toSet(), edited.map { it.id }.toSet())
+                assertEquals(600L, edited.single { it.id == editedId }.amountMinor)
+                assertEquals(original.single { it.categoryId == travelId }, edited.single { it.categoryId == travelId })
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
     fun persistTransactionAndPreserveIdentityAndCreationTimeWhenEdited(): Unit =
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
@@ -157,7 +194,7 @@ class AppDatabaseTest {
                 val repository: RoomTransactionRepository = RoomTransactionRepository(database, { "transaction-id" }, { 200L })
                 val initial: List<com.toshlol.personalfinance.data.FinanceTransaction> =
                     repository.save(
-                        TransactionDraft(account.id, account.id, 1250, TransactionDirection.EXPENSE, 20600, "Lunch"),
+                        TransactionDraft(null, account.id, 1250, TransactionDirection.EXPENSE, 20600, "Lunch"),
                     )
                 val edited: List<com.toshlol.personalfinance.data.FinanceTransaction> =
                     repository.save(
@@ -182,13 +219,9 @@ class AppDatabaseTest {
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
             try {
-                val account: com.toshlol.personalfinance.data.Account =
-                    FirstRunSetup(RoomAccountRepository(database, { "account-id" }, { 100L }))
-                        .createFirstAccount("EUR", "Cash", AccountType.CASH)
-                        .let { (it as com.toshlol.personalfinance.domain.SetupOutcome.Completed).snapshot.accounts.single() }
-                var nextOrganizationId: Int = 0
-                val organizationRepository: RoomCategoryTagRepository =
-                    RoomCategoryTagRepository(database, { "organization-${++nextOrganizationId}" }, { 200L })
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount()
+                val organizationRepository: RoomCategoryTagRepository = fixtures.organization
                 var organization =
                     organizationRepository.saveCategory(
                         CategoryDraft(name = "  Food ", direction = TransactionDirection.EXPENSE),
@@ -212,10 +245,10 @@ class AppDatabaseTest {
                 } catch (expectedException: IllegalArgumentException) {
                     assertTrue(expectedException.message!!.contains("already exists"))
                 }
-                val transactionRepository: RoomTransactionRepository = RoomTransactionRepository(database, { "transaction-id" }, { 300L })
+                val transactionRepository: RoomTransactionRepository = fixtures.transactions
                 transactionRepository.save(
                     TransactionDraft(
-                        account.id,
+                        null,
                         account.id,
                         1250,
                         TransactionDirection.EXPENSE,
@@ -225,6 +258,7 @@ class AppDatabaseTest {
                         setOf(lunchId, independentId),
                     ),
                 )
+                val transactionId: String = transactionRepository.loadTransactions().single().id
                 organizationRepository.saveCategory(CategoryDraft(foodId, "Dining", TransactionDirection.EXPENSE))
                 organizationRepository.saveTag(TagDraft(lunchId, "Meal", foodId))
                 var actual: com.toshlol.personalfinance.data.FinanceTransaction = transactionRepository.loadTransactions().single()
@@ -244,7 +278,7 @@ class AppDatabaseTest {
                 }
                 transactionRepository.save(
                     TransactionDraft(
-                        "transaction-id",
+                        transactionId,
                         account.id,
                         1250,
                         TransactionDirection.EXPENSE,

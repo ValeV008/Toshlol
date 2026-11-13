@@ -136,6 +136,26 @@ Source: [Scale your tests with build-managed devices](https://developer.android.
 
 ## Recommended agent workflow
 
+### Shared UI helpers and failure artifacts
+
+Use `FinanceUiDriver` in `app/src/androidTest/java/com/toshlol/personalfinance/` for app journeys. `showText` waits for one matching node and scrolls it into view. Pass the container tag for lazy content, for example `ui.clickText("Add category", "category-tag-list")`. `enterText` replaces the field value and dismisses the keyboard. Keyboard dismissal uses `InputMethodManager` with every process window token (including dialogs), then waits for the IME inset to disappear. Lazy-container searches retry while asynchronous saves make their resulting rows available. Assert selection through the control's semantics rather than reading a ViewModel.
+
+Place `UiFailureArtifactsRule(composeRule)` **inside** the Compose activity rule in the `RuleChain`. It captures a screenshot, unmerged semantics for every Compose root (including dialogs), recent logcat, and the original stack trace before activity cleanup. Collection errors become separate `.error.txt` files and suppressed exceptions; the original test failure is rethrown.
+
+When Gradle provides `additionalTestOutputDir`, artifacts are written there and collected under `app/build/outputs/connected_android_test_additional_output/`. Each failure has its own `ui-failures/<class>.<method>/<timestamp>/` directory. Direct instrumentation runs fall back to the target app's external files directory; retrieve them with:
+
+```powershell
+adb pull /sdcard/Android/data/com.toshlol.finance/files/test-output ./build/ui-test-artifacts
+```
+
+Before changing a failing journey, preserve a baseline log and copy `app/build/outputs/androidTest-results/` and `app/build/reports/androidTests/` into a separate directory under `build/`. Gradle replaces the current run's reports. Compare failures against that baseline before calling them pre-existing. `UiFailureArtifactsRuleTest` verifies the capture path with an intentional assertion caught inside the test, so the verification suite still passes.
+
+### Deterministic Room fixtures
+
+Create one `FinanceTestFixtures(database)` per test/database. Its Account, Category/Tag, Transaction, and Budget repositories share a sequential UUID generator and fixed timestamp. Use `createFirstAccount()` for common setup, and pass `null` as the ID of a new Transaction. To test an edit, reuse the ID returned by a previous repository operation. Tests specifically about IDs, changing time, or migration generation can inject their own providers directly. Keep assertions on public repository results.
+
+### Execution loop
+
 1. Inspect Gradle tasks, test source sets, application ID, test runner, and configured devices.
 2. Run fast unit tests and lint.
 3. Run the focused Compose or instrumented test on a managed or connected emulator.

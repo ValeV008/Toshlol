@@ -30,12 +30,15 @@ import com.toshlol.personalfinance.ui.theme.ToshlolTheme
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AccessibilityTest {
+    private val composeRule: ComposeContentTestRule = createComposeRule()
+
     @get:Rule
-    val composeRule: ComposeContentTestRule = createComposeRule()
+    val rules: RuleChain = RuleChain.outerRule(composeRule).around(UiFailureArtifactsRule(composeRule))
 
     @Test
     fun exposeLabeledInputsSelectedTypesAndValidationAtLargeFont() {

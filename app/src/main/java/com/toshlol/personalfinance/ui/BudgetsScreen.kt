@@ -1,13 +1,14 @@
 package com.toshlol.personalfinance.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -16,7 +17,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -60,8 +63,15 @@ fun BudgetsScreen(
         if (monthBudgets.isEmpty()) Text("No budgets for this month.")
         Text("Set a budget", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.categories.filter { it.direction == TransactionDirection.EXPENSE && !it.archived }.forEach { category: FinanceCategory ->
-            Row(Modifier.clickable { onCategoryChanged(category.id) }) {
-                RadioButton(selected = state.budgetCategoryId == category.id, onClick = { onCategoryChanged(category.id) })
+            Row(
+                Modifier.heightIn(min = 48.dp).selectable(
+                    selected = state.budgetCategoryId == category.id,
+                    role = Role.RadioButton,
+                    onClick = { onCategoryChanged(category.id) },
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = state.budgetCategoryId == category.id, onClick = null)
                 Text(category.name)
             }
         }

@@ -3,7 +3,6 @@ package com.toshlol.personalfinance
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -27,8 +26,10 @@ import org.junit.runner.RunWith
 class FirstRunFlowTest {
     private val composeRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> = createAndroidComposeRule()
 
+    private val ui: FinanceUiDriver = FinanceUiDriver(composeRule)
+
     @get:Rule
-    val rules: RuleChain = RuleChain.outerRule(ResetFinanceDataRule()).around(composeRule)
+    val rules: RuleChain = RuleChain.outerRule(ResetFinanceDataRule()).around(composeRule).around(UiFailureArtifactsRule(composeRule))
 
     @Test
     fun createFirstAccountAndKeepOverviewAcrossRelaunch() {
@@ -84,11 +85,10 @@ class FirstRunFlowTest {
     }
 
     private fun waitForText(text: String) {
-        composeRule.waitUntil(15_000) { composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
-        composeRule.onNodeWithText(text).assertIsDisplayed()
+        ui.showText(text)
     }
 
     private fun dismissKeyboard() {
-        composeRule.activity.runOnUiThread { composeRule.activity.currentFocus?.clearFocus() }
+        ui.dismissKeyboard()
     }
 }

@@ -1,12 +1,18 @@
-@file:Suppress("ktlint:standard:filename")
+@file:Suppress("ktlint:standard:filename", "ktlint:standard:no-unit-return")
 
 package com.toshlol.personalfinance.data
 
 import java.time.LocalDate
 import java.time.YearMonth
 
+private data class BackupReferences(
+    val accounts: Map<String, BackupAccount>,
+    val categories: Map<String, BackupCategory>,
+    val tags: Map<String, BackupTag>,
+)
+
 internal object BackupValidator {
-    fun validate(backup: FinanceBackup) {
+    fun validate(backup: FinanceBackup): Unit {
         val recordCount: Int =
             backup.accounts.size + backup.categories.size + backup.tags.size + backup.transactions.size +
                 backup.transfers.size + backup.budgets.size
@@ -19,15 +25,18 @@ internal object BackupValidator {
         requireUniqueNames(backup.accounts.filterNot(BackupAccount::archived).map(BackupAccount::name), "Account")
         requireUniqueNames(backup.categories.filterNot(BackupCategory::archived).map { "${it.direction}:${it.name}" }, "Category")
         requireUniqueNames(backup.tags.filterNot(BackupTag::archived).map(BackupTag::name), "Tag")
-        val accounts: Map<String, BackupAccount> = backup.accounts.associateBy(BackupAccount::id)
-        val categories: Map<String, BackupCategory> = backup.categories.associateBy(BackupCategory::id)
-        val tags: Map<String, BackupTag> = backup.tags.associateBy(BackupTag::id)
+        val references: BackupReferences =
+            BackupReferences(
+                backup.accounts.associateBy(BackupAccount::id),
+                backup.categories.associateBy(BackupCategory::id),
+                backup.tags.associateBy(BackupTag::id),
+            )
         validateAccounts(backup.accounts)
         validateCategories(backup.categories)
-        validateTags(backup.tags, categories)
-        validateTransactions(backup.transactions, accounts, categories, tags)
-        validateTransfers(backup.transfers, accounts)
-        validateBudgets(backup.budgets, categories)
+        validateTags(backup.tags, references.categories)
+        validateTransactions(backup.transactions, references)
+        validateTransfers(backup.transfers, references.accounts)
+        validateBudgets(backup.budgets, references.categories)
     }
 
     private fun collectIdentifiers(backup: FinanceBackup): List<String> =
@@ -35,7 +44,7 @@ internal object BackupValidator {
             backup.tags.map(BackupTag::id) + backup.transactions.map(BackupTransaction::id) +
             backup.transfers.map(BackupTransfer::id) + backup.budgets.map(BackupBudget::id)
 
-    private fun validateAccounts(accounts: List<BackupAccount>) {
+    private fun validateAccounts(accounts: List<BackupAccount>): Unit {
         accounts.forEach { account ->
             require(
                 account.name.isNotBlank() &&
@@ -47,7 +56,7 @@ internal object BackupValidator {
         }
     }
 
-    private fun validateCategories(categories: List<BackupCategory>) {
+    private fun validateCategories(categories: List<BackupCategory>): Unit {
         categories.forEach { category ->
             require(
                 category.name.isNotBlank() &&
@@ -61,7 +70,7 @@ internal object BackupValidator {
     private fun validateTags(
         tags: List<BackupTag>,
         categories: Map<String, BackupCategory>,
-    ) {
+    ): Unit {
         tags.forEach { tag ->
             require(
                 tag.name.isNotBlank() &&
@@ -74,26 +83,24 @@ internal object BackupValidator {
 
     private fun validateTransactions(
         transactions: List<BackupTransaction>,
-        accounts: Map<String, BackupAccount>,
-        categories: Map<String, BackupCategory>,
-        tags: Map<String, BackupTag>,
-    ) {
+        references: BackupReferences,
+    ): Unit {
         transactions.forEach { transaction ->
             require(
-                transaction.accountId in accounts &&
+                transaction.accountId in references.accounts &&
                     transaction.amountMinor > 0 &&
                     transaction.direction in TransactionDirection.entries.map(TransactionDirection::name) &&
                     transaction.updatedAt >= transaction.createdAt &&
                     isValidDate(transaction.date),
             ) { "Backup contains an invalid Transaction." }
-            require(transaction.categoryId == null || categories[transaction.categoryId]?.direction == transaction.direction) {
+            require(transaction.categoryId == null || references.categories[transaction.categoryId]?.direction == transaction.direction) {
                 "Backup Transaction has a missing or incompatible Category."
             }
             require(
                 transaction.tagIds.distinct().size == transaction.tagIds.size &&
                     transaction.tagIds.all { tagId ->
-                        tags[tagId] != null &&
-                            (tags[tagId]?.categoryId == null || tags[tagId]?.categoryId == transaction.categoryId)
+                        references.tags[tagId] != null &&
+                            (references.tags[tagId]?.categoryId == null || references.tags[tagId]?.categoryId == transaction.categoryId)
                     },
             ) { "Backup Transaction has missing or incompatible Tags." }
         }
@@ -102,7 +109,7 @@ internal object BackupValidator {
     private fun validateTransfers(
         transfers: List<BackupTransfer>,
         accounts: Map<String, BackupAccount>,
-    ) {
+    ): Unit {
         transfers.forEach { transfer ->
             require(
                 transfer.sourceAccountId in accounts &&
@@ -118,7 +125,7 @@ internal object BackupValidator {
     private fun validateBudgets(
         budgets: List<BackupBudget>,
         categories: Map<String, BackupCategory>,
-    ) {
+    ): Unit {
         budgets.forEach { budget ->
             require(
                 categories[budget.categoryId]?.direction == TransactionDirection.EXPENSE.name &&
@@ -134,7 +141,7 @@ internal object BackupValidator {
     private fun requireUniqueNames(
         names: List<String>,
         entity: String,
-    ) {
+    ): Unit {
         require(names.all { it.isNotBlank() && it == it.trim() } && names.map(String::lowercase).distinct().size == names.size) {
             "Backup contains conflicting active $entity names."
         }

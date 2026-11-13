@@ -19,6 +19,11 @@ import com.toshlol.personalfinance.data.FinanceBackupCodec
 import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.RoomBackupImporter
 import com.toshlol.personalfinance.data.TransactionDirection
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -134,6 +139,27 @@ class BackupImportTest {
                 val replacement: FinanceBackup = initial.copy(settings = BackupSettings("USD"))
                 val result: BackupImportOutcome = importBackup(importer, replacement, BackupImportMode.OVERWRITE)
                 assertTrue(result is BackupImportOutcome.Failure)
+                assertEquals(initial, captureBackup(database))
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun canceledImportDoesNotMutateLedger(): Unit =
+        runTest {
+            val database: AppDatabase = createDatabase()
+            try {
+                val initial: FinanceBackup = createBackup()
+                val seeder: RoomBackupImporter = RoomBackupImporter(database)
+                importBackup(seeder, initial)
+                val replacement: FinanceBackup = initial.copy(settings = BackupSettings("USD"))
+                val importer: RoomBackupImporter = RoomBackupImporter(database, beforeTransaction = { awaitCancellation() })
+                val importJob: Job =
+                    launch(start = CoroutineStart.UNDISPATCHED) {
+                        importBackup(importer, replacement, BackupImportMode.OVERWRITE)
+                    }
+                importJob.cancelAndJoin()
                 assertEquals(initial, captureBackup(database))
             } finally {
                 database.close()

@@ -1,4 +1,4 @@
-@file:Suppress("ktlint:standard:filename")
+@file:Suppress("ktlint:standard:filename", "ktlint:standard:no-unit-return")
 
 package com.toshlol.personalfinance.data
 
@@ -20,7 +20,7 @@ internal class RoomBackupStore(
     suspend fun save(
         backup: FinanceBackup,
         mode: BackupImportMode,
-    ) {
+    ): Unit {
         if (mode == BackupImportMode.OVERWRITE) clearLedger()
         database.settingsDao().saveSettings(AppSettings(currency = backup.settings.currency))
         saveAccounts(backup.accounts)
@@ -31,7 +31,7 @@ internal class RoomBackupStore(
         saveBudgets(backup.budgets)
     }
 
-    private suspend fun requireEmptyLedger() {
+    private suspend fun requireEmptyLedger(): Unit {
         val hasLocalData: Boolean =
             database.accountDao().loadAccounts().isNotEmpty() ||
                 database.categoryTagDao().loadCategories().isNotEmpty() ||
@@ -43,7 +43,7 @@ internal class RoomBackupStore(
     }
 
     private suspend fun createSnapshot(settings: AppSettings): FinanceBackup {
-        val links: Map<String, List<TransactionTagCrossRef>> =
+        val transactionTagAssociationsById: Map<String, List<TransactionTagCrossRef>> =
             database.transactionDao().loadAllTransactionTags().groupBy(TransactionTagCrossRef::transactionId)
         return FinanceBackup(
             CURRENT_BACKUP_SCHEMA_VERSION,
@@ -51,7 +51,7 @@ internal class RoomBackupStore(
             database.accountDao().loadAccounts().map(::createBackupAccount),
             database.categoryTagDao().loadCategories().map(::createBackupCategory),
             database.categoryTagDao().loadTags().map(::createBackupTag),
-            database.transactionDao().loadAll().map { transaction -> createBackupTransaction(transaction, links) },
+            database.transactionDao().loadAll().map { transaction -> createBackupTransaction(transaction, transactionTagAssociationsById) },
             database.transferDao().loadAll().map(::createBackupTransfer),
             database.budgetDao().loadAll().map(::createBackupBudget),
         )
@@ -77,7 +77,7 @@ internal class RoomBackupStore(
 
     private fun createBackupTransaction(
         transaction: TransactionEntity,
-        links: Map<String, List<TransactionTagCrossRef>>,
+        transactionTagAssociationsById: Map<String, List<TransactionTagCrossRef>>,
     ): BackupTransaction =
         BackupTransaction(
             transaction.id,
@@ -86,7 +86,7 @@ internal class RoomBackupStore(
             transaction.direction,
             transaction.date,
             transaction.categoryId,
-            links[transaction.id].orEmpty().map(TransactionTagCrossRef::tagId).sorted(),
+            transactionTagAssociationsById[transaction.id].orEmpty().map(TransactionTagCrossRef::tagId).sorted(),
             transaction.note,
             transaction.createdAt,
             transaction.updatedAt,
@@ -106,7 +106,7 @@ internal class RoomBackupStore(
     private fun createBackupBudget(budget: BudgetEntity): BackupBudget =
         BackupBudget(budget.id, budget.categoryId, budget.month, budget.amountMinor, budget.createdAt, budget.updatedAt)
 
-    private suspend fun clearLedger() {
+    private suspend fun clearLedger(): Unit {
         database.categoryTagDao().clearAllTransactionTags()
         database.budgetDao().clear()
         database.transferDao().clear()
@@ -116,7 +116,7 @@ internal class RoomBackupStore(
         database.accountDao().clear()
     }
 
-    private suspend fun saveAccounts(accounts: List<BackupAccount>) {
+    private suspend fun saveAccounts(accounts: List<BackupAccount>): Unit {
         accounts.forEach { account ->
             database.accountDao().saveAccount(
                 AccountEntity(
@@ -133,7 +133,7 @@ internal class RoomBackupStore(
         }
     }
 
-    private suspend fun saveCategories(categories: List<BackupCategory>) {
+    private suspend fun saveCategories(categories: List<BackupCategory>): Unit {
         categories.forEach { category ->
             database.categoryTagDao().saveCategory(
                 CategoryEntity(category.id, category.name, category.direction, category.archived, category.createdAt, category.updatedAt),
@@ -141,13 +141,13 @@ internal class RoomBackupStore(
         }
     }
 
-    private suspend fun saveTags(tags: List<BackupTag>) {
+    private suspend fun saveTags(tags: List<BackupTag>): Unit {
         tags.forEach { tag ->
             database.categoryTagDao().saveTag(TagEntity(tag.id, tag.name, tag.categoryId, tag.archived, tag.createdAt, tag.updatedAt))
         }
     }
 
-    private suspend fun saveTransactions(transactions: List<BackupTransaction>) {
+    private suspend fun saveTransactions(transactions: List<BackupTransaction>): Unit {
         transactions.forEach { transaction ->
             database.transactionDao().save(
                 TransactionEntity(
@@ -169,7 +169,7 @@ internal class RoomBackupStore(
         }
     }
 
-    private suspend fun saveTransfers(transfers: List<BackupTransfer>) {
+    private suspend fun saveTransfers(transfers: List<BackupTransfer>): Unit {
         transfers.forEach { transfer ->
             database.transferDao().save(
                 TransferEntity(
@@ -185,7 +185,7 @@ internal class RoomBackupStore(
         }
     }
 
-    private suspend fun saveBudgets(budgets: List<BackupBudget>) {
+    private suspend fun saveBudgets(budgets: List<BackupBudget>): Unit {
         budgets.forEach { budget ->
             database.budgetDao().save(
                 BudgetEntity(budget.id, budget.categoryId, budget.month, budget.amountMinor, budget.createdAt, budget.updatedAt),

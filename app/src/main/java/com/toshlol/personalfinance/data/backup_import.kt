@@ -1,4 +1,4 @@
-@file:Suppress("ktlint:standard:filename")
+@file:Suppress("ktlint:standard:filename", "ktlint:standard:no-unit-return")
 
 package com.toshlol.personalfinance.data
 
@@ -85,6 +85,7 @@ private fun readLimited(stream: InputStream): ByteArray {
 
 class RoomBackupImporter(
     private val database: AppDatabase,
+    private val beforeTransaction: suspend () -> Unit = {},
     private val beforeCommit: suspend () -> Unit = {},
 ) {
     private val backupStore: RoomBackupStore = RoomBackupStore(database)
@@ -118,6 +119,7 @@ class RoomBackupImporter(
     ): BackupImportOutcome =
         try {
             currentCoroutineContext().ensureActive()
+            beforeTransaction()
             val report: BackupImportReport = executeTransaction(backup, mode)
             BackupImportOutcome.Success(report)
         } catch (exception: BackupImportRejected) {
@@ -148,7 +150,7 @@ class RoomBackupImporter(
         current: FinanceBackup?,
         imported: FinanceBackup,
         mode: BackupImportMode,
-    ) {
+    ): Unit {
         if (mode == BackupImportMode.MERGE && current != null && current.settings.currency != imported.settings.currency) {
             throw BackupImportRejected("currency_mismatch", "Backup currency does not match the local ledger.")
         }

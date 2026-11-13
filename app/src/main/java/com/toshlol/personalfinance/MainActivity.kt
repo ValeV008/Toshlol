@@ -102,11 +102,11 @@ class MainActivity : ComponentActivity() {
                         lifecycleScope.launch {
                             backupStatus =
                                 try {
-                                    val contents = ContentResolverBackupReader(contentResolver).read(source)
+                                    val contents: ByteArray = ContentResolverBackupReader(contentResolver).read(source)
                                     when (val outcome = backupImporter.import(contents)) {
                                         is BackupImportOutcome.Success -> {
                                             transactionsViewModel.refresh()
-                                            val totals =
+                                            val totals: String =
                                                 outcome.report.counts.entries.joinToString { (entity, count) ->
                                                     "${entity.name.lowercase()}: ${count.inserted} added, ${count.updated} updated, ${count.unchanged} unchanged"
                                                 }

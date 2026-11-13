@@ -41,39 +41,39 @@ data class BackupSettings(
 
 @Serializable
 data class BackupAccount(
-    val id: String,
+    override val id: String,
     val name: String,
     val type: String,
     val createdAt: Long,
-    val updatedAt: Long,
+    override val updatedAt: Long,
     val openingBalanceMinor: Long,
     val openingBalanceDate: Long,
     val archived: Boolean,
-)
+) : BackupEntityRecord
 
 @Serializable
 data class BackupCategory(
-    val id: String,
+    override val id: String,
     val name: String,
     val direction: String,
     val archived: Boolean,
     val createdAt: Long,
-    val updatedAt: Long,
-)
+    override val updatedAt: Long,
+) : BackupEntityRecord
 
 @Serializable
 data class BackupTag(
-    val id: String,
+    override val id: String,
     val name: String,
     val categoryId: String?,
     val archived: Boolean,
     val createdAt: Long,
-    val updatedAt: Long,
-)
+    override val updatedAt: Long,
+) : BackupEntityRecord
 
 @Serializable
 data class BackupTransaction(
-    val id: String,
+    override val id: String,
     val accountId: String,
     val amountMinor: Long,
     val direction: String,
@@ -82,29 +82,29 @@ data class BackupTransaction(
     val tagIds: List<String>,
     val note: String?,
     val createdAt: Long,
-    val updatedAt: Long,
-)
+    override val updatedAt: Long,
+) : BackupEntityRecord
 
 @Serializable
 data class BackupTransfer(
-    val id: String,
+    override val id: String,
     val sourceAccountId: String,
     val destinationAccountId: String,
     val amountMinor: Long,
     val date: Long,
     val createdAt: Long,
-    val updatedAt: Long,
-)
+    override val updatedAt: Long,
+) : BackupEntityRecord
 
 @Serializable
 data class BackupBudget(
-    val id: String,
+    override val id: String,
     val categoryId: String,
     val month: String,
     val amountMinor: Long,
     val createdAt: Long,
-    val updatedAt: Long,
-)
+    override val updatedAt: Long,
+) : BackupEntityRecord
 
 @Serializable
 private data class FinanceBackupV1(

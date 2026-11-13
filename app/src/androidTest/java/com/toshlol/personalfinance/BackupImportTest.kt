@@ -1,20 +1,22 @@
 package com.toshlol.personalfinance
 
 import android.content.Context
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.toshlol.personalfinance.data.AccountEntity
 import com.toshlol.personalfinance.data.AppDatabase
-import com.toshlol.personalfinance.data.AppSettings
 import com.toshlol.personalfinance.data.BackupAccount
 import com.toshlol.personalfinance.data.BackupCategory
+import com.toshlol.personalfinance.data.BackupDocumentWriter
+import com.toshlol.personalfinance.data.BackupEntityType
 import com.toshlol.personalfinance.data.BackupImportMode
 import com.toshlol.personalfinance.data.BackupImportOutcome
 import com.toshlol.personalfinance.data.BackupSettings
 import com.toshlol.personalfinance.data.BackupTransaction
 import com.toshlol.personalfinance.data.FinanceBackup
 import com.toshlol.personalfinance.data.FinanceBackupCodec
+import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.RoomBackupImporter
 import com.toshlol.personalfinance.data.TransactionDirection
 import kotlinx.coroutines.test.runTest
@@ -28,36 +30,41 @@ class BackupImportTest {
     @Test
     fun mergeIsIdempotentAndAppliesNewerWholeRecords(): Unit =
         runTest {
-            val database = createDatabase()
+            val database: AppDatabase = createDatabase()
             try {
-                val importer = RoomBackupImporter(database)
-                val initial = createBackup()
-                assertTrue(importer.import(FinanceBackupCodec.encode(initial).toByteArray()) is BackupImportOutcome.Success)
-                val changed = initial.copy(accounts = listOf(initial.accounts.single().copy(name = "New name", updatedAt = 3L)))
-                val merged = importer.import(FinanceBackupCodec.encode(changed).toByteArray())
-                assertTrue(merged is BackupImportOutcome.Success)
-                assertEquals(
-                    "New name",
-                    database
-                        .accountDao()
-                        .loadAccounts()
-                        .single()
-                        .name,
-                )
-                val repeated = importer.import(FinanceBackupCodec.encode(changed).toByteArray()) as BackupImportOutcome.Success
-                assertEquals(
-                    0,
-                    repeated.report.counts
-                        .getValue(com.toshlol.personalfinance.data.BackupEntityType.ACCOUNT)
-                        .inserted,
-                )
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val initial: FinanceBackup = createBackup()
+                assertTrue(importBackup(importer, initial) is BackupImportOutcome.Success)
+                val changed: FinanceBackup =
+                    initial.copy(
+                        accounts = listOf(initial.accounts.single().copy(name = "New name", updatedAt = 3L)),
+                    )
+                val updateOutcome: BackupImportOutcome.Success = importBackup(importer, changed) as BackupImportOutcome.Success
                 assertEquals(
                     1,
-                    repeated.report.counts
-                        .getValue(com.toshlol.personalfinance.data.BackupEntityType.ACCOUNT)
+                    updateOutcome.report.counts
+                        .getValue(BackupEntityType.ACCOUNT)
+                        .updated,
+                )
+                assertEquals("New name", captureBackup(database).accounts.single().name)
+                val repeatedOutcome: BackupImportOutcome.Success = importBackup(importer, changed) as BackupImportOutcome.Success
+                assertEquals(
+                    1,
+                    repeatedOutcome.report.counts
+                        .getValue(BackupEntityType.ACCOUNT)
                         .unchanged,
                 )
-                assertEquals(1, database.transactionDao().loadAll().size)
+                val localOnlyAccount: BackupAccount = BackupAccount("local", "Local", "CASH", 1L, 1L, 0L, 0L, false)
+                importBackup(importer, initial.copy(accounts = initial.accounts + localOnlyAccount))
+                val localRecordOutcome: BackupImportOutcome.Success = importBackup(importer, changed) as BackupImportOutcome.Success
+                assertEquals(
+                    1,
+                    localRecordOutcome.report.counts
+                        .getValue(BackupEntityType.ACCOUNT)
+                        .unchanged,
+                )
+                assertEquals(2, captureBackup(database).accounts.size)
+                assertEquals(1, captureBackup(database).transactions.size)
             } finally {
                 database.close()
             }
@@ -66,28 +73,26 @@ class BackupImportTest {
     @Test
     fun rejectsCurrencyTimestampAndFinalDatasetConflictsAtomically(): Unit =
         runTest {
-            val database = createDatabase()
+            val database: AppDatabase = createDatabase()
             try {
-                database.settingsDao().insertSettings(AppSettings(currency = "EUR"))
-                database.accountDao().insertAccount(AccountEntity("local", "Local", "CASH", 1L, 1L))
-                val importer = RoomBackupImporter(database)
-                val currencyMismatch = createBackup().copy(settings = BackupSettings("USD"))
-                assertTrue(importer.import(FinanceBackupCodec.encode(currencyMismatch).toByteArray()) is BackupImportOutcome.Failure)
-                val initial = createBackup()
-                importer.import(FinanceBackupCodec.encode(initial).toByteArray())
-                val divergent = initial.copy(accounts = listOf(initial.accounts.single().copy(name = "Conflict")))
-                assertTrue(importer.import(FinanceBackupCodec.encode(divergent).toByteArray()) is BackupImportOutcome.Failure)
-                val duplicateName = initial.copy(accounts = listOf(initial.accounts.single().copy(name = "Local", updatedAt = 3L)))
-                assertTrue(importer.import(FinanceBackupCodec.encode(duplicateName).toByteArray()) is BackupImportOutcome.Failure)
-                assertEquals(
-                    "Cash",
-                    database
-                        .accountDao()
-                        .loadAccounts()
-                        .first { it.id == "account" }
-                        .name,
-                )
-                assertTrue(database.accountDao().loadAccounts().any { it.id == "local" })
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val initial: FinanceBackup = createBackup()
+                importBackup(importer, initial)
+                val currencyMismatch: FinanceBackup = initial.copy(settings = BackupSettings("USD"))
+                assertTrue(importBackup(importer, currencyMismatch) is BackupImportOutcome.Failure)
+                val divergent: FinanceBackup = initial.copy(accounts = listOf(initial.accounts.single().copy(name = "Conflict")))
+                assertTrue(importBackup(importer, divergent) is BackupImportOutcome.Failure)
+                val withLocalAccount: FinanceBackup =
+                    initial.copy(
+                        accounts = initial.accounts + BackupAccount("local", "Local", "CASH", 1L, 1L, 0L, 0L, false),
+                    )
+                importBackup(importer, withLocalAccount)
+                val duplicateName: FinanceBackup =
+                    initial.copy(
+                        accounts = listOf(initial.accounts.single().copy(name = "Local", updatedAt = 3L)),
+                    )
+                assertTrue(importBackup(importer, duplicateName) is BackupImportOutcome.Failure)
+                assertEquals(withLocalAccount, captureBackup(database))
             } finally {
                 database.close()
             }
@@ -96,18 +101,22 @@ class BackupImportTest {
     @Test
     fun invalidReferencesAndMalformedInputLeaveDataUnchanged(): Unit =
         runTest {
-            val database = createDatabase()
+            val database: AppDatabase = createDatabase()
             try {
-                database.settingsDao().insertSettings(AppSettings(currency = "EUR"))
-                database.accountDao().insertAccount(AccountEntity("local", "Local", "CASH", 1L, 1L))
-                val importer = RoomBackupImporter(database)
-                val malformed = importer.import("{".toByteArray())
-                assertTrue(malformed is BackupImportOutcome.Failure)
-                val invalidTransaction = createBackup().transactions.single().copy(accountId = "missing")
-                val invalid = createBackup().copy(transactions = listOf(invalidTransaction))
-                assertTrue(importer.import(FinanceBackupCodec.encode(invalid).toByteArray()) is BackupImportOutcome.Failure)
-                assertEquals("EUR", database.settingsDao().loadCurrency())
-                assertEquals(listOf("local"), database.accountDao().loadAccounts().map(AccountEntity::id))
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val initial: FinanceBackup = createBackup()
+                importBackup(importer, initial)
+                assertTrue(importer.import("{".toByteArray()) is BackupImportOutcome.Failure)
+                val invalidTransaction: BackupTransaction = initial.transactions.single().copy(accountId = "missing")
+                val invalid: FinanceBackup = initial.copy(transactions = listOf(invalidTransaction))
+                assertTrue(importBackup(importer, invalid) is BackupImportOutcome.Failure)
+                val invalidDate: FinanceBackup =
+                    initial.copy(
+                        accounts = listOf(initial.accounts.single().copy(openingBalanceDate = Long.MAX_VALUE)),
+                        transactions = listOf(initial.transactions.single().copy(date = Long.MAX_VALUE)),
+                    )
+                assertTrue(importBackup(importer, invalidDate) is BackupImportOutcome.Failure)
+                assertEquals(initial, captureBackup(database))
             } finally {
                 database.close()
             }
@@ -116,19 +125,33 @@ class BackupImportTest {
     @Test
     fun failedCommitRollsBackEveryEntityAndSetting(): Unit =
         runTest {
-            val database = createDatabase()
+            val database: AppDatabase = createDatabase()
             try {
-                database.settingsDao().insertSettings(AppSettings(currency = "EUR"))
-                database.accountDao().insertAccount(AccountEntity("local", "Local", "CASH", 1L, 1L))
-                val importer = RoomBackupImporter(database) { error("Injected commit failure") }
-                val result = importer.import(FinanceBackupCodec.encode(createBackup()).toByteArray(), BackupImportMode.OVERWRITE)
+                val initial: FinanceBackup = createBackup()
+                val seeder: RoomBackupImporter = RoomBackupImporter(database)
+                importBackup(seeder, initial)
+                val importer: RoomBackupImporter = RoomBackupImporter(database) { error("Injected commit failure") }
+                val replacement: FinanceBackup = initial.copy(settings = BackupSettings("USD"))
+                val result: BackupImportOutcome = importBackup(importer, replacement, BackupImportMode.OVERWRITE)
                 assertTrue(result is BackupImportOutcome.Failure)
-                assertEquals("EUR", database.settingsDao().loadCurrency())
-                assertEquals(listOf("local"), database.accountDao().loadAccounts().map(AccountEntity::id))
+                assertEquals(initial, captureBackup(database))
             } finally {
                 database.close()
             }
         }
+
+    private suspend fun importBackup(
+        importer: RoomBackupImporter,
+        backup: FinanceBackup,
+        mode: BackupImportMode = BackupImportMode.MERGE,
+    ): BackupImportOutcome = importer.import(FinanceBackupCodec.encode(backup).toByteArray(), mode)
+
+    private suspend fun captureBackup(database: AppDatabase): FinanceBackup {
+        var encodedBackup: String = ""
+        val writer: BackupDocumentWriter = BackupDocumentWriter { _, contents -> encodedBackup = contents }
+        RoomBackupExporter(database, writer).exportTo(Uri.parse("content://backup-provider/snapshot.json"))
+        return FinanceBackupCodec.decode(encodedBackup)
+    }
 
     private fun createDatabase(): AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
 

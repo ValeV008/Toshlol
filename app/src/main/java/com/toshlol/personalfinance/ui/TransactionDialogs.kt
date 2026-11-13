@@ -31,19 +31,23 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
+data class TransactionDialogActions(
+    val close: () -> Unit,
+    val amountChanged: (String) -> Unit,
+    val dateChanged: (String) -> Unit,
+    val noteChanged: (String) -> Unit,
+    val directionChanged: (TransactionDirection) -> Unit,
+    val save: () -> Unit,
+    val categoryChanged: (String?) -> Unit,
+    val tagToggled: (String) -> Unit,
+    val cancelDelete: () -> Unit,
+    val confirmDelete: () -> Unit,
+)
+
 @Composable
 fun TransactionDialogs(
     state: TransactionsUiState,
-    onClose: () -> Unit,
-    onAmountChanged: (String) -> Unit,
-    onDateChanged: (String) -> Unit,
-    onNoteChanged: (String) -> Unit,
-    onDirectionChanged: (TransactionDirection) -> Unit,
-    onSave: () -> Unit,
-    onCategoryChanged: (String?) -> Unit,
-    onTagToggled: (String) -> Unit,
-    onCancelDelete: () -> Unit,
-    onConfirmDelete: () -> Unit,
+    actions: TransactionDialogActions,
 ) {
     val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
@@ -51,7 +55,7 @@ fun TransactionDialogs(
     }
     if (state.isFormVisible) {
         AlertDialog(
-            onDismissRequest = onClose,
+            onDismissRequest = actions.close,
             title = { Text(if (state.editingId == null) "New transaction" else "Edit transaction") },
             text = {
                 Column(
@@ -60,21 +64,21 @@ fun TransactionDialogs(
                 ) {
                     Row {
                         TransactionDirection.entries.forEach { direction: TransactionDirection ->
-                            Row(Modifier.clickable { onDirectionChanged(direction) }) {
-                                RadioButton(selected = state.direction == direction, onClick = { onDirectionChanged(direction) })
+                            Row(Modifier.clickable { actions.directionChanged(direction) }) {
+                                RadioButton(selected = state.direction == direction, onClick = { actions.directionChanged(direction) })
                                 Text(direction.name.lowercase().replaceFirstChar(Char::uppercase))
                             }
                         }
                     }
-                    OutlinedTextField(state.amount, onAmountChanged, label = { Text("Amount") }, singleLine = true)
-                    OutlinedTextField(state.date, onDateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
-                    OutlinedTextField(state.note, onNoteChanged, label = { Text("Note (optional)") }, singleLine = true)
+                    OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
+                    OutlinedTextField(state.date, actions.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
+                    OutlinedTextField(state.note, actions.noteChanged, label = { Text("Note (optional)") }, singleLine = true)
                     Text("Category (optional)", style = MaterialTheme.typography.titleSmall)
                     Row(
                         Modifier.heightIn(min = 48.dp).selectable(
                             selected = state.categoryId == null,
                             role = Role.RadioButton,
-                            onClick = { onCategoryChanged(null) },
+                            onClick = { actions.categoryChanged(null) },
                         ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -89,7 +93,7 @@ fun TransactionDialogs(
                                 Modifier.heightIn(min = 48.dp).selectable(
                                     selected = state.categoryId == category.id,
                                     role = Role.RadioButton,
-                                    onClick = { onCategoryChanged(category.id) },
+                                    onClick = { actions.categoryChanged(category.id) },
                                 ),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -105,7 +109,7 @@ fun TransactionDialogs(
                                 value = tag.id in state.tagIds,
                                 enabled = canAssignTag,
                                 role = Role.Checkbox,
-                                onValueChange = { onTagToggled(tag.id) },
+                                onValueChange = { actions.tagToggled(tag.id) },
                             ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -120,17 +124,17 @@ fun TransactionDialogs(
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
-            confirmButton = { Button(onClick = onSave, enabled = !state.isSaving) { Text("Save") } },
-            dismissButton = { OutlinedButton(onClick = onClose) { Text("Cancel") } },
+            confirmButton = { Button(onClick = actions.save, enabled = !state.isSaving) { Text("Save") } },
+            dismissButton = { OutlinedButton(onClick = actions.close) { Text("Cancel") } },
         )
     }
     state.pendingDeleteId?.let {
         AlertDialog(
-            onDismissRequest = onCancelDelete,
+            onDismissRequest = actions.cancelDelete,
             title = { Text("Delete transaction?") },
             text = { Text("This transaction will be permanently deleted.") },
-            confirmButton = { Button(onClick = onConfirmDelete) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = onCancelDelete) { Text("Cancel") } },
+            confirmButton = { Button(onClick = actions.confirmDelete) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } },
         )
     }
 }

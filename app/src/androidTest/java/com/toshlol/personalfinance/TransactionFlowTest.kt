@@ -154,17 +154,25 @@ class TransactionFlowTest {
         ui.enterText("Month (YYYY-MM, blank for all)", currentDate.toString().take(7))
         ui.clickText("Account: All Account")
         ui.clickText("Cash")
+        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
+        ui.clickText("Account: Cash")
+        ui.clickText("All Account")
+        ui.showText("EUR 6.00", substring = true)
         ui.showText("Expense · EUR 8.25")
         ui.clickText("Category: All Category")
         ui.clickText("Food")
+        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
+        ui.clickText("Category: Food")
+        ui.clickText("All Category")
+        ui.showText("EUR 6.00", substring = true)
         ui.showText("Expense · EUR 8.25")
         ui.clickText("Tag: All Tag")
         ui.clickText("Lunch")
-        ui.showText("Expense · EUR 8.25")
+        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
         ui.clickText("Tag: Lunch")
         ui.clickText("All Tag")
-        ui.clickText("Category: Food")
-        ui.clickText("All Category")
+        ui.showText("EUR 6.00", substring = true)
+        ui.showText("Expense · EUR 8.25")
         ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("EUR 4.00", substring = true)
         navigateTo("Overview")
@@ -277,6 +285,7 @@ class TransactionFlowTest {
                         .loadSetup()
                         .accounts
                         .single()
+                val savingsAccount: Account = fixtures.createAdditionalAccount("Savings")
                 val category: FinanceCategory =
                     fixtures.organization
                         .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
@@ -296,6 +305,15 @@ class TransactionFlowTest {
                         note = null,
                         categoryId = category.id,
                         tagIds = setOf(tag.id),
+                    ),
+                )
+                fixtures.transactions.save(
+                    TransactionDraft(
+                        accountId = savingsAccount.id,
+                        amountMinor = 600,
+                        direction = TransactionDirection.EXPENSE,
+                        date = LocalDate.now().toEpochDay(),
+                        note = null,
                     ),
                 )
                 fixtures.transactions.save(

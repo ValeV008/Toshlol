@@ -1,6 +1,7 @@
 package com.toshlol.personalfinance
 
 import com.toshlol.personalfinance.data.Account
+import com.toshlol.personalfinance.data.AccountEntity
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.RoomAccountRepository
@@ -14,8 +15,8 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Create one factory per test/database. IDs are unique across all of its repositories. */
 class FinanceTestFixtures(
-    database: AppDatabase,
-    timeMillis: Long = FIXED_TIME_MILLIS,
+    private val database: AppDatabase,
+    private val timeMillis: Long = FIXED_TIME_MILLIS,
 ) {
     private val identifierSequence: AtomicLong = AtomicLong()
     val accounts: RoomAccountRepository = RoomAccountRepository(database, ::nextIdentifier, { timeMillis })
@@ -28,6 +29,13 @@ class FinanceTestFixtures(
         currency: String = "EUR",
         type: AccountType = AccountType.CASH,
     ): Account = (FirstRunSetup(accounts).createFirstAccount(currency, name, type) as SetupOutcome.Completed).snapshot.accounts.single()
+
+    suspend fun createAdditionalAccount(name: String): Account {
+        val identifier: String = "secondary-${nextIdentifier()}"
+        val accountEntity: AccountEntity = AccountEntity(identifier, name, AccountType.BANK.name, timeMillis, timeMillis)
+        database.accountDao().insertAccount(accountEntity)
+        return Account(identifier, name, AccountType.BANK, timeMillis, timeMillis)
+    }
 
     private fun nextIdentifier(): String = UUID(0L, identifierSequence.incrementAndGet()).toString()
 

@@ -147,16 +147,18 @@ fun PersonalFinanceApp(
                 if (uiState.isSetupComplete && transactionsState.isLoaded) {
                     TransactionDialogs(
                         transactionsState,
-                        onCloseTransactionForm,
-                        onAmountChanged,
-                        onDateChanged,
-                        onNoteChanged,
-                        onDirectionChanged,
-                        onSaveTransaction,
-                        onCategoryChanged,
-                        onTagToggled,
-                        onCancelDelete,
-                        onConfirmDelete,
+                        TransactionDialogActions(
+                            close = onCloseTransactionForm,
+                            amountChanged = onAmountChanged,
+                            dateChanged = onDateChanged,
+                            noteChanged = onNoteChanged,
+                            directionChanged = onDirectionChanged,
+                            save = onSaveTransaction,
+                            categoryChanged = onCategoryChanged,
+                            tagToggled = onTagToggled,
+                            cancelDelete = onCancelDelete,
+                            confirmDelete = onConfirmDelete,
+                        ),
                     )
                 }
             }

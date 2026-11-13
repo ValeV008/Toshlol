@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +40,7 @@ fun BudgetsScreen(
     onCreateTransaction: () -> Unit = {},
     onCreateTransfer: () -> Unit = {},
 ) {
+    val selectedMonth: java.time.YearMonth? = runCatching { java.time.YearMonth.parse(state.budgetMonth) }.getOrNull()
     val monthBudgets: List<CategoryBudget> =
         state.budgets.filter { it.month.toString() == state.budgetMonth }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -47,6 +49,18 @@ fun BudgetsScreen(
         OutlinedButton(onClick = onCreateTransfer) { Text("Transfer") }
         OutlinedButton(onClick = onBack) { Text("Back to overview") }
         OutlinedTextField(state.budgetMonth, onMonthChanged, label = { Text("Month (YYYY-MM)") }, singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { selectedMonth?.minusMonths(1)?.let { onMonthChanged(it.toString()) } },
+                enabled = selectedMonth != null,
+                modifier = Modifier.weight(1f).testTag("budget-previous-month"),
+            ) { Text("Previous month") }
+            OutlinedButton(
+                onClick = { selectedMonth?.plusMonths(1)?.let { onMonthChanged(it.toString()) } },
+                enabled = selectedMonth != null,
+                modifier = Modifier.weight(1f).testTag("budget-next-month"),
+            ) { Text("Next month") }
+        }
         Text("Monthly expense limits", style = MaterialTheme.typography.titleMedium)
         monthBudgets.forEach { budget: CategoryBudget ->
             Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -68,7 +82,7 @@ fun BudgetsScreen(
         Text("Set a budget", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.categories.filter { it.direction == TransactionDirection.EXPENSE && !it.archived }.forEach { category: FinanceCategory ->
             Row(
-                Modifier.heightIn(min = 48.dp).selectable(
+                Modifier.heightIn(min = 48.dp).testTag("budget-category-${category.id}").selectable(
                     selected = state.budgetCategoryId == category.id,
                     role = Role.RadioButton,
                     onClick = { onCategoryChanged(category.id) },

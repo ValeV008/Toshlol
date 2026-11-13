@@ -306,6 +306,21 @@ class TransactionFlowTest {
     }
 
     @Test
+    fun navigateBudgetMonthsAndOfferOnlyExpenseCategories() {
+        navigateTo("Budgets")
+        ui.showText("Month (YYYY-MM)").assert(hasSetTextAction())
+        ui.showText("Limit  EUR 10.00")
+        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").assertHasClickAction()
+        composeRule.onNodeWithText("Pay").assertDoesNotExist()
+        composeRule.onNodeWithTag("budget-previous-month").performClick()
+        ui.showText("Limit  EUR 15.00")
+        ui.showText("Month (YYYY-MM)").assert(hasText(YearMonth.now().minusMonths(1).toString()))
+        composeRule.onNodeWithTag("budget-next-month").performClick()
+        ui.showText("Limit  EUR 10.00")
+        ui.showText("Month (YYYY-MM)").assert(hasText(YearMonth.now().toString()))
+    }
+
+    @Test
     fun navigateFilterTransactionsAndQuickAddFromEveryMainArea() {
         val currentDate: LocalDate = LocalDate.now()
         ui.showText("EUR ledger is ready.")
@@ -428,6 +443,15 @@ class TransactionFlowTest {
         }
     }
 
+    private fun categoryId(name: String): String {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        return runBlocking {
+            FinanceTestFixtures(
+                AppDatabase.getInstance(context),
+            ).organization.load().categories.single { it.name == name }.id
+        }
+    }
+
     private fun recordFoodExpense() {
         ui.clickText("Add expense")
         ui.enterText("Amount", "12.50", "transaction-form")
@@ -525,6 +549,21 @@ class TransactionFlowTest {
                             date = LocalDate.now().toEpochDay(),
                         ),
                     )
+                }
+                return
+            }
+            if (description.methodName == "navigateBudgetMonthsAndOfferOnlyExpenseCategories") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val food: FinanceCategory =
+                        fixtures.organization
+                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
+                            .categories
+                            .single()
+                    fixtures.organization.saveCategory(CategoryDraft(name = "Pay", direction = TransactionDirection.INCOME))
+                    fixtures.budgets.save(BudgetDraft(food.id, YearMonth.now(), 1000L))
+                    fixtures.budgets.save(BudgetDraft(food.id, YearMonth.now().minusMonths(1), 1500L))
                 }
                 return
             }

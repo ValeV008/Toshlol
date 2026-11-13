@@ -154,16 +154,18 @@ fun PersonalFinanceApp(
                     TransactionDialogs(
                         transactionsState,
                         TransactionDialogActions(
-                            close = onCloseTransactionForm,
-                            amountChanged = onAmountChanged,
-                            dateChanged = onDateChanged,
-                            noteChanged = onNoteChanged,
-                            directionChanged = onDirectionChanged,
-                            save = onSaveTransaction,
-                            categoryChanged = onCategoryChanged,
-                            tagToggled = onTagToggled,
-                            cancelDelete = onCancelDelete,
-                            confirmDelete = onConfirmDelete,
+                            form =
+                                TransactionFormActions(
+                                    close = onCloseTransactionForm,
+                                    amountChanged = onAmountChanged,
+                                    dateChanged = onDateChanged,
+                                    noteChanged = onNoteChanged,
+                                    directionChanged = onDirectionChanged,
+                                    save = onSaveTransaction,
+                                    categoryChanged = onCategoryChanged,
+                                    tagToggled = onTagToggled,
+                                ),
+                            delete = TransactionDeleteActions(onCancelDelete, onConfirmDelete),
                         ),
                     )
                 }

@@ -31,7 +31,7 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
-data class TransactionDialogActions(
+data class TransactionFormActions(
     val close: () -> Unit,
     val amountChanged: (String) -> Unit,
     val dateChanged: (String) -> Unit,
@@ -40,8 +40,16 @@ data class TransactionDialogActions(
     val save: () -> Unit,
     val categoryChanged: (String?) -> Unit,
     val tagToggled: (String) -> Unit,
+)
+
+data class TransactionDeleteActions(
     val cancelDelete: () -> Unit,
     val confirmDelete: () -> Unit,
+)
+
+data class TransactionDialogActions(
+    val form: TransactionFormActions,
+    val delete: TransactionDeleteActions,
 )
 
 @Composable
@@ -55,7 +63,7 @@ fun TransactionDialogs(
     }
     if (state.isFormVisible) {
         AlertDialog(
-            onDismissRequest = actions.close,
+            onDismissRequest = actions.form.close,
             title = { Text(if (state.editingId == null) "New transaction" else "Edit transaction") },
             text = {
                 Column(
@@ -64,21 +72,21 @@ fun TransactionDialogs(
                 ) {
                     Row {
                         TransactionDirection.entries.forEach { direction: TransactionDirection ->
-                            Row(Modifier.clickable { actions.directionChanged(direction) }) {
-                                RadioButton(selected = state.direction == direction, onClick = { actions.directionChanged(direction) })
+                            Row(Modifier.clickable { actions.form.directionChanged(direction) }) {
+                                RadioButton(selected = state.direction == direction, onClick = { actions.form.directionChanged(direction) })
                                 Text(direction.name.lowercase().replaceFirstChar(Char::uppercase))
                             }
                         }
                     }
-                    OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
-                    OutlinedTextField(state.date, actions.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
-                    OutlinedTextField(state.note, actions.noteChanged, label = { Text("Note (optional)") }, singleLine = true)
+                    OutlinedTextField(state.amount, actions.form.amountChanged, label = { Text("Amount") }, singleLine = true)
+                    OutlinedTextField(state.date, actions.form.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
+                    OutlinedTextField(state.note, actions.form.noteChanged, label = { Text("Note (optional)") }, singleLine = true)
                     Text("Category (optional)", style = MaterialTheme.typography.titleSmall)
                     Row(
                         Modifier.heightIn(min = 48.dp).selectable(
                             selected = state.categoryId == null,
                             role = Role.RadioButton,
-                            onClick = { actions.categoryChanged(null) },
+                            onClick = { actions.form.categoryChanged(null) },
                         ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -93,7 +101,7 @@ fun TransactionDialogs(
                                 Modifier.heightIn(min = 48.dp).selectable(
                                     selected = state.categoryId == category.id,
                                     role = Role.RadioButton,
-                                    onClick = { actions.categoryChanged(category.id) },
+                                    onClick = { actions.form.categoryChanged(category.id) },
                                 ),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -109,7 +117,7 @@ fun TransactionDialogs(
                                 value = tag.id in state.tagIds,
                                 enabled = canAssignTag,
                                 role = Role.Checkbox,
-                                onValueChange = { actions.tagToggled(tag.id) },
+                                onValueChange = { actions.form.tagToggled(tag.id) },
                             ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -124,17 +132,17 @@ fun TransactionDialogs(
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 }
             },
-            confirmButton = { Button(onClick = actions.save, enabled = !state.isSaving) { Text("Save") } },
-            dismissButton = { OutlinedButton(onClick = actions.close) { Text("Cancel") } },
+            confirmButton = { Button(onClick = actions.form.save, enabled = !state.isSaving) { Text("Save") } },
+            dismissButton = { OutlinedButton(onClick = actions.form.close) { Text("Cancel") } },
         )
     }
     state.pendingDeleteId?.let {
         AlertDialog(
-            onDismissRequest = actions.cancelDelete,
+            onDismissRequest = actions.delete.cancelDelete,
             title = { Text("Delete transaction?") },
             text = { Text("This transaction will be permanently deleted.") },
-            confirmButton = { Button(onClick = actions.confirmDelete) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } },
+            confirmButton = { Button(onClick = actions.delete.confirmDelete) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = actions.delete.cancelDelete) { Text("Cancel") } },
         )
     }
 }

@@ -707,7 +707,26 @@ class TransactionsViewModel(
     }
 
     fun updateDirection(value: TransactionDirection) {
-        mutableUiState.value = uiState.value.copy(direction = value, error = null)
+        val currentState: TransactionsUiState = uiState.value
+        if (currentState.direction == value) {
+            mutableUiState.value = currentState.copy(error = null)
+            return
+        }
+        val categoryTagIds: Set<String> =
+            currentState.categoryId
+                ?.let { categoryId ->
+                    currentState.tags
+                        .filter { it.categoryId == categoryId }
+                        .map { it.id }
+                        .toSet()
+                }.orEmpty()
+        mutableUiState.value =
+            currentState.copy(
+                direction = value,
+                categoryId = null,
+                tagIds = currentState.tagIds - categoryTagIds,
+                error = null,
+            )
     }
 
     fun requestDelete(id: String) {

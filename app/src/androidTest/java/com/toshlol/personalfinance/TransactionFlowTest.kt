@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -248,6 +250,31 @@ class TransactionFlowTest {
     }
 
     @Test
+    fun changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags() {
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "8.25", "transaction-form")
+        ui.clickText("Food", "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Lunch")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Reimbursable")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Lunch")}").assertIsOn()
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Reimbursable")}").assertIsOn()
+        ui.clickText("Save")
+        ui.clickText("Expense \u00b7 EUR 8.25")
+        composeRule.onNodeWithTag("transaction-direction-INCOME").performClick()
+        ui.showText("Uncategorized", "transaction-form").assertIsSelected()
+        ui.showText("Salary", "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Lunch")}").assertIsNotEnabled()
+        ui.showText("Reimbursable", "transaction-form").assertIsOn()
+        ui.clickText("Salary", "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Income \u00b7 EUR 8.25")
+        ui.showText("Salary", substring = true)
+        ui.showText("Reimbursable", substring = true)
+        composeRule.onNodeWithText("Food", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("Lunch", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun createBudgetAndSeeExpenseProgressOnBudgetsAndOverview() {
         createFoodCategory()
         ui.clickText("Back to overview")
@@ -392,6 +419,15 @@ class TransactionFlowTest {
         }
     }
 
+    private fun tagId(name: String): String {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        return runBlocking {
+            FinanceTestFixtures(
+                AppDatabase.getInstance(context),
+            ).organization.load().tags.single { it.name == name }.id
+        }
+    }
+
     private fun recordFoodExpense() {
         ui.clickText("Add expense")
         ui.enterText("Amount", "12.50", "transaction-form")
@@ -448,6 +484,21 @@ class TransactionFlowTest {
 
     private class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val food: FinanceCategory =
+                        fixtures.organization
+                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
+                            .categories
+                            .single()
+                    fixtures.organization.saveCategory(CategoryDraft(name = "Salary", direction = TransactionDirection.INCOME))
+                    fixtures.organization.saveTag(TagDraft(name = "Lunch", categoryId = food.id))
+                    fixtures.organization.saveTag(TagDraft(name = "Reimbursable"))
+                }
+                return
+            }
             if (description.methodName == "transferDoesNotContributeToBudgetActualSpending") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {

@@ -86,7 +86,11 @@ fun TransactionDialogs(
                     Row {
                         TransactionDirection.entries.forEach { direction: TransactionDirection ->
                             Row(Modifier.clickable { actions.form.directionChanged(direction) }) {
-                                RadioButton(selected = state.direction == direction, onClick = { actions.form.directionChanged(direction) })
+                                RadioButton(
+                                    selected = state.direction == direction,
+                                    onClick = { actions.form.directionChanged(direction) },
+                                    modifier = Modifier.testTag("transaction-direction-${direction.name}"),
+                                )
                                 Text(direction.name.lowercase().replaceFirstChar(Char::uppercase))
                             }
                         }
@@ -126,12 +130,14 @@ fun TransactionDialogs(
                     state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag: FinanceTag ->
                         val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
                         Row(
-                            Modifier.heightIn(min = 48.dp).toggleable(
-                                value = tag.id in state.tagIds,
-                                enabled = canAssignTag,
-                                role = Role.Checkbox,
-                                onValueChange = { actions.form.tagToggled(tag.id) },
-                            ),
+                            Modifier
+                                .heightIn(min = 48.dp)
+                                .toggleable(
+                                    value = tag.id in state.tagIds,
+                                    enabled = canAssignTag,
+                                    role = Role.Checkbox,
+                                    onValueChange = { actions.form.tagToggled(tag.id) },
+                                ).testTag("transaction-tag-${tag.id}"),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             androidx.compose.material3.Checkbox(

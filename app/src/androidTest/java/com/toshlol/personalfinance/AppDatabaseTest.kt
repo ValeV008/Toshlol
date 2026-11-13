@@ -446,6 +446,28 @@ class AppDatabaseTest {
                         CategoryDraft(name = "  Food ", direction = TransactionDirection.EXPENSE),
                     )
                 val foodId: String = organization.categories.single().id
+                organization = organizationRepository.saveCategory(CategoryDraft(name = "Salary", direction = TransactionDirection.INCOME))
+                val salaryId: String = organization.categories.single { it.name == "Salary" }.id
+                val transactionRepository: RoomTransactionRepository = fixtures.transactions
+                val unclassifiedIncome: FinanceTransaction =
+                    transactionRepository
+                        .save(TransactionDraft(null, account.id, 1000L, TransactionDirection.INCOME, 20600L, null))
+                        .single()
+                assertEquals(null, unclassifiedIncome.categoryId)
+                try {
+                    transactionRepository.save(
+                        TransactionDraft(null, account.id, 1000L, TransactionDirection.INCOME, 20600L, null, foodId),
+                    )
+                    fail("Expected an Expense Category to be rejected for Income")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("matches the transaction direction"))
+                }
+                val savedIncome: List<FinanceTransaction> =
+                    transactionRepository.save(
+                        TransactionDraft(null, account.id, 1000L, TransactionDirection.INCOME, 20600L, null, salaryId),
+                    )
+                val categorizedIncome: FinanceTransaction = savedIncome.single { it.categoryId == salaryId }
+                assertEquals(salaryId, categorizedIncome.categoryId)
                 try {
                     organizationRepository.saveCategory(CategoryDraft(name = "food", direction = TransactionDirection.EXPENSE))
                     fail("Expected active category names to be unique without case sensitivity")
@@ -464,7 +486,6 @@ class AppDatabaseTest {
                 } catch (expectedException: IllegalArgumentException) {
                     assertTrue(expectedException.message!!.contains("already exists"))
                 }
-                val transactionRepository: RoomTransactionRepository = fixtures.transactions
                 transactionRepository.save(
                     TransactionDraft(
                         null,
@@ -477,10 +498,11 @@ class AppDatabaseTest {
                         setOf(lunchId, independentId),
                     ),
                 )
-                val transactionId: String = transactionRepository.loadTransactions().single().id
+                val transactionId: String = transactionRepository.loadTransactions().single { it.categoryId == foodId }.id
                 organizationRepository.saveCategory(CategoryDraft(foodId, "Dining", TransactionDirection.EXPENSE))
                 organizationRepository.saveTag(TagDraft(lunchId, "Meal", foodId))
-                var actual: com.toshlol.personalfinance.data.FinanceTransaction = transactionRepository.loadTransactions().single()
+                var actual: com.toshlol.personalfinance.data.FinanceTransaction =
+                    transactionRepository.loadTransactions().single { it.id == transactionId }
                 assertEquals("Dining", actual.categoryName)
                 assertEquals(listOf("Meal", "Reimbursable"), actual.tagNames.sorted())
                 try {
@@ -512,12 +534,12 @@ class AppDatabaseTest {
                         350L
                     }).renameAccount(account.id, "  Everyday cash  ")
                 assertEquals("Everyday cash", renamedAccountSnapshot.accounts.single().name)
-                assertEquals("Everyday cash", transactionRepository.loadTransactions().single().accountName)
-                actual = transactionRepository.loadTransactions().single()
+                assertEquals("Everyday cash", transactionRepository.loadTransactions().single { it.id == transactionId }.accountName)
+                actual = transactionRepository.loadTransactions().single { it.id == transactionId }
                 assertEquals("Travel", actual.categoryName)
                 assertEquals(listOf("Reimbursable"), actual.tagNames)
                 organizationRepository.archiveCategory(travelId)
-                actual = transactionRepository.loadTransactions().single()
+                actual = transactionRepository.loadTransactions().single { it.id == transactionId }
                 assertEquals("Travel", actual.categoryName)
                 try {
                     transactionRepository.save(TransactionDraft(null, account.id, 100, TransactionDirection.EXPENSE, 20601, null, travelId))
@@ -526,7 +548,7 @@ class AppDatabaseTest {
                     assertTrue(expectedException.message!!.contains("active category"))
                 }
                 organizationRepository.archiveTag(independentId)
-                assertEquals(listOf("Reimbursable"), transactionRepository.loadTransactions().single().tagNames)
+                assertEquals(listOf("Reimbursable"), transactionRepository.loadTransactions().single { it.id == transactionId }.tagNames)
                 try {
                     transactionRepository.save(
                         TransactionDraft(

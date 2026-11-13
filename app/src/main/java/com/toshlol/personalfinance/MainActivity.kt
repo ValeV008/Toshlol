@@ -10,6 +10,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.toshlol.personalfinance.ui.LedgerNavigationActions
 import com.toshlol.personalfinance.ui.PersonalFinanceApp
 import com.toshlol.personalfinance.ui.theme.ToshlolTheme
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
@@ -95,11 +96,14 @@ class MainActivity : ComponentActivity() {
                     onBudgetCategoryChanged = transactionsViewModel::updateBudgetCategory,
                     onBudgetAmountChanged = transactionsViewModel::updateBudgetAmount,
                     onSaveBudget = transactionsViewModel::saveBudget,
-                    onAreaSelected = transactionsViewModel::selectArea,
-                    onMonthFilterChanged = transactionsViewModel::updateSelectedMonth,
-                    onAccountFilterChanged = transactionsViewModel::updateSelectedAccount,
-                    onCategoryFilterChanged = transactionsViewModel::updateSelectedCategory,
-                    onTagFilterChanged = transactionsViewModel::updateSelectedTag,
+                    navigationActions =
+                        LedgerNavigationActions(
+                            selectArea = transactionsViewModel::selectArea,
+                            monthChanged = transactionsViewModel::updateSelectedMonth,
+                            accountChanged = transactionsViewModel::updateSelectedAccount,
+                            categoryChanged = transactionsViewModel::updateSelectedCategory,
+                            tagChanged = transactionsViewModel::updateSelectedTag,
+                        ),
                 )
             }
         }

@@ -29,6 +29,14 @@ import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
+data class LedgerNavigationActions(
+    val selectArea: (String) -> Unit = {},
+    val monthChanged: (String) -> Unit = {},
+    val accountChanged: (String?) -> Unit = {},
+    val categoryChanged: (String?) -> Unit = {},
+    val tagChanged: (String?) -> Unit = {},
+)
+
 @Composable
 fun PersonalFinanceApp(
     uiState: FirstRunUiState,
@@ -71,11 +79,7 @@ fun PersonalFinanceApp(
     onBudgetCategoryChanged: (String?) -> Unit = {},
     onBudgetAmountChanged: (String) -> Unit = {},
     onSaveBudget: () -> Unit = {},
-    onAreaSelected: (String) -> Unit = {},
-    onMonthFilterChanged: (String) -> Unit = {},
-    onAccountFilterChanged: (String?) -> Unit = {},
-    onCategoryFilterChanged: (String?) -> Unit = {},
-    onTagFilterChanged: (String?) -> Unit = {},
+    navigationActions: LedgerNavigationActions = LedgerNavigationActions(),
 ) {
     Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -117,10 +121,10 @@ fun PersonalFinanceApp(
                                 create = onCreateTransaction,
                                 edit = onEditTransaction,
                                 delete = onDeleteTransaction,
-                                monthChanged = onMonthFilterChanged,
-                                accountChanged = onAccountFilterChanged,
-                                categoryChanged = onCategoryFilterChanged,
-                                tagChanged = onTagFilterChanged,
+                                monthChanged = navigationActions.monthChanged,
+                                accountChanged = navigationActions.accountChanged,
+                                categoryChanged = navigationActions.categoryChanged,
+                                tagChanged = navigationActions.tagChanged,
                             ),
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
@@ -169,7 +173,7 @@ fun PersonalFinanceApp(
                     Row(Modifier.fillMaxWidth()) {
                         listOf("Overview", "Transactions", "Budgets", "Settings").forEach { area: String ->
                             Button(
-                                onClick = { onAreaSelected(area) },
+                                onClick = { navigationActions.selectArea(area) },
                                 modifier =
                                     Modifier.weight(1f).testTag("navigation-$area").semantics {
                                         stateDescription = if (transactionsState.selectedArea == area) "Current section" else "Section"

@@ -21,4 +21,7 @@ interface AccountDao {
         id: String,
         updatedAt: Long,
     )
+
+    @Query("DELETE FROM accounts")
+    suspend fun clear()
 }

@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Upsert
 
 @Entity(tableName = "app_settings")
 data class AppSettings(
@@ -23,6 +24,12 @@ interface AppSettingsDao {
 
     @Insert
     suspend fun insertSettings(settings: AppSettings): Long
+
+    @Upsert
+    suspend fun saveSettings(settings: AppSettings)
+
+    @Query("DELETE FROM app_settings")
+    suspend fun clear()
 
     @Query("SELECT * FROM app_settings ORDER BY id")
     suspend fun loadAll(): List<AppSettings>

@@ -68,6 +68,9 @@ interface TransferDao {
     @Query("DELETE FROM transfers WHERE id = :id")
     suspend fun delete(id: String)
 
+    @Query("DELETE FROM transfers")
+    suspend fun clear()
+
     @Query("SELECT * FROM transfers ORDER BY date DESC, createdAt DESC, id DESC")
     suspend fun loadAll(): List<TransferEntity>
 }

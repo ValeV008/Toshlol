@@ -18,6 +18,8 @@ import java.io.OutputStream
 import java.time.LocalDate
 
 const val CURRENT_BACKUP_SCHEMA_VERSION: Int = 2
+const val MAX_BACKUP_BYTES: Int = 5 * 1024 * 1024
+const val MAX_BACKUP_RECORDS: Int = 100_000
 private const val DEFAULT_OPENING_BALANCE_MINOR: Long = 0
 
 @Serializable

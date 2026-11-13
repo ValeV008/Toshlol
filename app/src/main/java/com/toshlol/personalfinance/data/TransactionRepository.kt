@@ -16,6 +16,9 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun delete(id: String)
 
+    @Query("DELETE FROM transactions")
+    suspend fun clear()
+
     @Query("SELECT * FROM transactions ORDER BY date DESC, createdAt DESC, id DESC")
     suspend fun loadAll(): List<TransactionEntity>
 

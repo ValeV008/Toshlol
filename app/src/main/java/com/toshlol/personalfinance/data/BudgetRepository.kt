@@ -21,6 +21,9 @@ interface BudgetDao {
 
     @Upsert
     suspend fun save(budget: BudgetEntity)
+
+    @Query("DELETE FROM budgets")
+    suspend fun clear()
 }
 
 interface BudgetRepository {

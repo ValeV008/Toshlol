@@ -19,8 +19,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.BackupImportOutcome
+import com.toshlol.personalfinance.data.ContentResolverBackupReader
 import com.toshlol.personalfinance.data.ContentResolverBackupWriter
 import com.toshlol.personalfinance.data.RoomBackupExporter
+import com.toshlol.personalfinance.data.RoomBackupImporter
 import com.toshlol.personalfinance.ui.AccountEditorActions
 import com.toshlol.personalfinance.ui.AccountHistoryActions
 import com.toshlol.personalfinance.ui.AccountHistoryScreenActions
@@ -47,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private val backupExporter: RoomBackupExporter by lazy {
         RoomBackupExporter(AppDatabase.getInstance(this), ContentResolverBackupWriter(contentResolver))
     }
+    private val backupImporter: RoomBackupImporter by lazy { RoomBackupImporter(AppDatabase.getInstance(this)) }
     private val viewModel: FirstRunViewModel by viewModels {
         viewModelFactory {
             initializer { FirstRunViewModel((application as PersonalFinanceApplication).firstRunSetup) }
@@ -86,6 +90,34 @@ class MainActivity : ComponentActivity() {
                                     "Backup exported successfully."
                                 } catch (exception: Exception) {
                                     "Backup export failed: ${exception.message ?: "Unable to write the selected file."}"
+                                }
+                        }
+                    }
+                }
+            val importBackup: ManagedActivityResultLauncher<Array<String>, Uri?> =
+                rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { source: Uri? ->
+                    if (source == null) {
+                        backupStatus = "Backup import canceled."
+                    } else {
+                        lifecycleScope.launch {
+                            backupStatus =
+                                try {
+                                    val contents = ContentResolverBackupReader(contentResolver).read(source)
+                                    when (val outcome = backupImporter.import(contents)) {
+                                        is BackupImportOutcome.Success -> {
+                                            transactionsViewModel.refresh()
+                                            val totals =
+                                                outcome.report.counts.entries.joinToString { (entity, count) ->
+                                                    "${entity.name.lowercase()}: ${count.inserted} added, ${count.updated} updated, ${count.unchanged} unchanged"
+                                                }
+                                            "Backup merged successfully. $totals"
+                                        }
+                                        is BackupImportOutcome.Failure -> "Backup import failed: ${outcome.failures.joinToString {
+                                            it.message
+                                        }}"
+                                    }
+                                } catch (_: Exception) {
+                                    "Backup import failed. The selected file could not be read."
                                 }
                         }
                     }
@@ -210,6 +242,7 @@ class MainActivity : ComponentActivity() {
                                     tagChanged = transactionsViewModel::updateSelectedTag,
                                 ),
                             exportBackup = { exportBackup.launch("Toshlol-Backup.json") },
+                            importBackup = { importBackup.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
                             backupStatus = backupStatus,
                         ),
                 )

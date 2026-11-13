@@ -123,6 +123,7 @@ data class PersonalFinanceActions(
     val accountHistory: AccountHistoryActions,
     val navigation: LedgerNavigationActions,
     val exportBackup: () -> Unit,
+    val importBackup: () -> Unit,
     val backupStatus: String,
 )
 
@@ -203,6 +204,7 @@ fun PersonalFinanceApp(
                                     createTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
                                     createTransfer = actions.transfers.create,
                                     exportBackup = actions.exportBackup,
+                                    importBackup = actions.importBackup,
                                     backupStatus = actions.backupStatus,
                                 ),
                         )
@@ -289,6 +291,7 @@ private data class SettingsActions(
     val createTransaction: () -> Unit,
     val createTransfer: () -> Unit,
     val exportBackup: () -> Unit,
+    val importBackup: () -> Unit,
     val backupStatus: String,
 )
 
@@ -307,6 +310,7 @@ private fun SettingsScreen(
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
         Button(onClick = actions.openOrganizer) { Text("Manage categories and tags") }
         Button(onClick = actions.exportBackup) { Text("Export Backup") }
+        Button(onClick = actions.importBackup) { Text("Import Backup (Merge)") }
         if (actions.backupStatus.isNotEmpty()) Text(actions.backupStatus)
     }
 }

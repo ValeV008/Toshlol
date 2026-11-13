@@ -38,6 +38,15 @@ interface CategoryTagDao {
     @Query("SELECT * FROM transaction_tags WHERE transactionId = :transactionId")
     suspend fun loadTransactionTags(transactionId: String): List<TransactionTagCrossRef>
 
+    @Query("DELETE FROM transaction_tags")
+    suspend fun clearAllTransactionTags()
+
+    @Query("DELETE FROM tags")
+    suspend fun clearTags()
+
+    @Query("DELETE FROM categories")
+    suspend fun clearCategories()
+
     @Query("DELETE FROM transaction_tags WHERE transactionId = :transactionId")
     suspend fun clearTransactionTags(transactionId: String)
 

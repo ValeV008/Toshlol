@@ -23,4 +23,7 @@ interface AppSettingsDao {
 
     @Insert
     suspend fun insertSettings(settings: AppSettings): Long
+
+    @Query("SELECT * FROM app_settings ORDER BY id")
+    suspend fun loadAll(): List<AppSettings>
 }

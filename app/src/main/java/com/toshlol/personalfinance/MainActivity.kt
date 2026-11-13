@@ -1,13 +1,21 @@
 package com.toshlol.personalfinance
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.toshlol.personalfinance.ui.AccountEditorActions
@@ -30,6 +38,7 @@ import com.toshlol.personalfinance.ui.theme.ToshlolTheme
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunViewModel
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: FirstRunViewModel by viewModels {
@@ -58,6 +67,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
+            var backupStatus: String by rememberSaveable { mutableStateOf("") }
+            val exportBackup: ManagedActivityResultLauncher<String, Uri?> =
+                rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { destination: Uri? ->
+                    if (destination == null) {
+                        backupStatus = "Backup export canceled."
+                    } else {
+                        lifecycleScope.launch {
+                            backupStatus =
+                                try {
+                                    (application as PersonalFinanceApplication).backupExporter.exportTo(contentResolver, destination)
+                                    "Backup exported successfully."
+                                } catch (exception: Exception) {
+                                    "Backup export failed: ${exception.message ?: "Unable to write the selected file."}"
+                                }
+                        }
+                    }
+                }
             val uiState: FirstRunUiState by viewModel.uiState.collectAsStateWithLifecycle()
             val transactionsState by transactionsViewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(uiState.isSetupComplete) { if (uiState.isSetupComplete) transactionsViewModel.refresh() }
@@ -177,6 +203,8 @@ class MainActivity : ComponentActivity() {
                                     categoryChanged = transactionsViewModel::updateSelectedCategory,
                                     tagChanged = transactionsViewModel::updateSelectedTag,
                                 ),
+                            exportBackup = { exportBackup.launch("Toshlol-Backup.json") },
+                            backupStatus = backupStatus,
                         ),
                 )
             }

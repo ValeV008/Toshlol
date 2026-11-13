@@ -122,6 +122,8 @@ data class PersonalFinanceActions(
     val budgets: BudgetActions,
     val accountHistory: AccountHistoryActions,
     val navigation: LedgerNavigationActions,
+    val exportBackup: () -> Unit,
+    val backupStatus: String,
 )
 
 @Composable
@@ -200,6 +202,8 @@ fun PersonalFinanceApp(
                                     openOrganizer = actions.organizer.open,
                                     createTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
                                     createTransfer = actions.transfers.create,
+                                    exportBackup = actions.exportBackup,
+                                    backupStatus = actions.backupStatus,
                                 ),
                         )
                     uiState.isSetupComplete ->
@@ -284,6 +288,8 @@ private data class SettingsActions(
     val openOrganizer: () -> Unit,
     val createTransaction: () -> Unit,
     val createTransfer: () -> Unit,
+    val exportBackup: () -> Unit,
+    val backupStatus: String,
 )
 
 @Composable
@@ -300,6 +306,8 @@ private fun SettingsScreen(
         Button(onClick = actions.createTransfer) { Text("Transfer") }
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
         Button(onClick = actions.openOrganizer) { Text("Manage categories and tags") }
+        Button(onClick = actions.exportBackup) { Text("Export Backup") }
+        if (actions.backupStatus.isNotEmpty()) Text(actions.backupStatus)
     }
 }
 

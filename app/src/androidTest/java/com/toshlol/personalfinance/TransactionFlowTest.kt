@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -23,12 +24,15 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
+import com.toshlol.personalfinance.data.RoomTransferRepository
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
+import com.toshlol.personalfinance.data.TransferDraft
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -39,6 +43,7 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import java.time.YearMonth
 
 @RunWith(AndroidJUnit4::class)
 class TransactionFlowTest {
@@ -103,11 +108,17 @@ class TransactionFlowTest {
         ui.showText("Expense \u00b7 EUR 1.00")
         ui.clickText("Transfer")
         ui.showText("New Transfer")
+        composeRule.onNodeWithTag("transfer-source-${accountId("Cash")}").assertIsNotSelected()
+        composeRule.onNodeWithTag("transfer-source-${accountId("Savings")}").assertIsNotSelected()
+        composeRule.onNodeWithTag("transfer-destination-${accountId("Cash")}").assertIsNotSelected()
+        composeRule.onNodeWithTag("transfer-destination-${accountId("Savings")}").assertIsNotSelected()
+        ui.showText(LocalDate.now().toString(), "transfer-form")
         ui.enterText("Amount", "0", "transfer-form")
         ui.clickText("Save")
         ui.showText("Enter a positive amount", "transfer-form", substring = true)
         ui.enterText("Amount", "10.00", "transfer-form")
         ui.enterText("Date (YYYY-MM-DD)", LocalDate.now().toString(), "transfer-form")
+        composeRule.onNodeWithTag("transfer-source-${accountId("Cash")}").performClick()
         composeRule.onNodeWithTag("transfer-destination-${accountId("Cash")}").performClick()
         ui.clickText("Save")
         ui.showText("Choose two different Accounts.", "transfer-form")
@@ -254,6 +265,17 @@ class TransactionFlowTest {
         navigateTo("Budgets")
         verifyOverBudgetOnBothScreens()
         deleteExpenseAndVerifyBudgetOnBothScreens()
+    }
+
+    @Test
+    fun transferDoesNotContributeToBudgetActualSpending() {
+        navigateTo("Budgets")
+        ui.showText("Spent  EUR 0.00")
+        ui.showText("Limit  EUR 10.00")
+        ui.showText("Remaining  EUR 10.00")
+        ui.clickText("Back to overview")
+        ui.showText("Transfer \u00b7 EUR 5.00")
+        ui.showText("Food \u00b7 EUR 0.00 / 10.00 \u00b7 Remaining 10.00")
     }
 
     @Test
@@ -426,6 +448,35 @@ class TransactionFlowTest {
 
     private class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "transferDoesNotContributeToBudgetActualSpending") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val source: Account =
+                        fixtures.accounts
+                            .loadSetup()
+                            .accounts
+                            .single()
+                    val destination: Account = fixtures.createAdditionalAccount("Savings")
+                    val category: FinanceCategory =
+                        fixtures.organization
+                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
+                            .categories
+                            .single()
+                    fixtures.budgets.save(
+                        BudgetDraft(category.id, YearMonth.now(), 1000L),
+                    )
+                    RoomTransferRepository(AppDatabase.getInstance(context)).save(
+                        TransferDraft(
+                            sourceAccountId = source.id,
+                            destinationAccountId = destination.id,
+                            amountMinor = 500L,
+                            date = LocalDate.now().toEpochDay(),
+                        ),
+                    )
+                }
+                return
+            }
             if (description.methodName == "createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {

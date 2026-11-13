@@ -187,15 +187,14 @@ class TransactionsViewModel(
 
     @Suppress("ktlint:standard:no-unit-return")
     fun beginTransfer(): Unit {
-        val accounts: List<Account> = uiState.value.accounts
         mutableUiState.value =
             uiState.value.copy(
                 isTransferFormVisible = true,
                 editingTransferId = null,
                 amount = "",
                 date = LocalDate.now().toString(),
-                transferSourceAccountId = accounts.firstOrNull { !it.isArchived }?.id,
-                transferDestinationAccountId = accounts.filterNot { it.isArchived }.getOrNull(1)?.id,
+                transferSourceAccountId = null,
+                transferDestinationAccountId = null,
                 error = null,
             )
     }

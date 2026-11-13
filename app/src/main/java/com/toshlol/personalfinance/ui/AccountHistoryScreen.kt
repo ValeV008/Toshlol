@@ -78,26 +78,23 @@ private fun AccountHistoryActivity(
         val transaction: FinanceTransaction? = item.transaction
         val transfer: FinanceTransfer? = item.transfer
         if (transaction != null) {
-            TextButton(onClick = { actions.editTransaction(transaction) }) {
-                Text(
-                    "${transaction.direction.name.lowercase().replaceFirstChar(
-                        Char::uppercase,
-                    )} · $currency ${formatMoney(transaction.amountMinor, currency)}",
-                )
-            }
+            val title: String =
+                "${transaction.direction.name.lowercase().replaceFirstChar(
+                    Char::uppercase,
+                )} · $currency ${formatMoney(transaction.amountMinor, currency)}"
+            if (account.isArchived) Text(title) else TextButton(onClick = { actions.editTransaction(transaction) }) { Text(title) }
             Text(
                 "${LocalDate.ofEpochDay(
                     transaction.date,
                 )} · ${transaction.categoryName ?: "Transaction"}${transaction.note?.let { " · $it" }.orEmpty()}",
             )
-            TextButton(onClick = { actions.deleteTransaction(transaction.id) }) { Text("Delete") }
+            if (!account.isArchived) TextButton(onClick = { actions.deleteTransaction(transaction.id) }) { Text("Delete") }
         } else if (transfer != null) {
             val isOutgoing: Boolean = transfer.sourceAccountId == account.id
             val context: String = if (isOutgoing) "Transfer out" else "Transfer in"
             val otherAccountName: String = if (isOutgoing) transfer.destinationAccountName else transfer.sourceAccountName
-            TextButton(onClick = { actions.editTransfer(transfer) }) {
-                Text("$context · $currency ${formatMoney(transfer.amountMinor, currency)}")
-            }
+            val title: String = "$context · $currency ${formatMoney(transfer.amountMinor, currency)}"
+            if (account.isArchived) Text(title) else TextButton(onClick = { actions.editTransfer(transfer) }) { Text(title) }
             Text("${LocalDate.ofEpochDay(transfer.date)} · ${if (isOutgoing) "To" else "From"} $otherAccountName")
         }
     }
@@ -118,9 +115,11 @@ private fun buildAccountHistoryItems(
 ): List<AccountHistoryItem> =
     (
         transactions
-            .filter { it.accountId == account.id }
+            .filter { it.accountId == account.id && it.date >= account.openingBalanceDate }
             .map { AccountHistoryItem(it.id, it.date, it.createdAt, transaction = it) } +
             transfers
-                .filter { it.sourceAccountId == account.id || it.destinationAccountId == account.id }
-                .map { AccountHistoryItem(it.id, it.date, it.createdAt, transfer = it) }
+                .filter {
+                    (it.sourceAccountId == account.id || it.destinationAccountId == account.id) &&
+                        it.date >= account.openingBalanceDate
+                }.map { AccountHistoryItem(it.id, it.date, it.createdAt, transfer = it) }
     ).sortedWith(compareByDescending<AccountHistoryItem> { it.date }.thenByDescending { it.createdAt }.thenByDescending { it.id })

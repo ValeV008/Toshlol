@@ -2,6 +2,7 @@
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
@@ -87,6 +89,7 @@ data class AccountEditorActions(
     val newOpeningBalanceChanged: (String) -> Unit,
     val newOpeningDateChanged: (String) -> Unit,
     val create: () -> Unit,
+    val archive: (String) -> Unit,
 )
 
 data class OrganizerActions(
@@ -154,6 +157,24 @@ fun PersonalFinanceApp(
                             actions.budgets.save,
                             { actions.transactions.create(TransactionDirection.EXPENSE) },
                             actions.transfers.create,
+                        )
+                    uiState.isSetupComplete && transactionsState.selectedArea == "Accounts" ->
+                        AccountsScreen(
+                            state = transactionsState.copy(currency = uiState.currency),
+                            actions =
+                                AccountsScreenActions(
+                                    back = { actions.navigation.selectArea("Overview") },
+                                    openHistory = actions.accountHistory.open,
+                                    edit = { id ->
+                                        actions.organizer.accounts.select(id)
+                                        actions.organizer.open()
+                                    },
+                                    archive = actions.organizer.accounts.archive,
+                                    addAccount = {
+                                        actions.organizer.accounts.select(transactionsState.editingAccountId ?: transactionsState.accountId)
+                                        actions.organizer.open()
+                                    },
+                                ),
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
                         TransactionsScreen(
@@ -240,15 +261,16 @@ fun PersonalFinanceApp(
             ) {
                 NavigationBar {
                     Row(Modifier.fillMaxWidth()) {
-                        listOf("Overview", "Transactions", "Budgets", "Settings").forEach { area: String ->
+                        listOf("Overview", "Transactions", "Accounts", "Budgets", "Settings").forEach { area: String ->
                             Button(
                                 onClick = { actions.navigation.selectArea(area) },
                                 modifier =
                                     Modifier.weight(1f).testTag("navigation-$area").semantics {
                                         stateDescription = if (transactionsState.selectedArea == area) "Current section" else "Section"
                                     },
+                                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
                             ) {
-                                Text(area)
+                                Text(area, maxLines = 1, softWrap = false, fontSize = 11.sp)
                             }
                         }
                     }

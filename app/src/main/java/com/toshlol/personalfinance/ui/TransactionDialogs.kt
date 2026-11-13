@@ -178,7 +178,7 @@ fun TransferDialog(
                     OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
                     OutlinedTextField(state.date, actions.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
                     Text("From Account")
-                    state.accounts.forEach { account ->
+                    state.accounts.filterNot { it.isArchived }.forEach { account ->
                         Row(
                             Modifier.heightIn(min = 48.dp).testTag("transfer-source-${account.id}").selectable(
                                 selected =
@@ -193,7 +193,7 @@ fun TransferDialog(
                         }
                     }
                     Text("To Account")
-                    state.accounts.forEach { account ->
+                    state.accounts.filterNot { it.isArchived }.forEach { account ->
                         Row(
                             Modifier.heightIn(min = 48.dp).testTag("transfer-destination-${account.id}").selectable(
                                 selected =

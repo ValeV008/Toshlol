@@ -40,6 +40,96 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseTest {
     @Test
+    fun saveOpeningBalanceAndDateRecalculatesPersistedBalance(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount()
+                val openingDate: Long = LocalDate.now().toEpochDay()
+                val transactions: RoomTransactionRepository = RoomTransactionRepository(database)
+                transactions.save(TransactionDraft(null, account.id, 200, TransactionDirection.INCOME, openingDate - 1, null))
+                transactions.save(TransactionDraft(null, account.id, 120, TransactionDirection.INCOME, openingDate, null))
+                transactions.save(TransactionDraft(null, account.id, 70, TransactionDirection.EXPENSE, openingDate, null))
+                val repository: RoomAccountRepository = RoomAccountRepository(database)
+                val edited: Account = repository.saveAccount(account.id, account.name, 500, openingDate)
+                assertEquals(550L, edited.balanceMinor)
+                assertEquals(openingDate, edited.openingBalanceDate)
+                val reloaded: Account = repository.loadSetup().accounts.single()
+                assertEquals(500L, reloaded.openingBalanceMinor)
+                assertEquals(550L, reloaded.balanceMinor)
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun archiveAccountRetainsHistoryAndRejectsNewMovements(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount()
+                val destination: Account = fixtures.createAdditionalAccount("Savings")
+                val date: Long = LocalDate.now().toEpochDay()
+                val transactions: RoomTransactionRepository = RoomTransactionRepository(database)
+                transactions.save(TransactionDraft(null, account.id, 200, TransactionDirection.INCOME, date, null))
+                val transfers: RoomTransferRepository = RoomTransferRepository(database)
+                transfers.save(
+                    TransferDraft(sourceAccountId = account.id, destinationAccountId = destination.id, amountMinor = 50, date = date),
+                )
+                val archived: Account = fixtures.accounts.archiveAccount(account.id)
+                assertTrue(archived.isArchived)
+                assertEquals(150L, archived.balanceMinor)
+                assertEquals(1, transactions.loadTransactions().size)
+                assertEquals(1, transfers.loadTransfers().size)
+                try {
+                    transactions.save(TransactionDraft(null, account.id, 50, TransactionDirection.EXPENSE, date, null))
+                    fail("Archived Accounts must reject new Transactions")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("active Account"))
+                }
+                try {
+                    transfers.save(
+                        TransferDraft(sourceAccountId = account.id, destinationAccountId = destination.id, amountMinor = 50, date = date),
+                    )
+                    fail("Archived Accounts must reject new Transfers")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("active Accounts"))
+                }
+                try {
+                    transactions.delete(transactions.loadTransactions().single().id)
+                    fail("Archived Account history must be read-only")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("read-only"))
+                }
+                try {
+                    transfers.delete(transfers.loadTransfers().single().id)
+                    fail("Archived Account history must be read-only")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("read-only"))
+                }
+                assertTrue(
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == account.id }
+                        .isArchived,
+                )
+                assertEquals(
+                    150L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == account.id }
+                        .balanceMinor,
+                )
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
     fun transfersPersistValidateAndChangeAccountBalancesByOpeningDate(): Unit =
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
@@ -720,5 +810,6 @@ class AppDatabaseTest {
             .addMigrations(AppDatabase.MIGRATION_3_4)
             .addMigrations(AppDatabase.MIGRATION_4_5)
             .addMigrations(AppDatabase.MIGRATION_5_6)
+            .addMigrations(AppDatabase.MIGRATION_6_7)
             .build()
 }

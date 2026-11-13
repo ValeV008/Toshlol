@@ -103,7 +103,7 @@ class TransactionsViewModel(
         viewModelScope.launch {
             try {
                 val setup: com.toshlol.personalfinance.data.FirstRunSnapshot = firstRunSetup.loadSetup()
-                val account: Account? = setup.accounts.firstOrNull()
+                val account: Account? = setup.accounts.firstOrNull { !it.isArchived }
                 val currency: String = setup.currency
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
                 val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
@@ -114,11 +114,11 @@ class TransactionsViewModel(
                     uiState.value.copy(
                         accountId = account?.id.orEmpty(),
                         accountName = account?.name.orEmpty(),
-                        editingAccountId = accounts.firstOrNull()?.id,
+                        editingAccountId = accounts.firstOrNull { !it.isArchived }?.id,
                         accountNameDraft = account?.name.orEmpty(),
-                        openingBalanceAmount = formatAmount(accounts.firstOrNull()?.openingBalanceMinor ?: 0L, currency),
+                        openingBalanceAmount = formatAmount(accounts.firstOrNull { !it.isArchived }?.openingBalanceMinor ?: 0L, currency),
                         openingBalanceDate =
-                            accounts.firstOrNull()?.openingBalanceDate?.let { LocalDate.ofEpochDay(it).toString() }
+                            accounts.firstOrNull { !it.isArchived }?.openingBalanceDate?.let { LocalDate.ofEpochDay(it).toString() }
                                 ?: LocalDate.now().toString(),
                         isLoaded = true,
                         currency = currency,
@@ -194,8 +194,8 @@ class TransactionsViewModel(
                 editingTransferId = null,
                 amount = "",
                 date = LocalDate.now().toString(),
-                transferSourceAccountId = accounts.firstOrNull()?.id,
-                transferDestinationAccountId = accounts.getOrNull(1)?.id,
+                transferSourceAccountId = accounts.firstOrNull { !it.isArchived }?.id,
+                transferDestinationAccountId = accounts.filterNot { it.isArchived }.getOrNull(1)?.id,
                 error = null,
             )
     }
@@ -242,8 +242,13 @@ class TransactionsViewModel(
                 ?.movePointRight(fractionDigits(state.currency))
                 ?.longValueExactOrNull()
         val localDate: LocalDate? = runCatching { LocalDate.parse(state.date) }.getOrNull()
-        val sourceId: String? = state.transferSourceAccountId
-        val destinationId: String? = state.transferDestinationAccountId
+        val activeAccountIds: Set<String> =
+            state.accounts
+                .filterNot { it.isArchived }
+                .map { it.id }
+                .toSet()
+        val sourceId: String? = state.transferSourceAccountId?.takeIf { it in activeAccountIds }
+        val destinationId: String? = state.transferDestinationAccountId?.takeIf { it in activeAccountIds }
         if (amountMinor == null || amountMinor <= 0 || localDate == null) {
             mutableUiState.value = state.copy(error = "Enter a positive amount and a valid date.")
             return
@@ -477,6 +482,27 @@ class TransactionsViewModel(
                     )
             } catch (exception: Exception) {
                 mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not create Account.")
+            }
+        }
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    fun archiveAccount(id: String): Unit {
+        viewModelScope.launch {
+            try {
+                accountManagement.archiveAccount(id)
+                val accounts: List<Account> = accountManagement.loadAccounts()
+                val activeAccount: Account? = accounts.firstOrNull { !it.isArchived }
+                val currentState: TransactionsUiState = uiState.value
+                mutableUiState.value =
+                    currentState.copy(
+                        accounts = accounts,
+                        accountId = activeAccount?.id.orEmpty(),
+                        accountName = activeAccount?.name.orEmpty(),
+                        error = null,
+                    )
+            } catch (exception: Exception) {
+                mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not archive Account.")
             }
         }
     }

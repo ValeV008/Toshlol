@@ -58,6 +58,8 @@ class RoomTransactionRepository(
                                 identifier
                         }
                     }
+                val account: AccountEntity? = database.transactionDao().loadAccounts().firstOrNull { it.id == draft.accountId }
+                require(account != null && !account.archived) { "Choose an active Account." }
                 val timestamp: Long = currentTime()
                 val category: CategoryEntity? = draft.categoryId?.let { id -> database.categoryTagDao().loadCategory(id) }
                 val transactionId: String = existing?.id ?: nextIdentifier()
@@ -122,6 +124,9 @@ class RoomTransactionRepository(
     override suspend fun delete(id: String): List<FinanceTransaction> =
         executeStorageOperation {
             database.withTransaction {
+                val transaction: TransactionEntity? = database.transactionDao().loadAll().firstOrNull { it.id == id }
+                val account: AccountEntity? = database.transactionDao().loadAccounts().firstOrNull { it.id == transaction?.accountId }
+                require(account == null || !account.archived) { "Archived Account history is read-only." }
                 database.transactionDao().delete(id)
                 loadInsideTransaction()
             }

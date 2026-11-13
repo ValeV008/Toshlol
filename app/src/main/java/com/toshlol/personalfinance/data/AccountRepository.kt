@@ -9,6 +9,7 @@ data class Account(
     val openingBalanceMinor: Long = 0,
     val openingBalanceDate: Long = 0,
     val balanceMinor: Long = openingBalanceMinor,
+    val isArchived: Boolean = false,
 )
 
 data class FirstRunSnapshot(
@@ -42,4 +43,6 @@ interface AccountRepository {
         openingBalanceMinor: Long,
         openingBalanceDate: Long,
     ): Account
+
+    suspend fun archiveAccount(id: String): Account
 }

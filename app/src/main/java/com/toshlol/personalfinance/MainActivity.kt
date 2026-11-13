@@ -146,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                             newOpeningBalanceChanged = transactionsViewModel::updateNewAccountOpeningBalance,
                                             newOpeningDateChanged = transactionsViewModel::updateNewAccountOpeningDate,
                                             create = transactionsViewModel::createAccount,
+                                            archive = transactionsViewModel::archiveAccount,
                                         ),
                                 ),
                             budgets =

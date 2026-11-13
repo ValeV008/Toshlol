@@ -55,6 +55,7 @@ class RoomAccountRepository(
                 require(trimmedName.isNotEmpty()) { "Enter an account name." }
                 val accounts: List<AccountEntity> = database.accountDao().loadAccounts()
                 val account: AccountEntity = requireNotNull(accounts.firstOrNull { it.id == id }) { "This account no longer exists." }
+                require(!account.archived) { "Archived Accounts are read-only." }
                 require(accounts.none { it.id != id && it.name.equals(trimmedName, ignoreCase = true) }) {
                     "An account with this name already exists."
                 }
@@ -75,6 +76,7 @@ class RoomAccountRepository(
                 require(trimmedName.isNotEmpty()) { "Enter an account name." }
                 val accounts: List<AccountEntity> = database.accountDao().loadAccounts()
                 val account: AccountEntity = requireNotNull(accounts.firstOrNull { it.id == id }) { "This account no longer exists." }
+                require(!account.archived) { "Archived Accounts are read-only." }
                 require(
                     accounts.none { it.id != id && it.name.equals(trimmedName, ignoreCase = true) },
                 ) { "An account with this name already exists." }
@@ -110,6 +112,18 @@ class RoomAccountRepository(
                     AccountEntity(nextIdentifier(), trimmedName, type.name, timestamp, timestamp, openingBalanceMinor, openingBalanceDate),
                 )
                 requireNotNull(loadSnapshot().accounts.firstOrNull { it.name == trimmedName })
+            }
+        }
+
+    override suspend fun archiveAccount(id: String): Account =
+        executeStorageOperation {
+            database.withTransaction {
+                val account: AccountEntity =
+                    requireNotNull(database.accountDao().loadAccounts().firstOrNull { it.id == id }) {
+                        "This account no longer exists."
+                    }
+                if (!account.archived) database.accountDao().archiveAccount(id, currentTime())
+                requireNotNull(loadSnapshot().accounts.firstOrNull { it.id == id })
             }
         }
 
@@ -173,6 +187,7 @@ class RoomAccountRepository(
                 account.openingBalanceMinor,
                 account.openingBalanceDate,
                 account.openingBalanceMinor + transactionBalance + transferBalance,
+                account.archived,
             )
         }
     }

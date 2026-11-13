@@ -125,4 +125,10 @@ internal class InMemoryAccountRepository : AccountRepository {
         snapshot = snapshot.copy(accounts = snapshot.accounts + account)
         return account
     }
+
+    override suspend fun archiveAccount(id: String): Account {
+        val account: Account = snapshot.accounts.single { it.id == id }.copy(isArchived = true)
+        snapshot = snapshot.copy(accounts = snapshot.accounts.map { if (it.id == id) account else it })
+        return account
+    }
 }

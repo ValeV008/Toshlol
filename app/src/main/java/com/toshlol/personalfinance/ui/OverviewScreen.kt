@@ -108,7 +108,8 @@ fun OverviewScreen(
                 val transfer: FinanceTransfer? = activity.transfer
                 Column(Modifier.fillMaxWidth().padding(8.dp)) {
                     if (transaction != null) {
-                        TextButton(onClick = { actions.edit(transaction) }) {
+                        val isAccountActive: Boolean = state.accounts.firstOrNull { it.id == transaction.accountId }?.isArchived == false
+                        TextButton(onClick = { actions.edit(transaction) }, enabled = isAccountActive) {
                             Text(
                                 "${transaction.direction.name.lowercase().replaceFirstChar(
                                     Char::uppercase,
@@ -127,9 +128,13 @@ fun OverviewScreen(
                                 prefix = " · ",
                             ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
                         )
-                        TextButton(onClick = { actions.delete(transaction.id) }) { Text("Delete") }
+                        TextButton(onClick = { actions.delete(transaction.id) }, enabled = isAccountActive) { Text("Delete") }
                     } else if (transfer != null) {
-                        TextButton(onClick = { actions.editTransfer(transfer) }) {
+                        val isTransferEditable: Boolean =
+                            state.accounts
+                                .filter { it.id == transfer.sourceAccountId || it.id == transfer.destinationAccountId }
+                                .all { !it.isArchived }
+                        TextButton(onClick = { actions.editTransfer(transfer) }, enabled = isTransferEditable) {
                             Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}")
                         }
                         Text(
@@ -143,8 +148,10 @@ fun OverviewScreen(
         }
         Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.accounts.forEach { account ->
+            val archiveLabel: String = if (account.isArchived) " · Archived" else ""
+            val balanceLabel: String = "${state.currency} ${formatMoney(account.balanceMinor, state.currency)}"
             TextButton(onClick = { actions.openAccountHistory(account.id) }) {
-                Text("${account.name}  ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+                Text("${account.name} · ${account.type.label}$archiveLabel · $balanceLabel")
             }
         }
     }

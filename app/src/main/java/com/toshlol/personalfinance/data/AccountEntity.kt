@@ -12,4 +12,5 @@ data class AccountEntity(
     val updatedAt: Long,
     val openingBalanceMinor: Long = 0,
     val openingBalanceDate: Long = 0,
+    val archived: Boolean = false,
 )

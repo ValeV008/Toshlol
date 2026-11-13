@@ -97,6 +97,9 @@ class RoomTransferRepository(
             database.withTransaction {
                 val accounts: Map<String, AccountEntity> = database.accountDao().loadAccounts().associateBy(AccountEntity::id)
                 require(draft.sourceAccountId in accounts && draft.destinationAccountId in accounts) { "Choose two existing Accounts." }
+                require(!accounts.getValue(draft.sourceAccountId).archived && !accounts.getValue(draft.destinationAccountId).archived) {
+                    "Transfers require active Accounts."
+                }
                 val current: TransferEntity? = draft.id?.let { id -> database.transferDao().loadAll().firstOrNull { it.id == id } }
                 val timestamp: Long = currentTime()
                 database.transferDao().save(
@@ -118,6 +121,21 @@ class RoomTransferRepository(
     override suspend fun delete(id: String): List<FinanceTransfer> =
         executeStorageOperation {
             database.withTransaction {
+                val transfer: TransferEntity? = database.transferDao().loadAll().firstOrNull { it.id == id }
+                val archivedAccountIds: Set<String> =
+                    database
+                        .accountDao()
+                        .loadAccounts()
+                        .filter { it.archived }
+                        .map(AccountEntity::id)
+                        .toSet()
+                require(
+                    transfer == null ||
+                        transfer.sourceAccountId !in archivedAccountIds &&
+                        transfer.destinationAccountId !in archivedAccountIds,
+                ) {
+                    "Archived Account history is read-only."
+                }
                 database.transferDao().delete(id)
                 loadInsideTransaction()
             }

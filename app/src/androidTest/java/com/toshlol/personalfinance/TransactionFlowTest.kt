@@ -55,6 +55,29 @@ class TransactionFlowTest {
             .around(UiFailureArtifactsRule(composeRule))
 
     @Test
+    fun accountListShowsTypesBalancesAndHistoryNavigation() {
+        navigateTo("Accounts")
+        ui.showText("Add Account")
+        ui.showText("Type · Cash")
+        ui.showText("Balance · EUR 0.00")
+        ui.clickText("View Cash history")
+        ui.showText("Cash history")
+        ui.showText("No account activity yet")
+    }
+
+    @Test
+    fun archiveAccountKeepsReadOnlyBalanceAndHistory() {
+        navigateTo("Accounts")
+        ui.clickText("Archive Cash")
+        ui.showText("Type · Cash")
+        ui.showText("Archived")
+        ui.clickText("View Cash history")
+        ui.showText("Cash history")
+        ui.showText("Balance  EUR 0.00")
+        ui.showText("No account activity yet")
+    }
+
+    @Test
     @Suppress("ktlint:standard:no-unit-return")
     fun createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals(): Unit {
         ui.clickText("Organize categories and tags")
@@ -62,13 +85,13 @@ class TransactionFlowTest {
         ui.enterText("New account name", "Savings", "category-tag-list")
         ui.enterText("New account opening balance", "3.00", "category-tag-list")
         ui.clickText("Create account", "category-tag-list")
-        ui.showText("Editing Savings · EUR 3.00", "category-tag-list")
+        ui.showText("Savings · Bank · EUR 3.00", "category-tag-list")
         ui.click(hasText("Edit Cash", substring = true), "category-tag-list")
         ui.click(hasText("Edit Savings", substring = true), "category-tag-list")
         ui.enterText("Account opening balance", "5.00", "category-tag-list")
         ui.enterText("Account opening date (YYYY-MM-DD)", "2026-01-01", "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
-        ui.showText("Editing Savings · EUR 5.00", "category-tag-list")
+        ui.showText("Savings · Bank · EUR 5.00", "category-tag-list")
         ui.click(hasText("Edit Cash", substring = true), "category-tag-list")
         ui.click(hasText("Edit Savings", substring = true), "category-tag-list")
         ui.showText("2026-01-01", "category-tag-list")
@@ -91,8 +114,8 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("transfer-destination-${accountId("Savings")}").performClick()
         ui.clickText("Save")
         ui.showText("Transfer · EUR 10.00")
-        ui.showText("Cash  EUR -10.00")
-        ui.showText("Savings  EUR 15.00")
+        ui.showText("Cash · Cash · EUR -10.00")
+        ui.showText("Savings · Bank · EUR 15.00")
         ui.showText("Income  EUR 0.00", substring = true)
         ui.showText("Expenses  EUR 0.00", substring = true)
         val transferPosition: Float =
@@ -112,12 +135,12 @@ class TransactionFlowTest {
         ui.enterText("Account name", "Reserve", "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
         ui.clickText("Back to overview")
-        ui.clickText("Cash  EUR -10.00")
+        ui.clickText("Cash · Cash · EUR -10.00")
         ui.showText("Cash history")
         ui.showText("Transfer out · EUR 10.00")
         ui.showText("To Reserve", substring = true)
         ui.clickText("Back to overview")
-        ui.clickText("Reserve  EUR 15.00")
+        ui.clickText("Reserve · Bank · EUR 15.00")
         ui.showText("Reserve history")
         ui.showText("Transfer in · EUR 10.00")
         ui.showText("From Cash", substring = true)
@@ -150,8 +173,8 @@ class TransactionFlowTest {
         ui.clickText("Save")
         ui.showText("Transfer out", substring = true)
         navigateTo("Overview")
-        ui.showText("Cash  EUR -4.00")
-        ui.showText("Reserve  EUR 9.00")
+        ui.showText("Cash · Cash · EUR -4.00")
+        ui.showText("Reserve · Bank · EUR 9.00")
         navigateTo("Transactions")
         ui.click(hasText("Transfer out", substring = true))
         ui.clickText("Delete")
@@ -159,8 +182,8 @@ class TransactionFlowTest {
         ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
         ui.showText("No transactions match these filters.")
         navigateTo("Overview")
-        ui.showText("Cash  EUR 0.00")
-        ui.showText("Reserve  EUR 5.00")
+        ui.showText("Cash · Cash · EUR 0.00")
+        ui.showText("Reserve · Bank · EUR 5.00")
     }
 
     @Test
@@ -208,9 +231,9 @@ class TransactionFlowTest {
         ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("Account name", "Wallet", "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
-        ui.showText("Wallet · EUR -8.25", "category-tag-list", substring = true)
+        ui.showText("Wallet · Cash · EUR -8.25", "category-tag-list", substring = true)
         ui.clickText("Back to overview")
-        ui.showText("Wallet  EUR -8.25", substring = true)
+        ui.showText("Wallet · Cash · EUR -8.25", substring = true)
     }
 
     @Test
@@ -331,6 +354,7 @@ class TransactionFlowTest {
             when (area) {
                 "Overview" -> "EUR ledger is ready."
                 "Transactions" -> "Month (YYYY-MM, blank for all)"
+                "Accounts" -> "Balance · EUR 0.00"
                 "Budgets" -> "Monthly expense limits"
                 else -> "Currency: EUR"
             }

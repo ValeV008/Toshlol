@@ -32,4 +32,6 @@ class AccountManagement(
         require(draft.name.isNotBlank()) { "Enter an account name." }
         return repository.createAccount(draft.name, draft.type, draft.openingBalanceMinor, draft.openingBalanceDate)
     }
+
+    suspend fun archiveAccount(id: String): Account = repository.archiveAccount(id)
 }

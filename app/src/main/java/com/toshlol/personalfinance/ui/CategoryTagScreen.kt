@@ -56,9 +56,18 @@ fun CategoryTagScreen(
                 if (isAccountSectionVisible) {
                     Text("Accounts and balances", style = MaterialTheme.typography.titleMedium)
                     state.accounts.forEach { account ->
-                        TextButton(onClick = { actions.accounts.select(account.id) }) {
-                            val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
-                            Text("$accountAction ${account.name} · ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+                        Text(
+                            "${account.name} · ${account.type.label} · ${state.currency} ${formatMoney(
+                                account.balanceMinor,
+                                state.currency,
+                            )}${if (account.isArchived) " · Archived" else ""}",
+                        )
+                        if (!account.isArchived) {
+                            TextButton(onClick = { actions.accounts.select(account.id) }) {
+                                val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
+                                Text("$accountAction ${account.name}")
+                            }
+                            TextButton(onClick = { actions.accounts.archive(account.id) }) { Text("Archive ${account.name}") }
                         }
                     }
                     OutlinedTextField(

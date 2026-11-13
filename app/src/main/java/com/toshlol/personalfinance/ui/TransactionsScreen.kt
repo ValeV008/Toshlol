@@ -98,7 +98,8 @@ fun TransactionsScreen(
         } else {
             transactions.forEach { transaction: FinanceTransaction ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                    TextButton(onClick = { actions.edit(transaction) }) {
+                    val isAccountActive: Boolean = state.accounts.firstOrNull { it.id == transaction.accountId }?.isArchived == false
+                    TextButton(onClick = { actions.edit(transaction) }, enabled = isAccountActive) {
                         Text(
                             "${transaction.direction.name.lowercase().replaceFirstChar(
                                 Char::uppercase,
@@ -114,7 +115,7 @@ fun TransactionsScreen(
                                 .orEmpty() +
                             transaction.note?.let { " · $it" }.orEmpty(),
                     )
-                    TextButton(onClick = { actions.delete(transaction.id) }) { Text("Delete") }
+                    TextButton(onClick = { actions.delete(transaction.id) }, enabled = isAccountActive) { Text("Delete") }
                 }
             }
             transfers.forEach { transfer ->
@@ -126,11 +127,22 @@ fun TransactionsScreen(
                     }
                 rows.forEach { (direction, context) ->
                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        val isTransferEditable: Boolean =
+                            state.accounts
+                                .filter { it.id == transfer.sourceAccountId || it.id == transfer.destinationAccountId }
+                                .all { !it.isArchived }
                         TextButton(onClick = {
                             actions.editTransfer(transfer)
-                        }) { Text("$direction · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)} · $context") }
+                        }, enabled = isTransferEditable) {
+                            Text(
+                                "$direction · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)} · $context",
+                            )
+                        }
                         Text("${LocalDate.ofEpochDay(transfer.date)} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}")
-                        TextButton(onClick = { actions.deleteTransfer(transfer.id) }) { Text("Delete Transfer") }
+                        TextButton(
+                            onClick = { actions.deleteTransfer(transfer.id) },
+                            enabled = isTransferEditable,
+                        ) { Text("Delete Transfer") }
                     }
                 }
             }

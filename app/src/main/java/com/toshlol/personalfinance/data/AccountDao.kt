@@ -15,4 +15,10 @@ interface AccountDao {
 
     @Upsert
     suspend fun saveAccount(account: AccountEntity)
+
+    @Query("UPDATE accounts SET archived = 1, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun archiveAccount(
+        id: String,
+        updatedAt: Long,
+    )
 }

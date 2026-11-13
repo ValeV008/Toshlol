@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -44,7 +45,7 @@ fun TransactionDialogs(
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
 ) {
-    val keyboardController = LocalSoftwareKeyboardController.current
+    val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
         if (!state.isFormVisible) keyboardController?.hide()
     }

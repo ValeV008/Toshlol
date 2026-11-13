@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -19,8 +20,11 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.CategoryDraft
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
@@ -121,6 +125,11 @@ class TransactionFlowTest {
         val currentDate: LocalDate = LocalDate.now()
         ui.showText("EUR ledger is ready.")
         navigateTo("Transactions")
+        ui.showText("Month (YYYY-MM, blank for all)").assert(hasSetTextAction())
+        ui.showText("Account: All Account").assertHasClickAction()
+        ui.showText("Category: All Category").assertHasClickAction()
+        ui.showText("Tag: All Tag").assertHasClickAction()
+        ui.showText("Add expense").assertHasClickAction()
         ui.showText("Expense · EUR 8.25")
         ui.showText("Expense · EUR 4.00")
         val newerPosition: Float =
@@ -159,19 +168,27 @@ class TransactionFlowTest {
         ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("EUR 4.00", substring = true)
         navigateTo("Overview")
+        ui.showText("Add expense").assertHasClickAction()
         ui.clickText("Add expense")
         ui.showText("New transaction")
         ui.clickText("Cancel")
         navigateTo("Transactions")
+        ui.showText("Add expense").assertHasClickAction()
         ui.clickText("Add expense")
         ui.showText("New transaction")
         ui.clickText("Cancel")
         navigateTo("Budgets")
+        ui.showText("Add transaction").assertHasClickAction()
         ui.clickText("Add transaction")
         ui.showText("New transaction")
         ui.clickText("Cancel")
         navigateTo("Settings")
         ui.showText("Currency: EUR")
+        ui.showText("Manage categories and tags").assertHasClickAction()
+        ui.clickText("Manage categories and tags")
+        ui.showText("Category name", "category-tag-list")
+        ui.clickText("Back to overview")
+        navigateTo("Settings")
         ui.clickText("Add transaction")
         ui.showText("New transaction")
     }
@@ -255,17 +272,17 @@ class TransactionFlowTest {
             val context: Context = ApplicationProvider.getApplicationContext()
             runBlocking {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
-                val account =
+                val account: Account =
                     fixtures.accounts
                         .loadSetup()
                         .accounts
                         .single()
-                val category =
+                val category: FinanceCategory =
                     fixtures.organization
                         .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
                         .categories
                         .single()
-                val tag =
+                val tag: FinanceTag =
                     fixtures.organization
                         .saveTag(TagDraft(name = "Lunch", categoryId = category.id))
                         .tags

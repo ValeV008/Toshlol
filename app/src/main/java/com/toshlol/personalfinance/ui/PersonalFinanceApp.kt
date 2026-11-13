@@ -192,9 +192,8 @@ private fun SettingsScreen(
         Text("Currency: ${state.currency}")
         Text("Account: ${state.accountName}")
         Button(onClick = onCreateTransaction) { Text("Add transaction") }
-        Button(onClick = onOpenOrganizer) { Text("Manage categories and tags") }
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-        Text("Backup and restore actions will be available here.")
+        Button(onClick = onOpenOrganizer) { Text("Manage categories and tags") }
     }
 }
 

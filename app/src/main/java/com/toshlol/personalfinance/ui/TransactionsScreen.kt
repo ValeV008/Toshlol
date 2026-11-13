@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.LocalDate
@@ -38,6 +39,9 @@ data class TransactionsScreenActions(
     val accountChanged: (String?) -> Unit,
     val categoryChanged: (String?) -> Unit,
     val tagChanged: (String?) -> Unit,
+    val createTransfer: () -> Unit,
+    val editTransfer: (FinanceTransfer) -> Unit,
+    val deleteTransfer: (String) -> Unit,
 )
 
 @Composable
@@ -53,8 +57,22 @@ fun TransactionsScreen(
             .filter { state.selectedCategoryId == null || it.categoryId == state.selectedCategoryId }
             .filter { state.selectedTagId == null || state.selectedTagId in it.tagIds }
             .sortedWith(compareByDescending<FinanceTransaction> { it.date }.thenByDescending { it.createdAt }.thenByDescending { it.id })
+    val transfers: List<FinanceTransfer> =
+        state.transfers.filter { transfer ->
+            (state.selectedMonth.isBlank() || month != null && YearMonth.from(LocalDate.ofEpochDay(transfer.date)) == month) &&
+                (
+                    state.selectedAccountId == null ||
+                        transfer.sourceAccountId == state.selectedAccountId ||
+                        transfer.destinationAccountId == state.selectedAccountId
+                ) &&
+                state.selectedCategoryId == null &&
+                state.selectedTagId == null
+        }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Transactions", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
@@ -71,8 +89,9 @@ fun TransactionsScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { actions.create(TransactionDirection.EXPENSE) }) { Text("Add expense") }
             Button(onClick = { actions.create(TransactionDirection.INCOME) }) { Text("Add income") }
+            Button(onClick = actions.createTransfer) { Text("Transfer") }
         }
-        if (transactions.isEmpty()) {
+        if (transactions.isEmpty() && transfers.isEmpty()) {
             Text("No transactions match these filters.", modifier = Modifier.semantics { heading() })
             Text("Try another month, Account, Category, or Tag.")
         } else {
@@ -95,6 +114,23 @@ fun TransactionsScreen(
                             transaction.note?.let { " · $it" }.orEmpty(),
                     )
                     TextButton(onClick = { actions.delete(transaction.id) }) { Text("Delete") }
+                }
+            }
+            transfers.forEach { transfer ->
+                val rows: List<Pair<String, String>> =
+                    when (state.selectedAccountId) {
+                        transfer.sourceAccountId -> listOf("Expense" to "Transfer out")
+                        transfer.destinationAccountId -> listOf("Income" to "Transfer in")
+                        else -> listOf("Expense" to "Transfer out", "Income" to "Transfer in")
+                    }
+                rows.forEach { (direction, context) ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                        TextButton(onClick = {
+                            actions.editTransfer(transfer)
+                        }) { Text("$direction · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)} · $context") }
+                        Text("${LocalDate.ofEpochDay(transfer.date)} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}")
+                        TextButton(onClick = { actions.deleteTransfer(transfer.id) }) { Text("Delete Transfer") }
+                    }
                 }
             }
         }

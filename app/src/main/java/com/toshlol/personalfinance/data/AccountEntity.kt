@@ -10,4 +10,6 @@ data class AccountEntity(
     val type: String,
     val createdAt: Long,
     val updatedAt: Long,
+    val openingBalanceMinor: Long = 0,
+    val openingBalanceDate: Long = 0,
 )

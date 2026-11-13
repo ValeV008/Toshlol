@@ -11,10 +11,13 @@ import com.toshlol.personalfinance.data.CategoryTagRepository
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransactionRepository
+import com.toshlol.personalfinance.data.TransferDraft
+import com.toshlol.personalfinance.data.TransferRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -29,8 +32,20 @@ data class TransactionsUiState(
     val accountId: String = "",
     val accountName: String = "",
     val accountNameDraft: String = "",
+    val openingBalanceAmount: String = "0.00",
+    val openingBalanceDate: String = LocalDate.now().toString(),
+    val newAccountName: String = "",
+    val newAccountType: com.toshlol.personalfinance.data.AccountType = com.toshlol.personalfinance.data.AccountType.BANK,
+    val newAccountOpeningBalance: String = "0.00",
+    val newAccountOpeningDate: String = LocalDate.now().toString(),
     val accounts: List<Account> = emptyList(),
     val transactions: List<FinanceTransaction> = emptyList(),
+    val transfers: List<FinanceTransfer> = emptyList(),
+    val isTransferFormVisible: Boolean = false,
+    val editingTransferId: String? = null,
+    val transferSourceAccountId: String? = null,
+    val transferDestinationAccountId: String? = null,
+    val pendingTransferDeleteId: String? = null,
     val categories: List<FinanceCategory> = emptyList(),
     val tags: List<FinanceTag> = emptyList(),
     val isFormVisible: Boolean = false,
@@ -69,11 +84,13 @@ data class TransactionsUiState(
 class TransactionsViewModel(
     private val repository: TransactionRepository,
     private val loadAccount: suspend () -> Pair<String, String>,
-    private val renameAccount: suspend (String, String) -> Pair<String, String>,
+    private val saveAccount: suspend (String, String, Long, Long) -> Account,
+    private val createAccount: suspend (String, com.toshlol.personalfinance.data.AccountType, Long, Long) -> Account,
     private val loadCurrency: suspend () -> String,
     private val categoryTagRepository: CategoryTagRepository,
     private val budgetRepository: BudgetRepository,
     private val loadAccounts: suspend () -> List<Account>,
+    private val transferRepository: TransferRepository,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
@@ -87,11 +104,16 @@ class TransactionsViewModel(
                 val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
                 val budgets: List<CategoryBudget> = budgetRepository.load()
                 val accounts: List<Account> = loadAccounts()
+                val transfers: List<FinanceTransfer> = transferRepository.loadTransfers()
                 mutableUiState.value =
                     uiState.value.copy(
                         accountId = account.first,
                         accountName = account.second,
                         accountNameDraft = account.second,
+                        openingBalanceAmount = formatAmount(accounts.firstOrNull()?.openingBalanceMinor ?: 0L, currency),
+                        openingBalanceDate =
+                            accounts.firstOrNull()?.openingBalanceDate?.let { LocalDate.ofEpochDay(it).toString() }
+                                ?: LocalDate.now().toString(),
                         isLoaded = true,
                         currency = currency,
                         transactions = transactions,
@@ -99,6 +121,7 @@ class TransactionsViewModel(
                         tags = organization.tags,
                         budgets = budgets,
                         accounts = accounts,
+                        transfers = transfers,
                     )
             } catch (
                 exception: IOException,
@@ -142,6 +165,107 @@ class TransactionsViewModel(
                 tagIds = emptySet(),
                 error = null,
             )
+    }
+
+    fun beginTransfer() {
+        val accounts: List<Account> = uiState.value.accounts
+        mutableUiState.value =
+            uiState.value.copy(
+                isTransferFormVisible = true,
+                editingTransferId = null,
+                amount = "",
+                date = LocalDate.now().toString(),
+                transferSourceAccountId = accounts.firstOrNull()?.id,
+                transferDestinationAccountId = accounts.getOrNull(1)?.id,
+                error = null,
+            )
+    }
+
+    fun beginEditTransfer(transfer: FinanceTransfer) {
+        val fractionDigits: Int = fractionDigits(uiState.value.currency)
+        mutableUiState.value =
+            uiState.value.copy(
+                isTransferFormVisible = true,
+                editingTransferId = transfer.id,
+                amount =
+                    java.math.BigDecimal
+                        .valueOf(transfer.amountMinor, fractionDigits)
+                        .toPlainString(),
+                date = LocalDate.ofEpochDay(transfer.date).toString(),
+                transferSourceAccountId = transfer.sourceAccountId,
+                transferDestinationAccountId = transfer.destinationAccountId,
+                error = null,
+            )
+    }
+
+    fun closeTransferForm() {
+        mutableUiState.value = uiState.value.copy(isTransferFormVisible = false, error = null)
+    }
+
+    fun selectTransferSource(id: String) {
+        mutableUiState.value = uiState.value.copy(transferSourceAccountId = id, error = null)
+    }
+
+    fun selectTransferDestination(id: String) {
+        mutableUiState.value = uiState.value.copy(transferDestinationAccountId = id, error = null)
+    }
+
+    fun saveTransfer() {
+        val state: TransactionsUiState = uiState.value
+        val amountMinor: Long? =
+            state.amount
+                .toBigDecimalOrNull()
+                ?.movePointRight(fractionDigits(state.currency))
+                ?.longValueExactOrNull()
+        val localDate: LocalDate? = runCatching { LocalDate.parse(state.date) }.getOrNull()
+        val sourceId: String? = state.transferSourceAccountId
+        val destinationId: String? = state.transferDestinationAccountId
+        if (amountMinor == null || amountMinor <= 0 || localDate == null) {
+            mutableUiState.value = state.copy(error = "Enter a positive amount and a valid date.")
+            return
+        }
+        if (sourceId == null || destinationId == null || sourceId == destinationId) {
+            mutableUiState.value = state.copy(error = "Choose two different Accounts.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val transfers: List<FinanceTransfer> =
+                    transferRepository.save(
+                        TransferDraft(state.editingTransferId, sourceId, destinationId, amountMinor, localDate.toEpochDay()),
+                    )
+                mutableUiState.value =
+                    uiState.value.copy(transfers = transfers, accounts = loadAccounts(), isTransferFormVisible = false, error = null)
+            } catch (exception: Exception) {
+                mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not save Transfer.")
+            }
+        }
+    }
+
+    fun requestDeleteTransfer(id: String) {
+        mutableUiState.value = uiState.value.copy(pendingTransferDeleteId = id)
+    }
+
+    fun cancelDeleteTransfer() {
+        mutableUiState.value = uiState.value.copy(pendingTransferDeleteId = null)
+    }
+
+    fun confirmDeleteTransfer() {
+        val id: String = uiState.value.pendingTransferDeleteId ?: return
+        viewModelScope.launch {
+            try {
+                val transfers: List<FinanceTransfer> = transferRepository.delete(id)
+                mutableUiState.value =
+                    uiState.value.copy(
+                        transfers = transfers,
+                        accounts = loadAccounts(),
+                        pendingTransferDeleteId = null,
+                        isTransferFormVisible = false,
+                    )
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(pendingTransferDeleteId = null, error = "Could not delete Transfer.")
+            }
+        }
     }
 
     fun beginEdit(transaction: FinanceTransaction) {
@@ -212,12 +336,19 @@ class TransactionsViewModel(
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val account: Pair<String, String> = renameAccount(state.accountId, state.accountNameDraft)
+                val openingMinor: Long? = parseAmount(state.openingBalanceAmount, state.currency)
+                val openingDate: LocalDate? = runCatching { LocalDate.parse(state.openingBalanceDate) }.getOrNull()
+                require(openingMinor != null && openingDate != null) { "Enter a valid opening balance and date." }
+                val account: Account = saveAccount(state.accountId, state.accountNameDraft, openingMinor, openingDate.toEpochDay())
                 val transactions: List<FinanceTransaction> = repository.loadTransactions()
+                val accounts: List<Account> = loadAccounts()
                 mutableUiState.value =
                     uiState.value.copy(
-                        accountName = account.second,
-                        accountNameDraft = account.second,
+                        accountName = account.name,
+                        accountNameDraft = account.name,
+                        openingBalanceAmount = formatAmount(account.openingBalanceMinor, state.currency),
+                        openingBalanceDate = LocalDate.ofEpochDay(account.openingBalanceDate).toString(),
+                        accounts = accounts,
                         transactions = transactions,
                         isSaving = false,
                         error = null,
@@ -229,6 +360,70 @@ class TransactionsViewModel(
             }
         }
     }
+
+    fun updateOpeningBalanceAmount(value: String) {
+        mutableUiState.value = uiState.value.copy(openingBalanceAmount = value, error = null)
+    }
+
+    fun updateOpeningBalanceDate(value: String) {
+        mutableUiState.value = uiState.value.copy(openingBalanceDate = value, error = null)
+    }
+
+    fun updateNewAccountName(value: String) {
+        mutableUiState.value = uiState.value.copy(newAccountName = value, error = null)
+    }
+
+    fun updateNewAccountType(value: com.toshlol.personalfinance.data.AccountType) {
+        mutableUiState.value =
+            uiState.value.copy(newAccountType = value, error = null)
+    }
+
+    fun updateNewAccountOpeningBalance(value: String) {
+        mutableUiState.value =
+            uiState.value.copy(newAccountOpeningBalance = value, error = null)
+    }
+
+    fun updateNewAccountOpeningDate(value: String) {
+        mutableUiState.value = uiState.value.copy(newAccountOpeningDate = value, error = null)
+    }
+
+    fun createAccount() {
+        val state: TransactionsUiState = uiState.value
+        val amountMinor: Long? = parseAmount(state.newAccountOpeningBalance, state.currency)
+        val date: LocalDate? = runCatching { LocalDate.parse(state.newAccountOpeningDate) }.getOrNull()
+        if (amountMinor == null || date == null || state.newAccountName.isBlank()) {
+            mutableUiState.value = state.copy(error = "Enter an account name, signed opening balance, and valid date.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                createAccount(state.newAccountName, state.newAccountType, amountMinor, date.toEpochDay())
+                mutableUiState.value =
+                    uiState.value.copy(
+                        accounts = loadAccounts(),
+                        newAccountName = "",
+                        newAccountOpeningBalance = "0.00",
+                        newAccountOpeningDate = LocalDate.now().toString(),
+                        error = null,
+                    )
+            } catch (exception: Exception) {
+                mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not create Account.")
+            }
+        }
+    }
+
+    private fun parseAmount(
+        value: String,
+        currency: String,
+    ): Long? = value.toBigDecimalOrNull()?.movePointRight(fractionDigits(currency))?.longValueExactOrNull()
+
+    private fun formatAmount(
+        amountMinor: Long,
+        currency: String,
+    ): String =
+        java.math.BigDecimal
+            .valueOf(amountMinor, fractionDigits(currency))
+            .toPlainString()
 
     fun closeOrganizer() {
         mutableUiState.value = uiState.value.copy(isOrganizerVisible = false, error = null)
@@ -436,8 +631,9 @@ class TransactionsViewModel(
             try {
                 val transactions: List<FinanceTransaction> = repository.delete(id)
                 val budgets: List<CategoryBudget> = budgetRepository.load()
+                val accounts: List<Account> = loadAccounts()
                 mutableUiState.value =
-                    uiState.value.copy(transactions = transactions, budgets = budgets, pendingDeleteId = null)
+                    uiState.value.copy(transactions = transactions, budgets = budgets, accounts = accounts, pendingDeleteId = null)
             } catch (
                 exception: IOException,
             ) {
@@ -482,8 +678,15 @@ class TransactionsViewModel(
                         ),
                     )
                 val budgets: List<CategoryBudget> = budgetRepository.load()
+                val accounts: List<Account> = loadAccounts()
                 mutableUiState.value =
-                    uiState.value.copy(transactions = newState, budgets = budgets, isFormVisible = false, isSaving = false)
+                    uiState.value.copy(
+                        transactions = newState,
+                        budgets = budgets,
+                        accounts = accounts,
+                        isFormVisible = false,
+                        isSaving = false,
+                    )
             } catch (
                 exception: Exception,
             ) {

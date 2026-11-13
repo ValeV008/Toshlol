@@ -146,3 +146,80 @@ fun TransactionDialogs(
         )
     }
 }
+
+@Composable
+fun TransferDialog(
+    state: TransactionsUiState,
+    onClose: () -> Unit,
+    onSave: () -> Unit,
+    onAmountChanged: (String) -> Unit,
+    onDateChanged: (String) -> Unit,
+    onSourceChanged: (String) -> Unit,
+    onDestinationChanged: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: () -> Unit,
+) {
+    if (state.isTransferFormVisible && state.pendingTransferDeleteId == null) {
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text(if (state.editingTransferId == null) "New Transfer" else "Edit Transfer") },
+            text = {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).testTag("transfer-form"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(state.amount, onAmountChanged, label = { Text("Amount") }, singleLine = true)
+                    OutlinedTextField(state.date, onDateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
+                    Text("From Account")
+                    state.accounts.forEach { account ->
+                        Row(
+                            Modifier.heightIn(min = 48.dp).testTag("transfer-source-${account.id}").selectable(
+                                selected =
+                                    state.transferSourceAccountId == account.id,
+                                role = Role.RadioButton,
+                                onClick = { onSourceChanged(account.id) },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = state.transferSourceAccountId == account.id, onClick = null)
+                            Text(account.name)
+                        }
+                    }
+                    Text("To Account")
+                    state.accounts.forEach { account ->
+                        Row(
+                            Modifier.heightIn(min = 48.dp).testTag("transfer-destination-${account.id}").selectable(
+                                selected =
+                                    state.transferDestinationAccountId == account.id,
+                                role = Role.RadioButton,
+                                onClick = { onDestinationChanged(account.id) },
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = state.transferDestinationAccountId == account.id, onClick = null)
+                            Text(account.name)
+                        }
+                    }
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                Row {
+                    state.editingTransferId?.let { id -> TextButton(onClick = { onDelete(id) }) { Text("Delete") } }
+                    Button(onClick = onSave) { Text("Save") }
+                }
+            },
+            dismissButton = { OutlinedButton(onClick = onClose) { Text("Cancel") } },
+        )
+    }
+    if (state.pendingTransferDeleteId != null) {
+        AlertDialog(onDismissRequest = onCancelDelete, title = {
+            Text("Delete Transfer?")
+        }, text = {
+            Text("This Transfer will be permanently deleted.")
+        }, confirmButton = {
+            Button(onClick = onConfirmDelete) { Text("Delete") }
+        }, dismissButton = { TextButton(onClick = onCancelDelete) { Text("Cancel") } })
+    }
+}

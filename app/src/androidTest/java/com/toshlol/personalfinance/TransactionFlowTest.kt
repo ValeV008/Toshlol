@@ -54,6 +54,72 @@ class TransactionFlowTest {
             .around(UiFailureArtifactsRule(composeRule))
 
     @Test
+    fun createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals() {
+        ui.clickText("Organize categories and tags")
+        ui.clickText("Manage accounts", "category-tag-list")
+        ui.enterText("New account name", "Savings", "category-tag-list")
+        ui.enterText("New account opening balance", "3.00", "category-tag-list")
+        ui.clickText("Create account", "category-tag-list")
+        ui.showText("Savings · EUR 3.00", "category-tag-list")
+        ui.clickText("Back to overview")
+        ui.clickText("Transfer")
+        ui.showText("New Transfer")
+        ui.enterText("Amount", "0", "transfer-form")
+        ui.clickText("Save")
+        ui.showText("Enter a positive amount", "transfer-form", substring = true)
+        ui.enterText("Amount", "10.00", "transfer-form")
+        composeRule.onNodeWithTag("transfer-destination-${accountId("Cash")}").performClick()
+        ui.clickText("Save")
+        ui.showText("Choose two different Accounts.", "transfer-form")
+        composeRule.onNodeWithTag("transfer-destination-${accountId("Savings")}").performClick()
+        ui.clickText("Save")
+        ui.showText("Transfer · EUR 10.00")
+        ui.showText("Cash  EUR -10.00")
+        ui.showText("Savings  EUR 13.00")
+        ui.showText("Income  EUR 0.00", substring = true)
+        ui.showText("Expenses  EUR 0.00", substring = true)
+        navigateTo("Transactions")
+        ui.enterText("Month (YYYY-MM, blank for all)", LocalDate.now().toString().take(7))
+        ui.showText("Transfer out", substring = true)
+        assertTrue(
+            composeRule
+                .onAllNodes(hasText("Transfer in", substring = true))
+                .fetchSemanticsNodes()
+                .isNotEmpty(),
+        )
+        ui.clickText("Account: All Account")
+        ui.clickText("Cash")
+        ui.showText("Transfer out", substring = true)
+        ui.clickText("Category: All Category")
+        ui.clickText("Food")
+        ui.showText("No transactions match these filters.")
+        ui.clickText("Category: Food")
+        ui.clickText("All Category")
+        ui.clickText("Tag: All Tag")
+        ui.clickText("Lunch")
+        ui.showText("No transactions match these filters.")
+        ui.clickText("Tag: Lunch")
+        ui.clickText("All Tag")
+        ui.showText("Transfer out", substring = true)
+        ui.click(hasText("Transfer out", substring = true))
+        ui.enterText("Amount", "4.00", "transfer-form")
+        ui.clickText("Save")
+        ui.showText("Transfer out", substring = true)
+        navigateTo("Overview")
+        ui.showText("Cash  EUR -4.00")
+        ui.showText("Savings  EUR 7.00")
+        navigateTo("Transactions")
+        ui.click(hasText("Transfer out", substring = true))
+        ui.clickText("Delete")
+        ui.showText("Delete Transfer?")
+        ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
+        ui.showText("No transactions match these filters.")
+        navigateTo("Overview")
+        ui.showText("Cash  EUR 0.00")
+        ui.showText("Savings  EUR 3.00")
+    }
+
+    @Test
     fun recordExpenseAndReviewItOnOverview() {
         ui.clickText("Add expense")
         ui.clickText("Save")
@@ -94,10 +160,12 @@ class TransactionFlowTest {
         ui.showText("Food", substring = true)
         ui.showText("Lunch", substring = true)
         ui.clickText("Organize categories and tags")
+        ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("Account name", "Wallet", "category-tag-list")
         ui.clickText("Save account name", "category-tag-list")
+        ui.showText("Wallet · EUR -8.25", "category-tag-list", substring = true)
         ui.clickText("Back to overview")
-        ui.showText("Wallet", substring = true)
+        ui.showText("Wallet  EUR -8.25", substring = true)
     }
 
     @Test
@@ -207,9 +275,13 @@ class TransactionFlowTest {
             composeRule.onAllNodesWithTag(navigationTag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag(navigationTag, useUnmergedTree = true).performClick()
-        composeRule
-            .onNodeWithTag(navigationTag, useUnmergedTree = true)
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Current section"))
+        composeRule.waitUntil(15_000) {
+            runCatching {
+                composeRule
+                    .onNodeWithTag(navigationTag, useUnmergedTree = true)
+                    .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Current section"))
+            }.isSuccess
+        }
         val screenText: String =
             when (area) {
                 "Overview" -> "EUR ledger is ready."
@@ -218,6 +290,15 @@ class TransactionFlowTest {
                 else -> "Currency: EUR"
             }
         ui.showText(screenText)
+    }
+
+    private fun accountId(name: String): String {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        return runBlocking {
+            FinanceTestFixtures(
+                AppDatabase.getInstance(context),
+            ).accounts.loadSetup().accounts.single { it.name == name }.id
+        }
     }
 
     private fun recordFoodExpense() {
@@ -276,6 +357,20 @@ class TransactionFlowTest {
 
     private class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val category: FinanceCategory =
+                        fixtures.organization
+                            .saveCategory(
+                                CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE),
+                            ).categories
+                            .single()
+                    fixtures.organization.saveTag(TagDraft(name = "Lunch", categoryId = category.id))
+                }
+                return
+            }
             if (description.methodName != "navigateFilterTransactionsAndQuickAddFromEveryMainArea") return
             val context: Context = ApplicationProvider.getApplicationContext()
             runBlocking {

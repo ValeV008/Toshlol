@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Launch and first Account, 02: Record and review Transactions, 03: Organize Transactions with Categories and Tags
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 ## Parent-spec requirements
 
@@ -21,8 +21,16 @@
 - The Transactions list filters Transfer rows by month and the corresponding Account; selecting a Category or Tag excludes Transfer rows.
 - Compose tests cover transfer creation, validation, balance effects, list presentation, filters, editing, and deletion through public behavior.
 
-- [ ] Transfer data and balance rules are persisted and tested through repository operations and Room migrations.
-- [ ] Transfer quick-add and entry are accessible and covered by Compose tests.
-- [ ] Transfer rows appear in Overview, Account history, and the Income/Expense lists with the correct source/destination context.
-- [ ] Month and relevant Account filters include Transfer rows; Category and Tag filters exclude them.
-- [ ] Income, Expense, and Budget totals exclude Transfers.
+- [x] Transfer data and balance rules are persisted and tested through repository operations and Room migrations.
+- [x] Transfer quick-add and entry are accessible and covered by Compose tests.
+- [x] Transfer rows appear in Overview, Account history, and the Income/Expense lists with the correct source/destination context.
+- [x] Month and relevant Account filters include Transfer rows; Category and Tag filters exclude them.
+- [x] Income, Expense, and Budget totals exclude Transfers.
+
+## Answer
+
+Implemented version 6 Room storage for Transfers and Account opening balances, with signed balance calculation that respects each Account's opening date. Added Account creation and opening balance management so a fresh user can create two Accounts before moving money. Transfers can be created, edited, and deleted from quick-add; Overview shows Transfer activity and signed Account balances. The Transactions list shows outgoing and incoming rows that open the same Transfer and applies month and Account filters while Category and Tag filters hide those rows.
+
+Behavior coverage includes `transfersPersistValidateAndChangeAccountBalancesByOpeningDate`, `migrateVersionThreeTransactionsWithoutLosingHistory`, and `createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals`. The repository test verifies Transfer balance and Budget exclusion; the Compose test covers Account setup, amount and distinct-Account validation, list context, filters, editing, deletion, and Income/Expense totals.
+
+Verification passed: JVM tests, lint, ktlint, all 24 Android 10 instrumentation tests, and `assembleDebug`.

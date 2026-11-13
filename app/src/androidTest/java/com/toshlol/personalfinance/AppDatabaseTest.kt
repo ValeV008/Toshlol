@@ -17,9 +17,11 @@ import com.toshlol.personalfinance.data.RoomAccountRepository
 import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomCategoryTagRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
+import com.toshlol.personalfinance.data.RoomTransferRepository
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
+import com.toshlol.personalfinance.data.TransferDraft
 import com.toshlol.personalfinance.domain.FirstRunSetup
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -31,10 +33,137 @@ import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.IOException
+import java.time.LocalDate
+import java.time.YearMonth
 import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseTest {
+    @Test
+    fun transfersPersistValidateAndChangeAccountBalancesByOpeningDate(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val source: Account = fixtures.createFirstAccount()
+                val destination: Account = fixtures.createAdditionalAccount("Savings")
+                val openingDate: Long = LocalDate.now().toEpochDay()
+                database.accountDao().saveAccount(
+                    database
+                        .accountDao()
+                        .loadAccounts()
+                        .first {
+                            it.id == source.id
+                        }.copy(openingBalanceMinor = 1_000, openingBalanceDate = openingDate),
+                )
+                database.accountDao().saveAccount(
+                    database
+                        .accountDao()
+                        .loadAccounts()
+                        .first {
+                            it.id == destination.id
+                        }.copy(openingBalanceMinor = 300, openingBalanceDate = openingDate),
+                )
+                val repository: RoomTransferRepository = RoomTransferRepository(database, { "transfer-id" }, { 500L })
+                try {
+                    repository.save(
+                        TransferDraft(
+                            sourceAccountId = source.id,
+                            destinationAccountId = source.id,
+                            amountMinor = 500,
+                            date = LocalDate.now().toEpochDay(),
+                        ),
+                    )
+                    fail("Transfers must use distinct Accounts")
+                } catch (expectedException: IllegalArgumentException) {
+                    assertTrue(expectedException.message!!.contains("different Accounts"))
+                }
+                val transferDate: Long = LocalDate.now().toEpochDay()
+                val saved: List<com.toshlol.personalfinance.data.FinanceTransfer> =
+                    repository.save(
+                        TransferDraft(
+                            sourceAccountId = source.id,
+                            destinationAccountId = destination.id,
+                            amountMinor = 500,
+                            date = transferDate,
+                        ),
+                    )
+                assertEquals("transfer-id", saved.single().id)
+                assertEquals("Cash", saved.single().sourceAccountName)
+                assertEquals("Savings", saved.single().destinationAccountName)
+                val snapshot: FirstRunSnapshot = fixtures.accounts.loadSetup()
+                assertEquals(500L, snapshot.accounts.single { it.id == source.id }.balanceMinor)
+                assertEquals(800L, snapshot.accounts.single { it.id == destination.id }.balanceMinor)
+                val category: com.toshlol.personalfinance.data.FinanceCategory =
+                    fixtures.organization
+                        .saveCategory(
+                            CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE),
+                        ).categories
+                        .single()
+                val budgets: List<CategoryBudget> = fixtures.budgets.save(BudgetDraft(category.id, YearMonth.now(), 2_000))
+                assertEquals(0L, budgets.single().spentMinor)
+                val edited: List<com.toshlol.personalfinance.data.FinanceTransfer> =
+                    repository.save(
+                        TransferDraft("transfer-id", source.id, destination.id, 250, transferDate),
+                    )
+                assertEquals(1, edited.size)
+                assertEquals(250L, edited.single().amountMinor)
+                assertEquals(
+                    750L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == source.id }
+                        .balanceMinor,
+                )
+                repository.delete("transfer-id")
+                assertTrue(repository.loadTransfers().isEmpty())
+                assertEquals(
+                    1_000L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == source.id }
+                        .balanceMinor,
+                )
+                assertEquals(
+                    300L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == destination.id }
+                        .balanceMinor,
+                )
+                repository.save(
+                    TransferDraft(
+                        sourceAccountId = source.id,
+                        destinationAccountId = destination.id,
+                        amountMinor = 100,
+                        date =
+                            openingDate - 1,
+                    ),
+                )
+                assertEquals(
+                    1_000L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == source.id }
+                        .balanceMinor,
+                )
+                assertEquals(
+                    300L,
+                    fixtures.accounts
+                        .loadSetup()
+                        .accounts
+                        .single { it.id == destination.id }
+                        .balanceMinor,
+                )
+            } finally {
+                database.close()
+            }
+        }
+
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Test
@@ -340,6 +469,14 @@ class AppDatabaseTest {
                     RoomTransactionRepository(database).loadTransactions().single()
                 assertEquals("legacy-transaction", actual.id)
                 assertEquals("Legacy cash", actual.accountName)
+                assertEquals(
+                    0L,
+                    RoomAccountRepository(database)
+                        .loadSetup()
+                        .accounts
+                        .single()
+                        .openingBalanceDate,
+                )
                 assertEquals(1250L, actual.amountMinor)
                 assertEquals(TransactionDirection.EXPENSE, actual.direction)
                 assertEquals(null, actual.categoryId)
@@ -574,5 +711,6 @@ class AppDatabaseTest {
             .addMigrations(AppDatabase.MIGRATION_2_3)
             .addMigrations(AppDatabase.MIGRATION_3_4)
             .addMigrations(AppDatabase.MIGRATION_4_5)
+            .addMigrations(AppDatabase.MIGRATION_5_6)
             .build()
 }

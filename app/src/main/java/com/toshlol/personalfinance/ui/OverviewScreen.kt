@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.LocalDate
@@ -47,6 +48,8 @@ fun OverviewScreen(
     onCategoryChanged: (String?) -> Unit,
     onTagToggled: (String) -> Unit,
     onOpenBudgets: () -> Unit,
+    onCreateTransfer: () -> Unit,
+    onEditTransfer: (FinanceTransfer) -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.isFormVisible) {
@@ -76,8 +79,9 @@ fun OverviewScreen(
         )
         Text("Net  ${state.currency} ${formatMoney(income - expense, state.currency)}", style = MaterialTheme.typography.titleLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onCreate(TransactionDirection.INCOME) }) { Text("Add income") }
-            Button(onClick = { onCreate(TransactionDirection.EXPENSE) }) { Text("Add expense") }
+            Button(onClick = { onCreate(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+            Button(onClick = { onCreate(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
+            Button(onClick = onCreateTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
         }
         if (currentBudgets.isNotEmpty()) {
             Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
@@ -97,11 +101,11 @@ fun OverviewScreen(
             OutlinedButton(onClick = onOpenOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
             OutlinedButton(onClick = onOpenBudgets, modifier = Modifier.weight(1f).testTag("open-budgets")) { Text("Budgets") }
         }
-        if (state.transactions.isEmpty()) {
+        if (state.transactions.isEmpty() && state.transfers.isEmpty()) {
             Text("No transactions yet")
             Text("Record income or an expense to start your history.")
         } else {
-            Text("Recent transactions", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             state.transactions.forEach { transaction: FinanceTransaction ->
                 Column(Modifier.fillMaxWidth().padding(8.dp)) {
                     TextButton(onClick = { onEdit(transaction) }) {
@@ -126,6 +130,18 @@ fun OverviewScreen(
                     TextButton(onClick = { onDelete(transaction.id) }) { Text("Delete") }
                 }
             }
+            state.transfers.forEach { transfer ->
+                Column(Modifier.fillMaxWidth().padding(8.dp)) {
+                    TextButton(onClick = {
+                        onEditTransfer(transfer)
+                    }) { Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}") }
+                    Text("${LocalDate.ofEpochDay(transfer.date)} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}")
+                }
+            }
+        }
+        Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+        state.accounts.forEach { account ->
+            Text("${account.name}  ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
         }
     }
 }

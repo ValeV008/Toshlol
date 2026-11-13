@@ -25,6 +25,7 @@ import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
+import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
@@ -56,10 +57,26 @@ fun PersonalFinanceApp(
     onNoteChanged: (String) -> Unit = {},
     onDirectionChanged: (TransactionDirection) -> Unit = {},
     onSaveTransaction: () -> Unit = {},
+    onCreateTransfer: () -> Unit = {},
+    onEditTransfer: (FinanceTransfer) -> Unit = {},
+    onCloseTransfer: () -> Unit = {},
+    onSaveTransfer: () -> Unit = {},
+    onTransferSourceChanged: (String) -> Unit = {},
+    onTransferDestinationChanged: (String) -> Unit = {},
+    onDeleteTransfer: (String) -> Unit = {},
+    onCancelDeleteTransfer: () -> Unit = {},
+    onConfirmDeleteTransfer: () -> Unit = {},
     onCloseTransactionForm: () -> Unit = {},
     onOpenOrganizer: () -> Unit = {},
     onOrganizerAccountNameChanged: (String) -> Unit = {},
     onSaveAccountName: () -> Unit = {},
+    onOpeningBalanceAmountChanged: (String) -> Unit = {},
+    onOpeningBalanceDateChanged: (String) -> Unit = {},
+    onNewAccountNameChanged: (String) -> Unit = {},
+    onNewAccountTypeChanged: (com.toshlol.personalfinance.data.AccountType) -> Unit = {},
+    onNewAccountOpeningBalanceChanged: (String) -> Unit = {},
+    onNewAccountOpeningDateChanged: (String) -> Unit = {},
+    onCreateAccount: () -> Unit = {},
     onCloseOrganizer: () -> Unit = {},
     onCategoryChanged: (String?) -> Unit = {},
     onTagToggled: (String) -> Unit = {},
@@ -103,6 +120,13 @@ fun PersonalFinanceApp(
                             onArchiveTag,
                             onOrganizerAccountNameChanged,
                             onSaveAccountName,
+                            onOpeningBalanceAmountChanged,
+                            onOpeningBalanceDateChanged,
+                            onNewAccountNameChanged,
+                            onNewAccountTypeChanged,
+                            onNewAccountOpeningBalanceChanged,
+                            onNewAccountOpeningDateChanged,
+                            onCreateAccount,
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
                         BudgetsScreen(
@@ -113,6 +137,7 @@ fun PersonalFinanceApp(
                             onBudgetAmountChanged,
                             onSaveBudget,
                             { onCreateTransaction(TransactionDirection.EXPENSE) },
+                            onCreateTransfer,
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
                         TransactionsScreen(
@@ -125,10 +150,18 @@ fun PersonalFinanceApp(
                                 accountChanged = navigationActions.accountChanged,
                                 categoryChanged = navigationActions.categoryChanged,
                                 tagChanged = navigationActions.tagChanged,
+                                createTransfer = onCreateTransfer,
+                                editTransfer = onEditTransfer,
+                                deleteTransfer = onDeleteTransfer,
                             ),
                         )
                     uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
-                        SettingsScreen(transactionsState, onOpenOrganizer) { onCreateTransaction(TransactionDirection.EXPENSE) }
+                        SettingsScreen(
+                            transactionsState,
+                            onOpenOrganizer,
+                            { onCreateTransaction(TransactionDirection.EXPENSE) },
+                            onCreateTransfer,
+                        )
                     uiState.isSetupComplete ->
                         OverviewScreen(
                             transactionsState.copy(currency = uiState.currency),
@@ -147,6 +180,8 @@ fun PersonalFinanceApp(
                             onCategoryChanged,
                             onTagToggled,
                             onOpenBudgets,
+                            onCreateTransfer,
+                            onEditTransfer,
                         )
                     else -> SetupScreen(uiState, onCurrencyChanged, onAccountNameChanged, onAccountTypeChanged, onSubmit)
                 }
@@ -167,6 +202,18 @@ fun PersonalFinanceApp(
                                 ),
                             delete = TransactionDeleteActions(onCancelDelete, onConfirmDelete),
                         ),
+                    )
+                    TransferDialog(
+                        transactionsState,
+                        onCloseTransfer,
+                        onSaveTransfer,
+                        onAmountChanged,
+                        onDateChanged,
+                        onTransferSourceChanged,
+                        onTransferDestinationChanged,
+                        onDeleteTransfer,
+                        onCancelDeleteTransfer,
+                        onConfirmDeleteTransfer,
                     )
                 }
             }
@@ -196,12 +243,14 @@ private fun SettingsScreen(
     state: TransactionsUiState,
     onOpenOrganizer: () -> Unit,
     onCreateTransaction: () -> Unit,
+    onCreateTransfer: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
         Text("Currency: ${state.currency}")
         Text("Account: ${state.accountName}")
         Button(onClick = onCreateTransaction) { Text("Add transaction") }
+        Button(onClick = onCreateTransfer) { Text("Transfer") }
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
         Button(onClick = onOpenOrganizer) { Text("Manage categories and tags") }
     }

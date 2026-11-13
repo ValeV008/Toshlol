@@ -6,6 +6,9 @@ data class Account(
     val type: AccountType,
     val createdAt: Long,
     val updatedAt: Long,
+    val openingBalanceMinor: Long = 0,
+    val openingBalanceDate: Long = 0,
+    val balanceMinor: Long = openingBalanceMinor,
 )
 
 data class FirstRunSnapshot(
@@ -24,5 +27,19 @@ interface AccountRepository {
     suspend fun renameAccount(
         id: String,
         name: String,
+    ): FirstRunSnapshot
+
+    suspend fun saveAccount(
+        id: String,
+        name: String,
+        openingBalanceMinor: Long,
+        openingBalanceDate: Long,
+    ): FirstRunSnapshot
+
+    suspend fun createAccount(
+        name: String,
+        type: AccountType,
+        openingBalanceMinor: Long,
+        openingBalanceDate: Long,
     ): FirstRunSnapshot
 }

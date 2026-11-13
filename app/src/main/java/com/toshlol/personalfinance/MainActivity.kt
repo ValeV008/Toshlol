@@ -33,16 +33,19 @@ class MainActivity : ComponentActivity() {
                             it.name
                     }
                         ?: ("" to "")
-                }, { id, name ->
-                    val account =
-                        application.accountRepository
-                            .renameAccount(id, name)
-                            .accounts
-                            .first()
-                    account.id to account.name
+                }, { id, name, openingBalance, openingDate ->
+                    application.accountRepository
+                        .saveAccount(id, name, openingBalance, openingDate)
+                        .accounts
+                        .first { it.id == id }
+                }, { name, type, openingBalance, openingDate ->
+                    application.accountRepository
+                        .createAccount(name, type, openingBalance, openingDate)
+                        .accounts
+                        .last()
                 }, { application.firstRunSetup.loadSetup().currency }, application.categoryTagRepository, application.budgetRepository, {
                     application.firstRunSetup.loadSetup().accounts
-                })
+                }, application.transferRepository)
             }
         }
     }
@@ -73,10 +76,29 @@ class MainActivity : ComponentActivity() {
                     onNoteChanged = transactionsViewModel::updateNote,
                     onDirectionChanged = transactionsViewModel::updateDirection,
                     onSaveTransaction = transactionsViewModel::save,
+                    onCreateTransfer = transactionsViewModel::beginTransfer,
+                    onEditTransfer = transactionsViewModel::beginEditTransfer,
+                    onCloseTransfer = transactionsViewModel::closeTransferForm,
+                    onSaveTransfer = transactionsViewModel::saveTransfer,
+                    onTransferSourceChanged = transactionsViewModel::selectTransferSource,
+                    onTransferDestinationChanged = transactionsViewModel::selectTransferDestination,
+                    onDeleteTransfer = transactionsViewModel::requestDeleteTransfer,
+                    onCancelDeleteTransfer = {
+                        transactionsViewModel.uiState.value.pendingTransferDeleteId
+                            ?.let { transactionsViewModel.cancelDeleteTransfer() }
+                    },
+                    onConfirmDeleteTransfer = transactionsViewModel::confirmDeleteTransfer,
                     onCloseTransactionForm = transactionsViewModel::closeForm,
                     onOpenOrganizer = transactionsViewModel::showOrganizer,
                     onOrganizerAccountNameChanged = transactionsViewModel::updateAccountName,
                     onSaveAccountName = transactionsViewModel::saveAccountName,
+                    onOpeningBalanceAmountChanged = transactionsViewModel::updateOpeningBalanceAmount,
+                    onOpeningBalanceDateChanged = transactionsViewModel::updateOpeningBalanceDate,
+                    onNewAccountNameChanged = transactionsViewModel::updateNewAccountName,
+                    onNewAccountTypeChanged = transactionsViewModel::updateNewAccountType,
+                    onNewAccountOpeningBalanceChanged = transactionsViewModel::updateNewAccountOpeningBalance,
+                    onNewAccountOpeningDateChanged = transactionsViewModel::updateNewAccountOpeningDate,
+                    onCreateAccount = transactionsViewModel::createAccount,
                     onCloseOrganizer = transactionsViewModel::closeOrganizer,
                     onCategoryChanged = transactionsViewModel::updateCategory,
                     onTagToggled = transactionsViewModel::toggleTag,

@@ -68,4 +68,44 @@ internal class InMemoryAccountRepository : AccountRepository {
         snapshot = snapshot.copy(accounts = listOf(account.copy(name = name.trim())))
         return snapshot
     }
+
+    override suspend fun saveAccount(
+        id: String,
+        name: String,
+        openingBalanceMinor: Long,
+        openingBalanceDate: Long,
+    ): FirstRunSnapshot {
+        val account: Account = snapshot.accounts.single { it.id == id }
+        snapshot =
+            snapshot.copy(
+                accounts =
+                    snapshot.accounts.map {
+                        if (it.id ==
+                            id
+                        ) {
+                            account.copy(
+                                name = name,
+                                openingBalanceMinor = openingBalanceMinor,
+                                openingBalanceDate = openingBalanceDate,
+                                balanceMinor = openingBalanceMinor,
+                            )
+                        } else {
+                            it
+                        }
+                    },
+            )
+        return snapshot
+    }
+
+    override suspend fun createAccount(
+        name: String,
+        type: AccountType,
+        openingBalanceMinor: Long,
+        openingBalanceDate: Long,
+    ): FirstRunSnapshot {
+        val account: Account =
+            Account("new-account", name, type, 1234L, 1234L, openingBalanceMinor, openingBalanceDate, openingBalanceMinor)
+        snapshot = snapshot.copy(accounts = snapshot.accounts + account)
+        return snapshot
+    }
 }

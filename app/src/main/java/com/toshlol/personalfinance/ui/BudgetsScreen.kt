@@ -37,12 +37,14 @@ fun BudgetsScreen(
     onAmountChanged: (String) -> Unit,
     onSave: () -> Unit,
     onCreateTransaction: () -> Unit = {},
+    onCreateTransfer: () -> Unit = {},
 ) {
     val monthBudgets: List<CategoryBudget> =
         state.budgets.filter { it.month.toString() == state.budgetMonth }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Budgets", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Button(onClick = onCreateTransaction) { Text("Add transaction") }
+        OutlinedButton(onClick = onCreateTransfer) { Text("Transfer") }
         OutlinedButton(onClick = onBack) { Text("Back to overview") }
         OutlinedTextField(state.budgetMonth, onMonthChanged, label = { Text("Month (YYYY-MM)") }, singleLine = true)
         Text("Monthly expense limits", style = MaterialTheme.typography.titleMedium)

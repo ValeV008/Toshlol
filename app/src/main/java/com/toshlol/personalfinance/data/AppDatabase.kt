@@ -17,8 +17,9 @@ import java.util.UUID
         TagEntity::class,
         TransactionTagCrossRef::class,
         BudgetEntity::class,
+        TransferEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +28,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun settingsDao(): AppSettingsDao
 
     abstract fun transactionDao(): TransactionDao
+
+    abstract fun transferDao(): TransferDao
 
     abstract fun categoryTagDao(): CategoryTagDao
 
@@ -99,6 +102,23 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_5_6: Migration =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE accounts ADD COLUMN openingBalanceMinor INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE accounts ADD COLUMN openingBalanceDate INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL(
+                        "UPDATE accounts SET openingBalanceDate = CAST(julianday(date(createdAt / 1000, 'unixepoch', 'localtime')) - 2440587.5 AS INTEGER)",
+                    )
+                    db.execSQL(
+                        "CREATE TABLE transfers (id TEXT NOT NULL PRIMARY KEY, sourceAccountId TEXT NOT NULL, destinationAccountId TEXT NOT NULL, amountMinor INTEGER NOT NULL, date INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, FOREIGN KEY(sourceAccountId) REFERENCES accounts(id) ON UPDATE NO ACTION ON DELETE RESTRICT, FOREIGN KEY(destinationAccountId) REFERENCES accounts(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_transfers_sourceAccountId ON transfers(sourceAccountId)")
+                    db.execSQL("CREATE INDEX index_transfers_destinationAccountId ON transfers(destinationAccountId)")
+                    db.execSQL("CREATE INDEX index_transfers_date ON transfers(date)")
+                }
+            }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room
@@ -107,6 +127,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(MIGRATION_2_3)
                     .addMigrations(MIGRATION_3_4)
                     .addMigrations(MIGRATION_4_5)
+                    .addMigrations(MIGRATION_5_6)
                     .build()
                     .also { instance = it }
             }

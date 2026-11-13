@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -16,12 +17,17 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
@@ -43,27 +49,88 @@ fun CategoryTagScreen(
     onArchiveTag: (String) -> Unit,
     onOrganizerAccountNameChanged: (String) -> Unit,
     onSaveAccountName: () -> Unit,
+    onOpeningBalanceAmountChanged: (String) -> Unit,
+    onOpeningBalanceDateChanged: (String) -> Unit,
+    onNewAccountNameChanged: (String) -> Unit,
+    onNewAccountTypeChanged: (AccountType) -> Unit,
+    onNewAccountOpeningBalanceChanged: (String) -> Unit,
+    onNewAccountOpeningDateChanged: (String) -> Unit,
+    onCreateAccount: () -> Unit,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+    var isAccountSectionVisible: Boolean by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Categories and tags", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         OutlinedButton(onClick = onClose) { Text("Back to overview") }
         LazyColumn(Modifier.testTag("category-tag-list"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 Text("Account", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                OutlinedTextField(
-                    state.accountNameDraft,
-                    onOrganizerAccountNameChanged,
-                    label = { Text("Account name") },
-                    singleLine = true,
-                )
-                Button(
-                    onClick = {
-                        keyboardController?.hide()
-                        onSaveAccountName()
-                    },
-                    enabled = !state.isSaving,
-                ) { Text("Save account name") }
+                OutlinedButton(onClick = { isAccountSectionVisible = !isAccountSectionVisible }) {
+                    Text(if (isAccountSectionVisible) "Hide accounts" else "Manage accounts")
+                }
+                if (isAccountSectionVisible) {
+                    OutlinedTextField(
+                        state.accountNameDraft,
+                        onOrganizerAccountNameChanged,
+                        label = { Text("Account name") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        state.openingBalanceAmount,
+                        onOpeningBalanceAmountChanged,
+                        label = { Text("Account opening balance") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(state.openingBalanceDate, onOpeningBalanceDateChanged, label = {
+                        Text("Account opening date (YYYY-MM-DD)")
+                    }, singleLine = true)
+                    Button(
+                        onClick = {
+                            keyboardController?.hide()
+                            onSaveAccountName()
+                        },
+                        enabled = !state.isSaving,
+                    ) { Text("Save account name") }
+                    Text("Accounts and balances", style = MaterialTheme.typography.titleMedium)
+                    state.accounts.forEach { account ->
+                        Text("${account.name} · ${state.currency} ${formatMoney(account.balanceMinor, state.currency)}")
+                    }
+                    Text("Add Account", style = MaterialTheme.typography.titleMedium)
+                    OutlinedTextField(
+                        value = state.newAccountName,
+                        onValueChange = onNewAccountNameChanged,
+                        label = { Text("New account name") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = state.newAccountOpeningBalance,
+                        onValueChange = onNewAccountOpeningBalanceChanged,
+                        label = { Text("New account opening balance") },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = state.newAccountOpeningDate,
+                        onValueChange = onNewAccountOpeningDateChanged,
+                        label = { Text("New account opening date (YYYY-MM-DD)") },
+                        singleLine = true,
+                    )
+                    Row {
+                        AccountType.entries.forEach { type ->
+                            Row(
+                                Modifier
+                                    .selectable(
+                                        selected = state.newAccountType == type,
+                                        role = androidx.compose.ui.semantics.Role.RadioButton,
+                                        onClick = { onNewAccountTypeChanged(type) },
+                                    ),
+                            ) {
+                                RadioButton(selected = state.newAccountType == type, onClick = null)
+                                Text(type.name.lowercase().replaceFirstChar(Char::uppercase))
+                            }
+                        }
+                    }
+                    Button(onClick = onCreateAccount, enabled = !state.isSaving) { Text("Create account") }
+                }
             }
             item {
                 Text("Categories", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })

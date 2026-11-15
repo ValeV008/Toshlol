@@ -7,6 +7,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
@@ -69,10 +70,25 @@ class OverviewAccountSelectionTest {
         composeRule.onNodeWithText("Close").performClick()
         composeRule.onAllNodesWithText("EUR 1002.00").assertCountEquals(2)
         ui.showText("Income · EUR 2.00")
+        saveScreenshot("overview-selected-account.png")
     }
 
     @Test
     fun retainSelectedMonthAcrossOverviewAndBudgetNavigation(): Unit {
+        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        composeRule.waitUntil(15_000L) {
+            composeRule.onAllNodesWithTag("overview-root").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("overview-root").performTouchInput {
+            swipe(
+                start = center.copy(x = device.displayWidth.toFloat() - 2f),
+                end = center.copy(x = device.displayWidth * 0.45f),
+                durationMillis = 450,
+            )
+        }
+        composeRule.onNodeWithContentDescription("Cash Account selection").performClick().assertIsOn()
+        composeRule.onNodeWithText("Close").performClick()
+        composeRule.onAllNodesWithText("EUR 1002.00").assertCountEquals(2)
         composeRule.waitUntil(15_000L) {
             composeRule.onAllNodesWithTag("previous-month").fetchSemanticsNodes().isNotEmpty()
         }
@@ -84,6 +100,8 @@ class OverviewAccountSelectionTest {
                     .ofPattern("MMMM yyyy"),
             ),
         )
+        composeRule.onAllNodesWithText("EUR 0.00").assertCountEquals(2)
+        ui.showText("No activity for this month and Account selection.")
         composeRule.onNodeWithTag("navigation-Budgets").performClick()
         ui.showText("Monthly expense limits")
         composeRule.onNodeWithTag("navigation-Overview").performClick()
@@ -93,6 +111,7 @@ class OverviewAccountSelectionTest {
                     .ofPattern("MMMM yyyy"),
             ),
         )
+        composeRule.onAllNodesWithText("EUR 0.00").assertCountEquals(2)
     }
 
     @Test
@@ -100,8 +119,16 @@ class OverviewAccountSelectionTest {
         val context: Context = ApplicationProvider.getApplicationContext()
         val initialPreferences: AppPreferences = AppPreferences(context)
         runBlocking {
-            initialPreferences.saveOverviewAccountIds(setOf("cash-id", "savings-id"))
-            assertEquals(setOf("cash-id", "savings-id"), AppPreferences(context).loadOverviewAccountIds())
+            val accountId: String =
+                requireNotNull(
+                    AppDatabase
+                        .getInstance(context)
+                        .accountDao()
+                        .loadAccounts()
+                        .firstOrNull(),
+                ).id
+            initialPreferences.saveOverviewAccountIds(setOf(accountId))
+            assertEquals(setOf(accountId), AppPreferences(context).loadOverviewAccountIds())
             initialPreferences.saveOverviewAccountIds(emptySet())
             assertEquals(emptySet<String>(), AppPreferences(context).loadOverviewAccountIds())
         }
@@ -139,6 +166,7 @@ class OverviewAccountSelectionTest {
             .performClick()
             .assertIsOn()
         ui.showText("Income · EUR 2.00")
+        composeRule.onNodeWithText("Income · EUR 2.00").assertIsNotEnabled()
     }
 
     private fun saveScreenshot(fileName: String): Unit {

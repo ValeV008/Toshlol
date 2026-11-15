@@ -2,13 +2,13 @@
 
 Parent: [Personal Finance Design](spec.md)
 
-The user approved this 11-ticket breakdown, including its sizes and blocking edges. Tickets were initially published as documentation only; issue 01 is implemented and has Android 10 UI screenshots and feature-specific tests, with process-relaunch, activity ordering, independent Budget, and accessibility/edit-restriction assertions still outstanding.
+The user approved this 11-ticket breakdown, including its sizes and blocking edges. Tickets were initially published as documentation only; issue 01 is implemented and has Android 10 UI screenshots and feature-specific tests, including process-relaunch, activity ordering, independent Budget, and accessibility/edit-restriction assertions.
 
 ## Implementation map
 
 | Issue | Blocked by | Status |
 | --- | --- | --- |
-| [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | claimed |
+| [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | resolved |
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | ready-for-agent |
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | ready-for-agent |
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | ready-for-agent |
@@ -34,7 +34,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 ## Delivery notes
 
 - Each feature slice includes public behavior, persisted state where applicable, UI integration, named tests, and visual evidence. The final verification ticket does not defer feature-level testing.
-- Issue 01 has API 29 emulator evidence at [Overview](issues/evidence/01/overview.png) and [Account drawer](issues/evidence/01/overview-account-drawer.png). Several named acceptance checks remain open; see the issue comments before resolving it.
+- Issue 01 has passing API 29 emulator journeys and screenshots for Overview, Account drawer, selected-account month navigation, and saved/empty selection after host-driven process restarts. The issue records the test and lint commands plus captured UI hierarchy evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.
 - Budget tickets 06-07 include their own schema, migration, validation, and complete-record Backup paths. Ticket 10 delivers the styled document-management journey over those working contracts.
 - Before legacy Budget schema/data mutation, 06 must document a deterministic lossless mapping and resolve any product-dependent missing Account-scope choice from the parent spec. The approved breakdown does not invent that mapping or authorize data loss.

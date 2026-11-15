@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,7 +88,7 @@ fun OverviewScreen(
     val activity: List<OverviewActivityItem> = buildOverviewActivityItems(projection.transactions, projection.transfers)
     Box(
         modifier =
-            Modifier.fillMaxSize().background(PageGray).pointerInput(state.isAccountDrawerOpen) {
+            Modifier.fillMaxSize().background(PageGray).testTag("overview-root").pointerInput(state.isAccountDrawerOpen) {
                 var dragStartX: Float = 0f
                 var dragAmount: Float = 0f
                 detectHorizontalDragGestures(
@@ -191,9 +192,10 @@ private fun OverviewMonthHeader(
     Column(Modifier.fillMaxWidth().background(Charcoal).padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 18.dp)) {
         Text("Overview", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = {
-                monthChanged(month.minusMonths(1).toString())
-            }) { Text("‹", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            TextButton(
+                onClick = { monthChanged(month.minusMonths(1).toString()) },
+                modifier = Modifier.heightIn(min = 48.dp).testTag("previous-month").semantics { contentDescription = "Previous month" },
+            ) { Text("‹", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
             Text(
                 month.format(
                     java.time.format.DateTimeFormatter
@@ -202,9 +204,10 @@ private fun OverviewMonthHeader(
                 color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
             )
-            TextButton(onClick = {
-                monthChanged(month.plusMonths(1).toString())
-            }) { Text("›", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            TextButton(
+                onClick = { monthChanged(month.plusMonths(1).toString()) },
+                modifier = Modifier.heightIn(min = 48.dp).testTag("next-month").semantics { contentDescription = "Next month" },
+            ) { Text("›", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
         }
     }
 }
@@ -297,7 +300,7 @@ private fun AccountSelectionDrawer(
                         checked = account.id in state.selectedOverviewAccountIds,
                         onCheckedChange = { actions.overviewAccountToggled(account.id) },
                         modifier =
-                            Modifier.semantics {
+                            Modifier.heightIn(min = 48.dp).semantics {
                                 contentDescription = "${account.name} Account selection"
                                 stateDescription = if (account.id in state.selectedOverviewAccountIds) "Selected" else "Not selected"
                             },

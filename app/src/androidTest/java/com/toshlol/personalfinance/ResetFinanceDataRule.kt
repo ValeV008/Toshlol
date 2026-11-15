@@ -16,6 +16,9 @@ class ResetFinanceDataRule : ExternalResource() {
     private fun clearFinanceData() {
         val context: Context = ApplicationProvider.getApplicationContext()
         AppDatabase.getInstance(context).clearAllTables()
-        runBlocking { AppPreferences(context).clearLegacySetup() }
+        runBlocking {
+            AppPreferences(context).clearLegacySetup()
+            AppPreferences(context).clearOverviewAccountIds()
+        }
     }
 }

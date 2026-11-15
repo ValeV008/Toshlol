@@ -37,4 +37,8 @@ class AppPreferences(
     suspend fun saveOverviewAccountIds(accountIds: Set<String>) {
         context.dataStore.edit { preferences -> preferences[selectedOverviewAccountsKey] = accountIds }
     }
+
+    suspend fun clearOverviewAccountIds() {
+        context.dataStore.edit { preferences -> preferences.remove(selectedOverviewAccountsKey) }
+    }
 }

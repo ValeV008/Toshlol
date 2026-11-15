@@ -10,12 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -24,6 +32,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.toshlol.personalfinance.data.AccountType
+import com.toshlol.personalfinance.data.BackupImportMode
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
@@ -123,7 +132,8 @@ data class PersonalFinanceActions(
     val accountHistory: AccountHistoryActions,
     val navigation: LedgerNavigationActions,
     val exportBackup: () -> Unit,
-    val importBackup: () -> Unit,
+    val importBackup: (BackupImportMode) -> Unit,
+    val resetData: () -> Unit,
     val backupStatus: String,
 )
 
@@ -205,6 +215,7 @@ fun PersonalFinanceApp(
                                     createTransfer = actions.transfers.create,
                                     exportBackup = actions.exportBackup,
                                     importBackup = actions.importBackup,
+                                    resetData = actions.resetData,
                                     backupStatus = actions.backupStatus,
                                 ),
                         )
@@ -291,7 +302,8 @@ private data class SettingsActions(
     val createTransaction: () -> Unit,
     val createTransfer: () -> Unit,
     val exportBackup: () -> Unit,
-    val importBackup: () -> Unit,
+    val importBackup: (BackupImportMode) -> Unit,
+    val resetData: () -> Unit,
     val backupStatus: String,
 )
 
@@ -301,7 +313,11 @@ private fun SettingsScreen(
     state: TransactionsUiState,
     actions: SettingsActions,
 ): Unit {
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    var confirmation: String by rememberSaveable { mutableStateOf("") }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
         Text("Currency: ${state.currency}")
         Text("Account: ${state.accountName}")
@@ -310,8 +326,35 @@ private fun SettingsScreen(
         Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
         Button(onClick = actions.openOrganizer) { Text("Manage categories and tags") }
         Button(onClick = actions.exportBackup) { Text("Export Backup") }
-        Button(onClick = actions.importBackup) { Text("Import Backup (Merge)") }
+        Button(onClick = { actions.importBackup(BackupImportMode.MERGE) }) { Text("Import Backup (Merge)") }
+        Button(onClick = { confirmation = "overwrite" }) { Text("Import Backup (Overwrite)") }
+        Button(onClick = { confirmation = "reset" }) { Text("Delete all local data") }
         if (actions.backupStatus.isNotEmpty()) Text(actions.backupStatus)
+    }
+    if (confirmation.isNotEmpty()) {
+        val isOverwrite: Boolean = confirmation == "overwrite"
+        AlertDialog(
+            onDismissRequest = { confirmation = "" },
+            title = { Text(if (isOverwrite) "Overwrite local data?" else "Delete all local data?") },
+            text = {
+                Text(
+                    if (isOverwrite) {
+                        "The selected Backup will replace all local data, including currency. This cannot be undone."
+                    } else {
+                        "All accounts, transactions, transfers, budgets, categories, tags, and settings will be deleted. This cannot be undone."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmation = ""
+                        if (isOverwrite) actions.importBackup(BackupImportMode.OVERWRITE) else actions.resetData()
+                    },
+                ) { Text(if (isOverwrite) "Choose Backup" else "Delete all data") }
+            },
+            dismissButton = { TextButton(onClick = { confirmation = "" }) { Text("Cancel") } },
+        )
     }
 }
 

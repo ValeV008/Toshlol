@@ -49,6 +49,10 @@ class FirstRunViewModel(
         if (uiState.value.hasLoadFailed) loadSetup()
     }
 
+    fun refresh() {
+        loadSetup()
+    }
+
     fun submit() {
         if (!canEdit()) return
         val currentState: FirstRunUiState = uiState.value

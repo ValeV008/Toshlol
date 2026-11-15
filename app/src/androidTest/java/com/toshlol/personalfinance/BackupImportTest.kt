@@ -16,9 +16,12 @@ import com.toshlol.personalfinance.data.BackupSettings
 import com.toshlol.personalfinance.data.BackupTransaction
 import com.toshlol.personalfinance.data.FinanceBackup
 import com.toshlol.personalfinance.data.FinanceBackupCodec
+import com.toshlol.personalfinance.data.RoomAccountRepository
 import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.RoomBackupImporter
+import com.toshlol.personalfinance.data.RoomLocalDataResetter
 import com.toshlol.personalfinance.data.TransactionDirection
+import com.toshlol.personalfinance.domain.FirstRunSetup
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
@@ -158,11 +161,63 @@ class BackupImportTest {
                 val initial: FinanceBackup = createBackup()
                 val seeder: RoomBackupImporter = RoomBackupImporter(database)
                 importBackup(seeder, initial)
-                val importer: RoomBackupImporter = RoomBackupImporter(database) { error("Injected commit failure") }
+                val importer: RoomBackupImporter = RoomBackupImporter(database, beforeCommit = { error("Injected commit failure") })
                 val replacement: FinanceBackup = initial.copy(settings = BackupSettings("USD"))
                 val result: BackupImportOutcome = importBackup(importer, replacement, BackupImportMode.OVERWRITE)
                 assertTrue(result is BackupImportOutcome.Failure)
                 assertEquals(initial, captureBackup(database))
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun overwriteReplacesCompleteDatasetAndSettingsAndReportsInsertedCounts(): Unit =
+        runTest {
+            val database: AppDatabase = createDatabase()
+            try {
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val previous: FinanceBackup = createBackup()
+                importBackup(importer, previous)
+                val replacement: FinanceBackup =
+                    createBackup().copy(
+                        settings = BackupSettings("USD"),
+                        accounts = listOf(BackupAccount("replacement", "New account", "BANK", 4L, 5L, 100L, 3L, false)),
+                        categories = emptyList(),
+                        transactions = emptyList(),
+                    )
+                val outcome: BackupImportOutcome.Success =
+                    importBackup(importer, replacement, BackupImportMode.OVERWRITE) as BackupImportOutcome.Success
+                assertEquals(replacement, captureBackup(database))
+                assertEquals(
+                    1,
+                    outcome.report.counts
+                        .getValue(BackupEntityType.ACCOUNT)
+                        .inserted,
+                )
+                assertEquals(
+                    0,
+                    outcome.report.counts
+                        .getValue(BackupEntityType.TRANSACTION)
+                        .inserted,
+                )
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun localResetClearsBackupDataAndAllowsFirstRunSetupAgain(): Unit =
+        runTest {
+            val database: AppDatabase = createDatabase()
+            try {
+                importBackup(RoomBackupImporter(database), createBackup())
+                RoomLocalDataResetter(database).reset()
+                val actualSetup: com.toshlol.personalfinance.data.FirstRunSnapshot =
+                    FirstRunSetup(RoomAccountRepository(database)).loadSetup()
+                assertTrue(actualSetup.currency.isEmpty())
+                assertTrue(actualSetup.accounts.isEmpty())
+                assertTrue(!actualSetup.isSetupComplete)
             } finally {
                 database.close()
             }

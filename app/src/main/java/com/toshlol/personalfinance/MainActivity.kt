@@ -19,11 +19,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.toshlol.personalfinance.data.AppDatabase
+import com.toshlol.personalfinance.data.BackupImportMode
 import com.toshlol.personalfinance.data.BackupImportOutcome
 import com.toshlol.personalfinance.data.ContentResolverBackupReader
 import com.toshlol.personalfinance.data.ContentResolverBackupWriter
 import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.RoomBackupImporter
+import com.toshlol.personalfinance.data.RoomLocalDataResetter
 import com.toshlol.personalfinance.ui.AccountEditorActions
 import com.toshlol.personalfinance.ui.AccountHistoryActions
 import com.toshlol.personalfinance.ui.AccountHistoryScreenActions
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
         RoomBackupExporter(AppDatabase.getInstance(this), ContentResolverBackupWriter(contentResolver))
     }
     private val backupImporter: RoomBackupImporter by lazy { RoomBackupImporter(AppDatabase.getInstance(this)) }
+    private val localDataResetter: RoomLocalDataResetter by lazy { RoomLocalDataResetter(AppDatabase.getInstance(this)) }
     private val viewModel: FirstRunViewModel by viewModels {
         viewModelFactory {
             initializer { FirstRunViewModel((application as PersonalFinanceApplication).firstRunSetup) }
@@ -78,6 +81,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             var backupStatus: String by rememberSaveable { mutableStateOf("") }
+            var importMode: BackupImportMode by rememberSaveable { mutableStateOf(BackupImportMode.MERGE) }
             val exportBackup: ManagedActivityResultLauncher<String, Uri?> =
                 rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { destination: Uri? ->
                     if (destination == null) {
@@ -103,14 +107,15 @@ class MainActivity : ComponentActivity() {
                             backupStatus =
                                 try {
                                     val contents: ByteArray = ContentResolverBackupReader(contentResolver).read(source)
-                                    when (val outcome = backupImporter.import(contents)) {
+                                    when (val outcome = backupImporter.import(contents, importMode)) {
                                         is BackupImportOutcome.Success -> {
+                                            viewModel.refresh()
                                             transactionsViewModel.refresh()
                                             val totals: String =
                                                 outcome.report.counts.entries.joinToString { (entity, count) ->
                                                     "${entity.name.lowercase()}: ${count.inserted} added, ${count.updated} updated, ${count.unchanged} unchanged"
                                                 }
-                                            "Backup merged successfully. $totals"
+                                            "Backup ${importMode.name.lowercase()} completed successfully. $totals"
                                         }
                                         is BackupImportOutcome.Failure -> "Backup import failed: ${outcome.failures.joinToString {
                                             it.message
@@ -122,6 +127,23 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            val importSelectedBackup: (BackupImportMode) -> Unit = { mode: BackupImportMode ->
+                importMode = mode
+                importBackup.launch(arrayOf("application/json", "text/json", "application/octet-stream"))
+            }
+            val resetLocalData: () -> Unit = {
+                lifecycleScope.launch {
+                    backupStatus =
+                        try {
+                            localDataResetter.reset()
+                            viewModel.refresh()
+                            transactionsViewModel.refresh()
+                            "All local data was deleted. Set up a new account to continue."
+                        } catch (_: Exception) {
+                            "Local data could not be deleted. Saved data was not changed."
+                        }
+                }
+            }
             val uiState: FirstRunUiState by viewModel.uiState.collectAsStateWithLifecycle()
             val transactionsState by transactionsViewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(uiState.isSetupComplete) { if (uiState.isSetupComplete) transactionsViewModel.refresh() }
@@ -242,7 +264,8 @@ class MainActivity : ComponentActivity() {
                                     tagChanged = transactionsViewModel::updateSelectedTag,
                                 ),
                             exportBackup = { exportBackup.launch("Toshlol-Backup.json") },
-                            importBackup = { importBackup.launch(arrayOf("application/json", "text/json", "application/octet-stream")) },
+                            importBackup = importSelectedBackup,
+                            resetData = resetLocalData,
                             backupStatus = backupStatus,
                         ),
                 )

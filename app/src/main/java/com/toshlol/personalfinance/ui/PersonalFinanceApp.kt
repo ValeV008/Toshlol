@@ -2,7 +2,6 @@
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,13 +14,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,7 +33,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.toshlol.personalfinance.data.AccountType
 import com.toshlol.personalfinance.data.BackupImportMode
 import com.toshlol.personalfinance.data.FinanceCategory
@@ -40,6 +42,7 @@ import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
+import kotlinx.coroutines.launch
 
 data class LedgerNavigationActions(
     val selectArea: (String) -> Unit = {},
@@ -146,155 +149,232 @@ fun PersonalFinanceApp(
     transactionsState: TransactionsUiState,
     actions: PersonalFinanceActions,
 ): Unit {
-    Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
-                when {
-                    !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, actions.setup.retry)
-                    uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
-                    uiState.isSetupComplete && transactionsState.accountHistoryAccountId != null ->
-                        AccountHistoryScreen(
-                            state = transactionsState.copy(currency = uiState.currency),
-                            actions = actions.accountHistory.screen,
-                        )
-                    uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
-                        CategoryTagScreen(
-                            state = transactionsState,
-                            actions = actions.organizer,
-                        )
-                    uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
-                        BudgetsScreen(
-                            transactionsState.copy(currency = uiState.currency),
-                            actions.budgets.close,
-                            actions.budgets.monthChanged,
-                            actions.budgets.categoryChanged,
-                            actions.budgets.amountChanged,
-                            actions.budgets.save,
-                            { actions.transactions.create(TransactionDirection.EXPENSE) },
-                            actions.transfers.create,
-                        )
-                    uiState.isSetupComplete && transactionsState.selectedArea == "Accounts" ->
-                        AccountsScreen(
-                            state = transactionsState.copy(currency = uiState.currency),
-                            actions =
-                                AccountsScreenActions(
-                                    back = { actions.navigation.selectArea("Overview") },
-                                    openHistory = actions.accountHistory.open,
-                                    edit = { id ->
-                                        actions.organizer.accounts.select(id)
-                                        actions.organizer.open()
-                                    },
-                                    archive = actions.organizer.accounts.archive,
-                                    addAccount = {
-                                        actions.organizer.accounts.select(transactionsState.editingAccountId ?: transactionsState.accountId)
-                                        actions.organizer.open()
-                                    },
-                                ),
-                        )
-                    uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
-                        TransactionsScreen(
-                            transactionsState.copy(currency = uiState.currency),
-                            TransactionsScreenActions(
-                                create = actions.transactions.create,
-                                edit = actions.transactions.edit,
-                                delete = actions.transactions.delete,
-                                monthChanged = actions.navigation.monthChanged,
-                                accountChanged = actions.navigation.accountChanged,
-                                categoryChanged = actions.navigation.categoryChanged,
-                                tagChanged = actions.navigation.tagChanged,
-                                createTransfer = actions.transfers.create,
-                                editTransfer = actions.transfers.edit,
-                                deleteTransfer = actions.transfers.dialog.delete,
-                            ),
-                        )
-                    uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
-                        SettingsScreen(
-                            state = transactionsState,
-                            actions =
-                                SettingsActions(
-                                    openOrganizer = actions.organizer.open,
-                                    createTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
-                                    createTransfer = actions.transfers.create,
-                                    exportBackup = actions.exportBackup,
-                                    importBackup = actions.importBackup,
-                                    resetData = actions.resetData,
-                                    backupStatus = actions.backupStatus,
-                                ),
-                        )
-                    uiState.isSetupComplete ->
-                        OverviewScreen(
-                            state = transactionsState.copy(currency = uiState.currency),
-                            actions =
-                                OverviewScreenActions(
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = uiState.isSetupComplete,
+        drawerContent = {
+            ModalDrawerSheet {
+                if (uiState.isSetupComplete) {
+                    Text("Navigate", Modifier.padding(20.dp), style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+                    listOf(
+                        "Overview",
+                        "Expenses",
+                        "Income",
+                        "Accounts",
+                        "Categories & Tags",
+                        "Budgets",
+                        "Export",
+                        "Settings",
+                    ).forEach { destination ->
+                        TextButton(
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                when (destination) {
+                                    "Categories & Tags" -> actions.organizer.open()
+                                    "Export" -> actions.exportBackup()
+                                    else -> actions.navigation.selectArea(destination)
+                                }
+                            },
+                            modifier =
+                                Modifier.fillMaxWidth().testTag("drawer-$destination").semantics {
+                                    stateDescription = if (transactionsState.selectedArea == destination) "Current section" else "Section"
+                                },
+                        ) { Text(destination, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) }
+                    }
+                }
+            }
+        },
+    ) {
+        Surface(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (uiState.isSetupComplete &&
+                    transactionsState.isLoaded &&
+                    transactionsState.accountHistoryAccountId == null &&
+                    !transactionsState.isOrganizerVisible
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        TextButton(onClick = {
+                            coroutineScope.launch { drawerState.open() }
+                        }, modifier = Modifier.testTag("open-navigation-drawer")) { Text("Menu") }
+                        if (transactionsState.selectedArea in setOf("Overview", "Expenses", "Income")) {
+                            listOf("Overview", "Expenses", "Income").forEach { area ->
+                                TextButton(
+                                    onClick = { actions.navigation.selectArea(area) },
+                                    modifier =
+                                        Modifier.weight(1f).testTag("tab-$area").semantics {
+                                            stateDescription = if (transactionsState.selectedArea == area) "Current tab" else "Tab"
+                                        },
+                                ) { Text(area, maxLines = 1, softWrap = false) }
+                            }
+                        }
+                    }
+                }
+                androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
+                    when {
+                        !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, actions.setup.retry)
+                        uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
+                        uiState.isSetupComplete && transactionsState.accountHistoryAccountId != null ->
+                            AccountHistoryScreen(
+                                state = transactionsState.copy(currency = uiState.currency),
+                                actions = actions.accountHistory.screen,
+                            )
+                        uiState.isSetupComplete && transactionsState.isOrganizerVisible ->
+                            CategoryTagScreen(
+                                state = transactionsState,
+                                actions = actions.organizer,
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
+                            BudgetsScreen(
+                                transactionsState.copy(currency = uiState.currency),
+                                actions.budgets.close,
+                                actions.budgets.monthChanged,
+                                actions.budgets.categoryChanged,
+                                actions.budgets.amountChanged,
+                                actions.budgets.save,
+                                { actions.transactions.create(TransactionDirection.EXPENSE) },
+                                actions.transfers.create,
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Accounts" ->
+                            AccountsScreen(
+                                state = transactionsState.copy(currency = uiState.currency),
+                                actions =
+                                    AccountsScreenActions(
+                                        back = { actions.navigation.selectArea("Overview") },
+                                        openHistory = actions.accountHistory.open,
+                                        edit = { id ->
+                                            actions.organizer.accounts.select(id)
+                                            actions.organizer.open()
+                                        },
+                                        archive = actions.organizer.accounts.archive,
+                                        addAccount = {
+                                            actions.organizer.accounts.select(
+                                                transactionsState.editingAccountId ?: transactionsState.accountId,
+                                            )
+                                            actions.organizer.open()
+                                        },
+                                    ),
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->
+                            TransactionsScreen(
+                                transactionsState.copy(currency = uiState.currency),
+                                TransactionsScreenActions(
                                     create = actions.transactions.create,
                                     edit = actions.transactions.edit,
                                     delete = actions.transactions.delete,
-                                    openOrganizer = actions.organizer.open,
-                                    openBudgets = actions.budgets.open,
+                                    monthChanged = actions.navigation.monthChanged,
+                                    accountChanged = actions.navigation.accountChanged,
+                                    categoryChanged = actions.navigation.categoryChanged,
+                                    tagChanged = actions.navigation.tagChanged,
                                     createTransfer = actions.transfers.create,
                                     editTransfer = actions.transfers.edit,
-                                    openAccountHistory = actions.accountHistory.open,
-                                    monthChanged = actions.navigation.monthChanged,
-                                    overviewAccountToggled = actions.navigation.overviewAccountToggled,
-                                    accountDrawerChanged = actions.navigation.accountDrawerChanged,
+                                    deleteTransfer = actions.transfers.dialog.delete,
                                 ),
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Expenses" ->
+                            MonthlyLedgerScreen(
+                                transactionsState.copy(currency = uiState.currency),
+                                TransactionDirection.EXPENSE,
+                                MonthlyLedgerActions(
+                                    actions.navigation.monthChanged,
+                                    actions.navigation.categoryChanged,
+                                    actions.navigation.tagChanged,
+                                    actions.transactions.create,
+                                    actions.transactions.edit,
+                                    actions.transactions.delete,
+                                    actions.transfers.edit,
+                                    actions.transfers.dialog.delete,
+                                    actions.transfers.create,
+                                    actions.navigation.overviewAccountToggled,
+                                    actions.navigation.accountDrawerChanged,
+                                ),
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Income" ->
+                            MonthlyLedgerScreen(
+                                transactionsState.copy(currency = uiState.currency),
+                                TransactionDirection.INCOME,
+                                MonthlyLedgerActions(
+                                    actions.navigation.monthChanged,
+                                    actions.navigation.categoryChanged,
+                                    actions.navigation.tagChanged,
+                                    actions.transactions.create,
+                                    actions.transactions.edit,
+                                    actions.transactions.delete,
+                                    actions.transfers.edit,
+                                    actions.transfers.dialog.delete,
+                                    actions.transfers.create,
+                                    actions.navigation.overviewAccountToggled,
+                                    actions.navigation.accountDrawerChanged,
+                                ),
+                            )
+                        uiState.isSetupComplete && transactionsState.selectedArea == "Settings" ->
+                            SettingsScreen(
+                                state = transactionsState,
+                                actions =
+                                    SettingsActions(
+                                        openOrganizer = actions.organizer.open,
+                                        createTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
+                                        createTransfer = actions.transfers.create,
+                                        exportBackup = actions.exportBackup,
+                                        importBackup = actions.importBackup,
+                                        resetData = actions.resetData,
+                                        backupStatus = actions.backupStatus,
+                                    ),
+                            )
+                        uiState.isSetupComplete ->
+                            OverviewScreen(
+                                state = transactionsState.copy(currency = uiState.currency),
+                                actions =
+                                    OverviewScreenActions(
+                                        create = actions.transactions.create,
+                                        edit = actions.transactions.edit,
+                                        delete = actions.transactions.delete,
+                                        openOrganizer = actions.organizer.open,
+                                        openBudgets = actions.budgets.open,
+                                        createTransfer = actions.transfers.create,
+                                        editTransfer = actions.transfers.edit,
+                                        openAccountHistory = actions.accountHistory.open,
+                                        monthChanged = actions.navigation.monthChanged,
+                                        overviewAccountToggled = actions.navigation.overviewAccountToggled,
+                                        accountDrawerChanged = actions.navigation.accountDrawerChanged,
+                                    ),
+                            )
+                        else ->
+                            SetupScreen(
+                                uiState,
+                                actions.setup.currencyChanged,
+                                actions.setup.accountNameChanged,
+                                actions.setup.accountTypeChanged,
+                                actions.setup.submit,
+                            )
+                    }
+                    if (uiState.isSetupComplete && transactionsState.isLoaded) {
+                        TransactionDialogs(
+                            transactionsState,
+                            TransactionDialogActions(
+                                form =
+                                    TransactionFormActions(
+                                        close = actions.transactions.form.close,
+                                        amountChanged = actions.transactions.form.amountChanged,
+                                        dateChanged = actions.transactions.form.dateChanged,
+                                        noteChanged = actions.transactions.form.noteChanged,
+                                        directionChanged = actions.transactions.form.directionChanged,
+                                        save = actions.transactions.form.save,
+                                        categoryChanged = actions.transactions.form.categoryChanged,
+                                        tagToggled = actions.transactions.form.tagToggled,
+                                    ),
+                                delete =
+                                    TransactionDeleteActions(
+                                        actions.transactions.deleteConfirmation.cancelDelete,
+                                        actions.transactions.deleteConfirmation.confirmDelete,
+                                    ),
+                            ),
                         )
-                    else ->
-                        SetupScreen(
-                            uiState,
-                            actions.setup.currencyChanged,
-                            actions.setup.accountNameChanged,
-                            actions.setup.accountTypeChanged,
-                            actions.setup.submit,
+                        TransferDialog(
+                            transactionsState,
+                            actions.transfers.dialog,
                         )
-                }
-                if (uiState.isSetupComplete && transactionsState.isLoaded) {
-                    TransactionDialogs(
-                        transactionsState,
-                        TransactionDialogActions(
-                            form =
-                                TransactionFormActions(
-                                    close = actions.transactions.form.close,
-                                    amountChanged = actions.transactions.form.amountChanged,
-                                    dateChanged = actions.transactions.form.dateChanged,
-                                    noteChanged = actions.transactions.form.noteChanged,
-                                    directionChanged = actions.transactions.form.directionChanged,
-                                    save = actions.transactions.form.save,
-                                    categoryChanged = actions.transactions.form.categoryChanged,
-                                    tagToggled = actions.transactions.form.tagToggled,
-                                ),
-                            delete =
-                                TransactionDeleteActions(
-                                    actions.transactions.deleteConfirmation.cancelDelete,
-                                    actions.transactions.deleteConfirmation.confirmDelete,
-                                ),
-                        ),
-                    )
-                    TransferDialog(
-                        transactionsState,
-                        actions.transfers.dialog,
-                    )
-                }
-            }
-            if (uiState.isSetupComplete &&
-                transactionsState.isLoaded &&
-                !transactionsState.isOrganizerVisible &&
-                transactionsState.accountHistoryAccountId == null
-            ) {
-                NavigationBar {
-                    Row(Modifier.fillMaxWidth()) {
-                        listOf("Overview", "Transactions", "Accounts", "Budgets", "Settings").forEach { area: String ->
-                            Button(
-                                onClick = { actions.navigation.selectArea(area) },
-                                modifier =
-                                    Modifier.weight(1f).testTag("navigation-$area").semantics {
-                                        stateDescription = if (transactionsState.selectedArea == area) "Current section" else "Section"
-                                    },
-                                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
-                            ) {
-                                Text(area, maxLines = 1, softWrap = false, fontSize = 11.sp)
-                            }
-                        }
                     }
                 }
             }

@@ -102,9 +102,11 @@ class OverviewAccountSelectionTest {
         )
         composeRule.onAllNodesWithText("EUR 0.00").assertCountEquals(2)
         ui.showText("No activity for this month and Account selection.")
-        composeRule.onNodeWithTag("navigation-Budgets").performClick()
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Budgets").performClick()
         ui.showText("Monthly expense limits")
-        composeRule.onNodeWithTag("navigation-Overview").performClick()
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Overview").performClick()
         ui.showText(
             selectedMonth.format(
                 java.time.format.DateTimeFormatter

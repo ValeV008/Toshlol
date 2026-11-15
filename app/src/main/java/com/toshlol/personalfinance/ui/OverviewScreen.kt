@@ -111,71 +111,73 @@ fun OverviewScreen(
                 )
             },
     ) {
-        Column(
-            modifier =
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).semantics {
-                    customActions =
-                        listOf(
-                            CustomAccessibilityAction("Open Account selection") {
-                                actions.accountDrawerChanged(true)
-                                true
-                            },
-                        )
-                },
-        ) {
-            OverviewMonthHeader(selectedMonth, actions.monthChanged)
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("CLOSING BALANCE", color = Color(0xFF686B70), style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            "${state.currency} ${formatMoney(projection.closingBalanceMinor, state.currency)}",
-                            style = MaterialTheme.typography.headlineLarge,
-                        )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SummaryAmount("Income", projection.incomeMinor, state.currency, IncomeGreen, Modifier.weight(1f))
-                            SummaryAmount("Expenses", projection.expenseMinor, state.currency, ExpenseRed, Modifier.weight(1f))
-                            SummaryAmount(
-                                "Net",
-                                projection.incomeMinor - projection.expenseMinor,
-                                state.currency,
-                                Charcoal,
-                                Modifier.weight(1f),
+        Column(Modifier.fillMaxSize()) {
+            Column(
+                modifier =
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()).semantics {
+                        customActions =
+                            listOf(
+                                CustomAccessibilityAction("Open Account selection") {
+                                    actions.accountDrawerChanged(true)
+                                    true
+                                },
                             )
+                    },
+            ) {
+                OverviewMonthHeader(selectedMonth, actions.monthChanged)
+                Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("CLOSING BALANCE", color = Color(0xFF686B70), style = MaterialTheme.typography.labelLarge)
+                            Text(
+                                "${state.currency} ${formatMoney(projection.closingBalanceMinor, state.currency)}",
+                                style = MaterialTheme.typography.headlineLarge,
+                            )
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SummaryAmount("Income", projection.incomeMinor, state.currency, IncomeGreen, Modifier.weight(1f))
+                                SummaryAmount("Expenses", projection.expenseMinor, state.currency, ExpenseRed, Modifier.weight(1f))
+                                SummaryAmount(
+                                    "Net",
+                                    projection.incomeMinor - projection.expenseMinor,
+                                    state.currency,
+                                    Charcoal,
+                                    Modifier.weight(1f),
+                                )
+                            }
                         }
                     }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { actions.create(TransactionDirection.EXPENSE) },
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Add expense") }
-                    Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
-                    Button(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
-                }
-                if (budgets.isNotEmpty()) {
-                    Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                    budgets.forEach { budget -> BudgetCard(budget, state.currency) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
-                    OutlinedButton(
-                        onClick = actions.openBudgets,
-                        modifier = Modifier.weight(1f).testTag("open-budgets"),
-                    ) { Text("Budgets") }
-                }
-                Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                state.accounts.filter { it.id in state.selectedOverviewAccountIds }.forEach { account ->
-                    AccountCard(account, projection.closingBalancesMinor[account.id] ?: 0L, state.currency, actions.openAccountHistory)
-                }
-                Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                if (activity.isEmpty()) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                        Text("No activity for this month and Account selection.", Modifier.padding(18.dp))
+                    if (budgets.isNotEmpty()) {
+                        Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                        budgets.forEach { budget -> BudgetCard(budget, state.currency) }
                     }
-                } else {
-                    activity.forEach { item -> ActivityCard(item, state, actions) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
+                        OutlinedButton(
+                            onClick = actions.openBudgets,
+                            modifier = Modifier.weight(1f).testTag("open-budgets"),
+                        ) { Text("Budgets") }
+                    }
+                    Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                    state.accounts.filter { it.id in state.selectedOverviewAccountIds }.forEach { account ->
+                        AccountCard(account, projection.closingBalancesMinor[account.id] ?: 0L, state.currency, actions.openAccountHistory)
+                    }
+                    Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                    if (activity.isEmpty()) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                            Text("No activity for this month and Account selection.", Modifier.padding(18.dp))
+                        }
+                    } else {
+                        activity.forEach { item -> ActivityCard(item, state, actions) }
+                    }
                 }
+            }
+            Row(
+                Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
+                Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+                OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer money") }
             }
         }
         if (state.isAccountDrawerOpen) {

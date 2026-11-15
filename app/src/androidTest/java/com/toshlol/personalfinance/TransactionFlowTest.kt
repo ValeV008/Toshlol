@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -39,6 +40,7 @@ import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransferDraft
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
@@ -63,6 +65,11 @@ class TransactionFlowTest {
             .around(SeedLedgerRule())
             .around(composeRule)
             .around(UiFailureArtifactsRule(composeRule))
+
+    @Before
+    fun selectCashForOverview() {
+        ui.selectOverviewAccount("Cash")
+    }
 
     @Test
     fun accountListShowsTypesBalancesAndHistoryNavigation() {
@@ -90,7 +97,7 @@ class TransactionFlowTest {
     @Test
     @Suppress("ktlint:standard:no-unit-return")
     fun createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals(): Unit {
-        ui.clickText("Organize categories and tags")
+        ui.clickText("Categories & Tags")
         ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("New account name", "Savings", "category-tag-list")
         ui.enterText("New account opening balance", "3.00", "category-tag-list")
@@ -110,7 +117,13 @@ class TransactionFlowTest {
         ui.enterText("Amount", "1.00", "transaction-form")
         ui.enterText("Date (YYYY-MM-DD)", "2020-01-01", "transaction-form")
         ui.clickText("Save")
+        navigateTo("Transactions")
+        ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("Expense \u00b7 EUR 1.00")
+        ui.enterText("Month (YYYY-MM, blank for all)", YearMonth.now().toString())
+        navigateTo("Overview")
+        ui.selectOverviewAccount("Savings")
+        composeRule.onNodeWithText("Expense \u00b7 EUR 1.00").assertDoesNotExist()
         ui.clickText("Transfer")
         ui.showText("New Transfer")
         composeRule.onNodeWithTag("transfer-source-${accountId("Cash")}").assertIsNotSelected()
@@ -130,33 +143,23 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("transfer-destination-${accountId("Savings")}").performClick()
         ui.clickText("Save")
         ui.showText("Transfer · EUR 10.00")
-        ui.showText("Cash · Cash · EUR -10.00")
-        ui.showText("Savings · Bank · EUR 15.00")
-        ui.showText("Income  EUR 0.00", substring = true)
-        ui.showText("Expenses  EUR 0.00", substring = true)
-        val transferPosition: Float =
-            composeRule
-                .onNodeWithText("Transfer \u00b7 EUR 10.00")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        val earlierExpensePosition: Float =
-            composeRule
-                .onNodeWithText("Expense \u00b7 EUR 1.00")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        assertTrue(transferPosition < earlierExpensePosition)
-        ui.clickText("Organize categories and tags")
+        showOverviewAccount("Cash", "-10.00")
+        showOverviewAccount("Savings", "15.00")
+        ui.showOverview()
+        composeRule.onAllNodesWithText("0.00").assertCountEquals(3)
+        composeRule.onNodeWithText("Expense \u00b7 EUR 1.00").assertDoesNotExist()
+        ui.clickText("Categories & Tags")
         ui.clickText("Manage accounts", "category-tag-list")
         ui.click(hasText("Editing Savings", substring = true), "category-tag-list")
         ui.enterText("Account name", "Reserve", "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
         ui.clickText("Back to overview")
-        ui.clickText("Cash · Cash · EUR -10.00")
+        showOverviewAccount("Cash", "-10.00").performClick()
         ui.showText("Cash history")
         ui.showText("Transfer out · EUR 10.00")
         ui.showText("To Reserve", substring = true)
         ui.clickText("Back to overview")
-        ui.clickText("Reserve · Bank · EUR 15.00")
+        showOverviewAccount("Reserve", "15.00").performClick()
         ui.showText("Reserve history")
         ui.showText("Transfer in · EUR 10.00")
         ui.showText("From Cash", substring = true)
@@ -189,8 +192,8 @@ class TransactionFlowTest {
         ui.clickText("Save")
         ui.showText("EUR 4.00", substring = true)
         navigateTo("Overview")
-        ui.showText("Cash · Cash · EUR -4.00")
-        ui.showText("Reserve · Bank · EUR 9.00")
+        showOverviewAccount("Cash", "-4.00")
+        showOverviewAccount("Reserve", "9.00")
         navigateTo("Transactions")
         ui.click(hasText("Transfer out", substring = true))
         ui.clickText("Delete")
@@ -198,8 +201,8 @@ class TransactionFlowTest {
         ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
         ui.showText("No transactions match these filters.")
         navigateTo("Overview")
-        ui.showText("Cash · Cash · EUR 0.00")
-        ui.showText("Reserve · Bank · EUR 5.00")
+        showOverviewAccount("Cash", "0.00")
+        showOverviewAccount("Reserve", "5.00")
     }
 
     @Test
@@ -214,12 +217,14 @@ class TransactionFlowTest {
         ui.enterText("Date (YYYY-MM-DD)", LocalDate.now().toString(), "transaction-form")
         ui.clickText("Save")
         ui.showText("Expense \u00b7 EUR 12.50")
-        ui.showText("Expenses  EUR 12.50", substring = true)
-        ui.showText("Net  EUR -12.50")
+        ui.showText("Expenses")
+        ui.showText("12.50")
+        ui.showText("Net")
+        ui.showText("-12.50")
         ui.clickText("Delete")
         ui.showText("Delete transaction?")
         ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
-        ui.showText("No transactions yet")
+        ui.showText("No activity for this month and Account selection.")
     }
 
     @Test
@@ -230,7 +235,7 @@ class TransactionFlowTest {
         ui.clickText("Add tag", "category-tag-list")
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
         ui.clickText("Back to overview")
-        ui.clickText("Organize categories and tags")
+        ui.clickText("Categories & Tags")
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
         ui.clickText("Back to overview")
         ui.clickText("Add expense")
@@ -243,13 +248,14 @@ class TransactionFlowTest {
         ui.showText("Expense \u00b7 EUR 8.25")
         ui.showText("Food", substring = true)
         ui.showText("Lunch", substring = true)
-        ui.clickText("Organize categories and tags")
+        ui.clickText("Categories & Tags")
         ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("Account name", "Wallet", "category-tag-list")
+        ui.show(hasText("Wallet") and hasSetTextAction(), "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
         ui.showText("Wallet · Cash · EUR -8.25", "category-tag-list", substring = true)
         ui.clickText("Back to overview")
-        ui.showText("Wallet · Cash · EUR -8.25", substring = true)
+        showOverviewAccount("Wallet", "-8.25")
     }
 
     @Test
@@ -291,7 +297,8 @@ class TransactionFlowTest {
         ui.clickText("Expense \u00b7 EUR 12.50")
         ui.enterText("Amount", "25.00", "transaction-form")
         ui.clickText("Save")
-        ui.showText("Food \u00b7 EUR 25.00 / 20.00 \u00b7 Over budget")
+        ui.showText("EUR 25.00 of 20.00")
+        ui.showText("Over budget")
         navigateTo("Budgets")
         verifyOverBudgetOnBothScreens()
         deleteExpenseAndVerifyBudgetOnBothScreens()
@@ -305,7 +312,9 @@ class TransactionFlowTest {
         ui.showText("Remaining  EUR 10.00")
         ui.clickText("Back to overview")
         ui.showText("Transfer \u00b7 EUR 5.00")
-        ui.showText("Food \u00b7 EUR 0.00 / 10.00 \u00b7 Remaining 10.00")
+        ui.showText("Food")
+        ui.showText("EUR 0.00 of 10.00")
+        ui.showText("Remaining EUR 10.00")
     }
 
     @Test
@@ -326,8 +335,9 @@ class TransactionFlowTest {
     @Test
     fun navigateFilterTransactionsAndQuickAddFromEveryMainArea() {
         val currentDate: LocalDate = filterTestDate
-        ui.showText("EUR ledger is ready.")
+        ui.showOverview()
         navigateTo("Transactions")
+        ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("Month (YYYY-MM, blank for all)").assert(hasSetTextAction())
         ui.showText("Account: All Account").assertHasClickAction()
         ui.showText("Category: All Category").assertHasClickAction()
@@ -378,6 +388,7 @@ class TransactionFlowTest {
         ui.showText("Expense · EUR 8.25")
         ui.enterText("Month (YYYY-MM, blank for all)", "")
         ui.showText("EUR 4.00", substring = true)
+        ui.enterText("Month (YYYY-MM, blank for all)", YearMonth.now().toString())
         navigateTo("Overview")
         ui.showText("Add expense").assertHasClickAction()
         ui.clickText("Add expense")
@@ -417,9 +428,12 @@ class TransactionFlowTest {
                     .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Current section"))
             }.isSuccess
         }
+        if (area == "Overview") {
+            ui.showOverview()
+            return
+        }
         val screenText: String =
             when (area) {
-                "Overview" -> "EUR ledger is ready."
                 "Transactions" -> "Month (YYYY-MM, blank for all)"
                 "Accounts" -> "Balance · EUR 0.00"
                 "Budgets" -> "Monthly expense limits"
@@ -427,6 +441,11 @@ class TransactionFlowTest {
             }
         ui.showText(screenText)
     }
+
+    private fun showOverviewAccount(
+        name: String,
+        amount: String,
+    ): androidx.compose.ui.test.SemanticsNodeInteraction = ui.show(hasText(name) and hasText("EUR $amount"))
 
     private fun showTransactionRow(text: String) {
         ui.dismissKeyboard()
@@ -478,7 +497,9 @@ class TransactionFlowTest {
         ui.showText("Remaining  EUR 7.50")
         ui.clickText("Back to overview")
         ui.showText("Budget progress")
-        ui.showText("Food \u00b7 EUR 12.50 / 20.00 \u00b7 Remaining 7.50")
+        ui.showText("Food")
+        ui.showText("EUR 12.50 of 20.00")
+        ui.showText("Remaining EUR 7.50")
     }
 
     private fun verifyOverBudgetOnBothScreens() {
@@ -487,24 +508,28 @@ class TransactionFlowTest {
         ui.showText("Over budget  EUR 5.00")
         ui.clickText("Back to overview")
         ui.showText("Budget progress")
-        ui.showText("Food \u00b7 EUR 25.00 / 20.00 \u00b7 Over budget")
+        ui.showText("Food")
+        ui.showText("EUR 25.00 of 20.00")
+        ui.showText("Over budget")
     }
 
     private fun deleteExpenseAndVerifyBudgetOnBothScreens() {
         ui.clickText("Delete")
         ui.showText("Delete transaction?")
         ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
-        ui.showText("Food \u00b7 EUR 0.00 / 20.00 \u00b7 Remaining 20.00")
+        ui.showText("EUR 0.00 of 20.00")
+        ui.showText("Remaining EUR 20.00")
         navigateTo("Budgets")
         ui.showText("Spent  EUR 0.00")
         ui.showText("Limit  EUR 20.00")
         ui.showText("Remaining  EUR 20.00")
         ui.clickText("Back to overview")
-        ui.showText("Food \u00b7 EUR 0.00 / 20.00 \u00b7 Remaining 20.00")
+        ui.showText("EUR 0.00 of 20.00")
+        ui.showText("Remaining EUR 20.00")
     }
 
     private fun createFoodCategory() {
-        ui.clickText("Organize categories and tags")
+        ui.clickText("Categories & Tags")
         ui.enterText("Category name", "Food", "category-tag-list")
         ui.clickText("Add category", "category-tag-list")
         ui.showText("Food \u00b7 expense", "category-tag-list")

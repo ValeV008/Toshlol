@@ -3,7 +3,6 @@ package com.toshlol.personalfinance
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -42,8 +41,8 @@ class FirstRunFlowTest {
         dismissKeyboard()
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
         waitForText("Overview")
-        composeRule.onNodeWithText("EUR ledger is ready.").assertIsDisplayed()
-        composeRule.onNodeWithText("No transactions yet").performScrollTo().assertIsDisplayed()
+        ui.showText("EUR 0.00")
+        ui.showText("No activity for this month and Account selection.")
         val actualSnapshot: FirstRunSnapshot =
             runBlocking {
                 RoomAccountRepository(AppDatabase.getInstance(composeRule.activity)).loadSetup()
@@ -55,7 +54,9 @@ class FirstRunFlowTest {
         composeRule.activityRule.scenario.close()
         ActivityScenario.launch(MainActivity::class.java).use {
             waitForText("Overview")
-            composeRule.onNodeWithText("EUR ledger is ready.").assertIsDisplayed()
+            ui.showText("EUR 0.00")
+            ui.showText("No activity for this month and Account selection.")
+            ui.selectOverviewAccount("Checking")
             composeRule.onNodeWithText("Set up your first account").assertDoesNotExist()
         }
     }
@@ -87,9 +88,7 @@ class FirstRunFlowTest {
 
     private fun waitForText(text: String) {
         if (text == "Overview") {
-            composeRule.waitUntil(15_000) {
-                composeRule.onAllNodesWithText("EUR ledger is ready.").fetchSemanticsNodes().isNotEmpty()
-            }
+            ui.showOverview()
         } else {
             ui.showText(text)
         }

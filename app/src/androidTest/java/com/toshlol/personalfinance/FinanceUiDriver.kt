@@ -7,15 +7,21 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
@@ -24,6 +30,24 @@ import androidx.test.uiautomator.UiDevice
 class FinanceUiDriver(
     private val rule: ComposeTestRule,
 ) {
+    fun showOverview() {
+        rule.waitUntil(TIMEOUT_MILLIS) { rule.onAllNodesWithTag("overview-root").fetchSemanticsNodes().size == 1 }
+        showText("CLOSING BALANCE")
+    }
+
+    fun selectOverviewAccount(name: String) {
+        showOverview()
+        rule.onNodeWithTag("overview-root").performTouchInput {
+            swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
+        }
+        rule
+            .onNodeWithContentDescription("$name Account selection")
+            .assertIsOff()
+            .performClick()
+            .assertIsOn()
+        clickText("Close")
+    }
+
     fun showText(
         text: String,
         containerTag: String? = null,

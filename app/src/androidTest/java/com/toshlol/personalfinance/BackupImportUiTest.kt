@@ -53,9 +53,7 @@ class BackupImportUiTest {
         composeRule.onNodeWithText("EUR").performClick()
         ui.enterText("Account name", "Cash")
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
-        composeRule.waitUntil(15_000) {
-            composeRule.onAllNodesWithText("EUR ledger is ready.").fetchSemanticsNodes().isNotEmpty()
-        }
+        ui.showOverview()
         composeRule.onNodeWithText("Settings").performClick()
         createOverwriteBackupDocument()
         val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())

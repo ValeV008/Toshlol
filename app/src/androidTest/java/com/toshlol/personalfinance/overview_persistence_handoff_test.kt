@@ -14,66 +14,57 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.ExternalResource
-import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.YearMonth
 
-/** Seeds states for host-side ADB force-stop and relaunch verification. */
+/** Seeds states for scripts/verify_overview_persistence.py; the host owns restart and UI assertions. */
 @RunWith(AndroidJUnit4::class)
 class OverviewPersistenceHandoffTest {
     @get:Rule
-    val rules: RuleChain =
-        RuleChain
-            .outerRule(ResetFinanceDataRule(clearAfter = false))
-            .around(PersistenceSeedRule())
+    val resetRule: ResetFinanceDataRule = ResetFinanceDataRule(clearAfter = false)
 
     @Test
     fun prepareSelectedOverviewForHostProcessRestart(): Unit {
-        val context: Context = ApplicationProvider.getApplicationContext()
-        val accountIds: Set<String> = runBlocking { AppPreferences(context).loadOverviewAccountIds() }
-        val expectedAccountId: String =
-            runBlocking {
-                requireNotNull(
-                    AppDatabase
-                        .getInstance(context)
-                        .accountDao()
-                        .loadAccounts()
-                        .firstOrNull(),
-                ).id
-            }
-        assertEquals(setOf(expectedAccountId), accountIds)
+        seedOverviewForHostProcessRestart(isSelected = true)
     }
 
     @Test
     fun prepareEmptyOverviewForHostProcessRestart(): Unit {
-        val context: Context = ApplicationProvider.getApplicationContext()
-        runBlocking {
-            AppPreferences(context).saveOverviewAccountIds(emptySet())
-            assertEquals(emptySet<String>(), AppPreferences(context).loadOverviewAccountIds())
-        }
+        seedOverviewForHostProcessRestart(isSelected = false)
     }
 
-    private class PersistenceSeedRule : ExternalResource() {
-        override fun before(): Unit {
-            val context: Context = ApplicationProvider.getApplicationContext()
-            runBlocking {
-                val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
-                val account: Account = fixtures.createFirstAccount()
-                val month: YearMonth = YearMonth.now()
-                fixtures.accounts.saveAccount(account.id, account.name, 100_000L, month.atDay(1).toEpochDay())
-                fixtures.transactions.save(
-                    TransactionDraft(
-                        accountId = account.id,
-                        amountMinor = 200L,
-                        direction = TransactionDirection.INCOME,
-                        date = LocalDate.now().toEpochDay(),
-                        note = null,
-                    ),
-                )
-                AppPreferences(context).saveOverviewAccountIds(setOf(account.id))
-            }
+    private fun seedOverviewForHostProcessRestart(isSelected: Boolean): Unit {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        runBlocking {
+            val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+            val today: LocalDate = LocalDate.now()
+            val month: YearMonth = YearMonth.from(today)
+            val cash: Account = fixtures.createFirstAccount()
+            val savings: Account = fixtures.createAdditionalAccount("Savings")
+            fixtures.accounts.saveAccount(cash.id, cash.name, 100_000L, month.atDay(1).toEpochDay())
+            fixtures.accounts.saveAccount(savings.id, savings.name, 500_000L, month.atDay(1).toEpochDay())
+            fixtures.transactions.save(
+                TransactionDraft(
+                    accountId = cash.id,
+                    amountMinor = 200L,
+                    direction = TransactionDirection.INCOME,
+                    date = today.toEpochDay(),
+                    note = null,
+                ),
+            )
+            fixtures.transactions.save(
+                TransactionDraft(
+                    accountId = savings.id,
+                    amountMinor = 700L,
+                    direction = TransactionDirection.INCOME,
+                    date = today.toEpochDay(),
+                    note = null,
+                ),
+            )
+            val expectedAccountIds: Set<String> = if (isSelected) setOf(cash.id) else emptySet()
+            AppPreferences(context).saveOverviewAccountIds(expectedAccountIds)
+            assertEquals(expectedAccountIds, AppPreferences(context).loadOverviewAccountIds())
         }
     }
 }

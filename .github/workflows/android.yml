@@ -21,6 +21,12 @@ jobs:
           java-version: '17'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check host persistence runner
+        run: python -m unittest discover -s scripts -p 'test_*.py'
       - name: Run formatting, lint, and JVM tests
         run: ./gradlew ktlintCheck lintDebug testDebugUnitTest --console=plain
       - name: Run Android tests on Android 10
@@ -30,7 +36,9 @@ jobs:
           target: default
           arch: x86_64
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --console=plain
+          script: |
+            python scripts/verify_overview_persistence.py
+            ./gradlew connectedDebugAndroidTest --console=plain
       - name: Upload Android test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,4 +48,5 @@ jobs:
             app/build/reports
             app/build/outputs/androidTest-results
             app/build/outputs/connected_android_test_additional_output
+            build/overview-persistence
           if-no-files-found: ignore

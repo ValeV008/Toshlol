@@ -114,6 +114,26 @@ adb shell am instrument -w -e class "com.toshlol.personalfinance.TransactionFlow
 
 Replace the class and method with the test under investigation. The emulator or device must be connected to `adb`.
 
+### Overview selection across process restarts
+
+Run the host-side persistence check against an Android 10 (API 29) test emulator:
+
+```powershell
+python scripts/verify_overview_persistence.py --serial emulator-5554
+```
+
+Requires Python 3.10+, `adb` on PATH, and the normal Android build environment. The runner builds and installs both debug APKs; use `--skip-build` after building them yourself. It reads the application IDs and APK filenames from Gradle output metadata. `--serial` defaults to `ANDROID_SERIAL`, or the only online device. It accepts only an API 29 emulator because the seed tests replace the target app's ledger and display selection. A signing mismatch fails installation without uninstalling the existing app.
+
+`OverviewPersistenceHandoffTest` seeds Cash with a 1,000 opening balance and 2 Income, plus an unselected Savings Account with a 5,000 opening balance and 7 Income. The host runs each seed method separately, checks the instrumentation result, force-stops the app, verifies its process has stopped, and launches `MainActivity`. It asserts the displayed Closing balance, Income, Expenses, net, activity, and both Account switches. Selected Cash must show 1,002 and 2 Income; an explicitly empty selection must show zero totals, no matching activity, and both switches off. These are post-relaunch UI assertions, independent of the seed test process.
+
+Every run creates a new directory under `build/overview-persistence/` with Overview/activity/drawer XML and PNG evidence for both states, seed results, command output, logcat, and a success result JSON. Failures return a nonzero exit code and attempt a final screenshot and hierarchy capture. `--output-dir` selects a new evidence directory. The emulator retains the final fixture state. CI runs this check before the connected suite inside the same emulator session, so its evidence is collected even if another Android test subsequently fails, and uploads the evidence even on failure.
+
+The host assertions have emulator-free regression tests:
+
+```powershell
+python -m unittest discover -s scripts -p 'test_*.py'
+```
+
 ### Local Git hooks
 
 The repository includes local hooks and does not require a Git hosting service. Enable them once in each clone from PowerShell:

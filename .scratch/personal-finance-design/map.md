@@ -35,6 +35,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 
 - Each feature slice includes public behavior, persisted state where applicable, UI integration, named tests, and visual evidence. The final verification ticket does not defer feature-level testing.
 - Issue 01 has passing API 29 emulator journeys and screenshots for Overview, Account drawer, selected-account month navigation, and saved/empty selection after host-driven process restarts. The issue records the test and lint commands plus captured UI hierarchy evidence.
+- Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. CI runs it before the connected suite and uploads each run's evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.
 - Budget tickets 06-07 include their own schema, migration, validation, and complete-record Backup paths. Ticket 10 delivers the styled document-management journey over those working contracts.
 - Before legacy Budget schema/data mutation, 06 must document a deterministic lossless mapping and resolve any product-dependent missing Account-scope choice from the parent spec. The approved breakdown does not invent that mapping or authorize data loss.

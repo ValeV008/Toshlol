@@ -5,6 +5,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOn
@@ -16,6 +17,7 @@ import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -51,6 +53,7 @@ import java.time.YearMonth
 class TransactionFlowTest {
     private val composeRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> = createAndroidComposeRule()
     private val ui: FinanceUiDriver = FinanceUiDriver(composeRule)
+    private var filterTestDate: LocalDate = LocalDate.now()
 
     @get:Rule
     val rules: RuleChain =
@@ -322,7 +325,7 @@ class TransactionFlowTest {
 
     @Test
     fun navigateFilterTransactionsAndQuickAddFromEveryMainArea() {
-        val currentDate: LocalDate = LocalDate.now()
+        val currentDate: LocalDate = filterTestDate
         ui.showText("EUR ledger is ready.")
         navigateTo("Transactions")
         ui.showText("Month (YYYY-MM, blank for all)").assert(hasSetTextAction())
@@ -344,7 +347,7 @@ class TransactionFlowTest {
                 .boundsInRoot.top
         assertTrue(newerPosition < olderPosition)
         ui.enterText("Month (YYYY-MM, blank for all)", currentDate.toString().take(7))
-        ui.showText("Expense · EUR 8.25")
+        showTransactionRow("Expense · EUR 8.25")
         composeRule.onNodeWithText("Expense · EUR 4.00").assertDoesNotExist()
         ui.enterText("Month (YYYY-MM, blank for all)", currentDate.minusMonths(1).toString().take(7))
         ui.showText("Expense · EUR 4.00")
@@ -423,6 +426,13 @@ class TransactionFlowTest {
                 else -> "Currency: EUR"
             }
         ui.showText(screenText)
+    }
+
+    private fun showTransactionRow(text: String) {
+        composeRule.waitUntil(15_000) {
+            composeRule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText(text, useUnmergedTree = true).performScrollTo().assertIsDisplayed()
     }
 
     private fun accountId(name: String): String {
@@ -506,7 +516,7 @@ class TransactionFlowTest {
         }
     }
 
-    private class SeedLedgerRule : TestWatcher() {
+    private inner class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
             if (description.methodName == "changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags") {
                 val context: Context = ApplicationProvider.getApplicationContext()
@@ -582,6 +592,7 @@ class TransactionFlowTest {
                 return
             }
             if (description.methodName != "navigateFilterTransactionsAndQuickAddFromEveryMainArea") return
+            filterTestDate = LocalDate.now()
             val context: Context = ApplicationProvider.getApplicationContext()
             runBlocking {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
@@ -616,7 +627,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 825,
                         direction = TransactionDirection.EXPENSE,
-                        date = LocalDate.now().toEpochDay(),
+                        date = filterTestDate.toEpochDay(),
                         note = null,
                         categoryId = category.id,
                         tagIds = setOf(tag.id),
@@ -627,7 +638,7 @@ class TransactionFlowTest {
                         accountId = savingsAccount.id,
                         amountMinor = 600,
                         direction = TransactionDirection.EXPENSE,
-                        date = LocalDate.now().toEpochDay(),
+                        date = filterTestDate.toEpochDay(),
                         note = null,
                     ),
                 )
@@ -636,7 +647,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 500,
                         direction = TransactionDirection.EXPENSE,
-                        date = LocalDate.now().toEpochDay(),
+                        date = filterTestDate.toEpochDay(),
                         note = null,
                         categoryId = transportCategory.id,
                     ),
@@ -646,7 +657,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 300,
                         direction = TransactionDirection.EXPENSE,
-                        date = LocalDate.now().toEpochDay(),
+                        date = filterTestDate.toEpochDay(),
                         note = null,
                         categoryId = category.id,
                         tagIds = setOf(dinnerTag.id),
@@ -657,7 +668,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 400,
                         direction = TransactionDirection.EXPENSE,
-                        date = LocalDate.now().minusMonths(1).toEpochDay(),
+                        date = filterTestDate.minusMonths(1).toEpochDay(),
                         note = null,
                     ),
                 )

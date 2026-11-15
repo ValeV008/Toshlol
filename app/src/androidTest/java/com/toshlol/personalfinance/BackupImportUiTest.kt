@@ -40,9 +40,9 @@ class BackupImportUiTest {
             composeRule.onAllNodesWithText("EUR ledger is ready.").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText("Settings").performClick()
+        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         composeRule.onNodeWithText("Import Backup (Merge)").performClick()
-        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        assertTrue("Android document picker did not open", device.wait(Until.hasObject(By.text("Recent")), 10_000))
+        assertTrue("Android document picker did not open", device.wait(Until.hasObject(By.pkg("com.android.documentsui")), 10_000))
         device.pressBack()
         composeRule.onNodeWithText("Backup import canceled.").assertIsDisplayed()
     }

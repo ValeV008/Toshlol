@@ -20,6 +20,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import com.toshlol.personalfinance.data.BackupAccount
 import com.toshlol.personalfinance.data.BackupSettings
+import com.toshlol.personalfinance.data.BackupTransfer
 import com.toshlol.personalfinance.data.FinanceBackup
 import com.toshlol.personalfinance.data.FinanceBackupCodec
 import org.junit.Assert.assertTrue
@@ -81,6 +82,10 @@ class BackupImportUiTest {
         composeRule.onNodeWithText("Account: Imported account").assertIsDisplayed()
         composeRule.onNodeWithText("Accounts").performClick()
         composeRule.onNodeWithText("Imported account").assertIsDisplayed()
+        composeRule.onNodeWithText("Balance Â· USD 75.00").assertIsDisplayed()
+        composeRule.onNodeWithText("View Imported account history").performClick()
+        composeRule.onNodeWithText("Transfer out Â· USD 25.00").assertIsDisplayed()
+        composeRule.onNodeWithText("Back to overview").performClick()
         composeRule.onNodeWithText("Settings").performClick()
         composeRule.onNodeWithText("Delete all local data").performScrollTo().performClick()
         composeRule.onNodeWithText("Delete all local data?").assertIsDisplayed()
@@ -103,11 +108,15 @@ class BackupImportUiTest {
             FinanceBackup(
                 schemaVersion = 2,
                 settings = BackupSettings("USD"),
-                accounts = listOf(BackupAccount("imported-account", "Imported account", "BANK", 1L, 2L, 0L, 0L, false)),
+                accounts =
+                    listOf(
+                        BackupAccount("imported-account", "Imported account", "BANK", 1L, 2L, 10_000L, 0L, false),
+                        BackupAccount("destination-account", "Destination account", "CASH", 1L, 2L, -500L, 0L, false),
+                    ),
                 categories = emptyList(),
                 tags = emptyList(),
                 transactions = emptyList(),
-                transfers = emptyList(),
+                transfers = listOf(BackupTransfer("imported-transfer", "imported-account", "destination-account", 2_500L, 1L, 1L, 2L)),
                 budgets = emptyList(),
             )
         context.contentResolver.openOutputStream(destination).use { output ->

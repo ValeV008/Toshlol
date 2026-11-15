@@ -43,7 +43,7 @@ class FirstRunFlowTest {
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
         waitForText("Overview")
         composeRule.onNodeWithText("EUR ledger is ready.").assertIsDisplayed()
-        composeRule.onNodeWithText("No transactions yet").assertIsDisplayed()
+        composeRule.onNodeWithText("No transactions yet").performScrollTo().assertIsDisplayed()
         val actualSnapshot: FirstRunSnapshot =
             runBlocking {
                 RoomAccountRepository(AppDatabase.getInstance(composeRule.activity)).loadSetup()

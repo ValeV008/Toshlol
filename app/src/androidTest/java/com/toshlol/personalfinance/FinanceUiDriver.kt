@@ -16,8 +16,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
 
 /** Waits for observable UI state, including controls created by lazy containers. */
 class FinanceUiDriver(
@@ -71,12 +72,10 @@ class FinanceUiDriver(
                 view.context.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(view.windowToken, 0)
             }
         }
+        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        if (device.findObject(By.pkg("com.google.android.inputmethod.latin")) != null) device.pressBack()
         rule.waitUntil(TIMEOUT_MILLIS) {
-            rule.runOnUiThread {
-                WindowInspector.getGlobalWindowViews().none { view: View ->
-                    ViewCompat.getRootWindowInsets(view)?.isVisible(WindowInsetsCompat.Type.ime()) == true
-                }
-            }
+            device.findObject(By.pkg("com.google.android.inputmethod.latin")) == null
         }
     }
 

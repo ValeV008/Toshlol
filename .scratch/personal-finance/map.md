@@ -10,5 +10,5 @@
 | [06: Export versioned Backup](issues/06-export-versioned-backup.md) | resolved | Backup export |
 | [07: Merge imported Backup](issues/07-merge-imported-backup.md) | resolved | Backup Merge |
 | [08: Overwrite data and reset locally](issues/08-overwrite-and-reset-data.md) | resolved | Backup Overwrite and reset |
-| [09: Verify and package the sideloadable app](issues/09-verify-and-package-sideloadable-app.md) | ready-for-agent | CI and local APK packaging |
+| [09: Verify and package the sideloadable app](issues/09-verify-and-package-sideloadable-app.md) | resolved | CI and local APK packaging |
 | [10: Transfer flows and activity](issues/10-transfer-flows-and-activity.md) | resolved | Transfers, Account balances, and Account activity history |

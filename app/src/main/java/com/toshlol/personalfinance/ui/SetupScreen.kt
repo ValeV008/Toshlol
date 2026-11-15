@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +49,7 @@ fun SetupScreen(
     onAccountTypeChanged: (AccountType) -> Unit,
     onSubmit: () -> Unit,
 ) {
+    val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
     Column(
         modifier =
             Modifier
@@ -75,7 +78,14 @@ fun SetupScreen(
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        Button(onClick = onSubmit, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = {
+                keyboardController?.hide()
+                onSubmit()
+            },
+            enabled = !state.isSaving,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text(if (state.isSaving) "Saving account…" else "Create account")
         }
     }

@@ -187,7 +187,7 @@ class TransactionFlowTest {
         ui.click(hasText("Transfer out", substring = true))
         ui.enterText("Amount", "4.00", "transfer-form")
         ui.clickText("Save")
-        ui.showText("Transfer out", substring = true)
+        ui.showText("EUR 4.00", substring = true)
         navigateTo("Overview")
         ui.showText("Cash · Cash · EUR -4.00")
         ui.showText("Reserve · Bank · EUR 9.00")
@@ -429,6 +429,7 @@ class TransactionFlowTest {
     }
 
     private fun showTransactionRow(text: String) {
+        ui.dismissKeyboard()
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }

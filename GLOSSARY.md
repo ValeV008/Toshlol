@@ -24,6 +24,10 @@ _Avoid_: Wallet, balance
 The signed amount in an Account at the start of a chosen date, before that date's recorded movements.
 _Avoid_: Starting amount
 
+**Closing balance**:
+The signed amount in an Account at the end of a selected calendar month, including its Opening balance and all applicable movements through that month's last day.
+_Avoid_: Monthly net
+
 **Category**:
 A user-created classification for either Income or Expense Transactions, never both; Expense Categories may also have monthly Budgets. Categories are optional on Transactions and may be archived.
 _Avoid_: Type, bucket
@@ -33,7 +37,7 @@ A reusable label for Transactions; a Tag associated with a Category can only be 
 _Avoid_: Label, keyword
 
 **Budget**:
-A monthly spending limit for one Expense Category.
+A named, user-created spending limit for a nonempty selection of Accounts, optionally restricted by Expense Categories and Tags, that repeats each calendar month. Spending is counted separately for each month, with no unused amount or overspending carried over. Budgets may overlap and track their limits independently.
 _Avoid_: Goal, allowance
 
 ## Backup

@@ -2,7 +2,7 @@
 
 Parent: [Personal Finance Design](spec.md)
 
-The user approved this 11-ticket breakdown, including its sizes and blocking edges. Publication is documentation-only; none of these tickets is claimed or implemented.
+The user approved this 11-ticket breakdown, including its sizes and blocking edges. Tickets were initially published as documentation only; issue 01 is now claimed and has an implementation commit, with feature-specific UI verification still outstanding.
 
 ## Implementation map
 

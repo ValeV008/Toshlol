@@ -41,3 +41,7 @@ Blocked by: None (can start immediately)
 Own the shared visual foundation, month context, and Overview/right-drawer journey. Preserve existing screens instead of removing them before their replacement tickets land. Ticket 02 extends the scope to tabs/directional lists; ticket 04 completes Account/history presentation. Do not introduce Category icons, sample profile data, search, fabricated percentages, or seeded data.
 
 Each slice must remain independently demoable and keep existing callers and relevant checks working. Include the feature's behavior and UI verification in this ticket rather than deferring them to the final integration ticket. Follow the parent spec's exclusions and existing ADRs.
+
+## Comments
+
+- 2026-11-15: Implementation committed as `ea9c3f6` (`Implement account-scoped monthly overview`). The month-end projection, persistent Account selection, right-edge drawer, month navigation, and Overview styling are implemented. Kotlin compilation, the existing JVM test task, ktlint, and Android lint passed through the commit hook. The named Overview/drawer behavior tests and Android 10 UI/screenshot evidence are still outstanding, so this ticket remains claimed rather than resolved.

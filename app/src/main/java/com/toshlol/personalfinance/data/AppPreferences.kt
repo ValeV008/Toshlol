@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 
@@ -17,6 +18,7 @@ class AppPreferences(
 ) {
     private val currencyKey: Preferences.Key<String> = stringPreferencesKey("selected_currency")
     private val setupCompleteKey: Preferences.Key<Boolean> = booleanPreferencesKey("setup_complete")
+    private val selectedOverviewAccountsKey: Preferences.Key<Set<String>> = stringSetPreferencesKey("overview_account_ids")
 
     suspend fun loadLegacyCurrency(): String? = context.dataStore.data.first()[currencyKey]
 
@@ -25,5 +27,14 @@ class AppPreferences(
             preferences.remove(currencyKey)
             preferences.remove(setupCompleteKey)
         }
+    }
+
+    suspend fun loadOverviewAccountIds(): Set<String> =
+        context.dataStore.data
+            .first()[selectedOverviewAccountsKey]
+            .orEmpty()
+
+    suspend fun saveOverviewAccountIds(accountIds: Set<String>) {
+        context.dataStore.edit { preferences -> preferences[selectedOverviewAccountsKey] = accountIds }
     }
 }

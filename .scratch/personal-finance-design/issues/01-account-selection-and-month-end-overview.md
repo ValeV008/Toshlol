@@ -1,6 +1,6 @@
 # 01: Account selection and month-end Overview
 
-Status: ready-for-agent
+Status: claimed
 Blocked by: None (can start immediately)
 
 **What to build:** Choose Accounts in a persistent right-side drawer and review their combined month-end Closing balance, monthly Income, Expenses, net, and recent activity on a redesigned Overview. This first working slice establishes the shared visual components and monthly projection used by later screens.

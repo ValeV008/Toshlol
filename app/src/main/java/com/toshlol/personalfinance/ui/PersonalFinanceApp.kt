@@ -47,6 +47,8 @@ data class LedgerNavigationActions(
     val accountChanged: (String?) -> Unit = {},
     val categoryChanged: (String?) -> Unit = {},
     val tagChanged: (String?) -> Unit = {},
+    val overviewAccountToggled: (String) -> Unit = {},
+    val accountDrawerChanged: (Boolean) -> Unit = {},
 )
 
 data class SetupActions(
@@ -232,6 +234,9 @@ fun PersonalFinanceApp(
                                     createTransfer = actions.transfers.create,
                                     editTransfer = actions.transfers.edit,
                                     openAccountHistory = actions.accountHistory.open,
+                                    monthChanged = actions.navigation.monthChanged,
+                                    overviewAccountToggled = actions.navigation.overviewAccountToggled,
+                                    accountDrawerChanged = actions.navigation.accountDrawerChanged,
                                 ),
                         )
                     else ->

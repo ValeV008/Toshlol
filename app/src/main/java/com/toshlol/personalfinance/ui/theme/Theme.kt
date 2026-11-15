@@ -9,11 +9,11 @@ import androidx.compose.ui.graphics.Color
 
 private val ToshlolLightColors: ColorScheme =
     lightColorScheme(
-        primary = Color(0xFF0F766E),
-        secondary = Color(0xFF0F766E),
-        background = Color(0xFFF8FAFC),
+        primary = Color(0xFFFFD23F),
+        secondary = Color(0xFF292B2F),
+        background = Color(0xFFF1F2F4),
         surface = Color.White,
-        onPrimary = Color.White,
+        onPrimary = Color(0xFF292B2F),
         onSecondary = Color.White,
         onBackground = Color(0xFF0F172A),
         onSurface = Color(0xFF0F172A),

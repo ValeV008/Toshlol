@@ -1,34 +1,61 @@
 package com.toshlol.personalfinance.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FinanceTransfer
+import com.toshlol.personalfinance.data.MonthlyOverview
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Currency
+
+private val Charcoal: Color = Color(0xFF292B2F)
+private val OverviewYellow: Color = Color(0xFFFFD23F)
+private val PageGray: Color = Color(0xFFF1F2F4)
+private val IncomeGreen: Color = Color(0xFF24834A)
+private val ExpenseRed: Color = Color(0xFFBE3B3B)
+private val EDGE_GESTURE_WIDTH = 32.dp
+private val EDGE_GESTURE_DISTANCE = 48.dp
+private const val DRAWER_WIDTH_FRACTION: Float = 0.86f
+private const val DRAWER_OVERLAY_ALPHA: Float = 0.35f
 
 data class OverviewScreenActions(
     val create: (TransactionDirection) -> Unit,
@@ -39,6 +66,9 @@ data class OverviewScreenActions(
     val createTransfer: () -> Unit,
     val editTransfer: (FinanceTransfer) -> Unit,
     val openAccountHistory: (String) -> Unit,
+    val monthChanged: (String) -> Unit,
+    val overviewAccountToggled: (String) -> Unit,
+    val accountDrawerChanged: (Boolean) -> Unit,
 )
 
 @Composable
@@ -48,110 +78,231 @@ fun OverviewScreen(
     actions: OverviewScreenActions,
 ): Unit {
     val keyboardController = LocalSoftwareKeyboardController.current
-    LaunchedEffect(state.isFormVisible) {
+    androidx.compose.runtime.LaunchedEffect(state.isFormVisible) {
         if (!state.isFormVisible) keyboardController?.hide()
     }
-    val currentMonth: List<FinanceTransaction> =
-        state.transactions.filter {
-            LocalDate.ofEpochDay(it.date).month == LocalDate.now().month &&
-                LocalDate.ofEpochDay(it.date).year == LocalDate.now().year
-        }
-    val income: Long = currentMonth.filter { it.direction == TransactionDirection.INCOME }.sumOf { it.amountMinor }
-    val expense: Long = currentMonth.filter { it.direction == TransactionDirection.EXPENSE }.sumOf { it.amountMinor }
-    val currentBudgetMonth: YearMonth = YearMonth.now()
-    val currentBudgets: List<CategoryBudget> = state.budgets.filter { it.month == currentBudgetMonth }
-    val recentActivity: List<OverviewActivityItem> = buildOverviewActivityItems(state.transactions, state.transfers)
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Overview", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-        Text("${state.currency} ledger is ready.", style = MaterialTheme.typography.bodyLarge)
-        Text("This month · ${state.currency}", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Income  ${state.currency} ${formatMoney(
-                income,
-                state.currency,
-            )}     Expenses  ${state.currency} ${formatMoney(expense, state.currency)}",
-        )
-        Text("Net  ${state.currency} ${formatMoney(income - expense, state.currency)}", style = MaterialTheme.typography.titleLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
-            Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
-            Button(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
-        }
-        if (currentBudgets.isNotEmpty()) {
-            Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-            currentBudgets.forEach { budget: CategoryBudget ->
-                Text(
-                    "${budget.categoryName} · ${state.currency} ${formatMoney(
-                        budget.spentMinor,
-                        state.currency,
-                    )} / ${formatMoney(
-                        budget.limitMinor,
-                        state.currency,
-                    )} · ${if (budget.isOverBudget) "Over budget" else "Remaining ${formatMoney(budget.remainingMinor, state.currency)}"}",
+    val selectedMonth: YearMonth = runCatching { YearMonth.parse(state.selectedMonth) }.getOrDefault(YearMonth.now())
+    val projection: MonthlyOverview = state.monthlyOverview
+    val budgets: List<CategoryBudget> = state.budgets.filter { it.month == selectedMonth }
+    val activity: List<OverviewActivityItem> = buildOverviewActivityItems(projection.transactions, projection.transfers)
+    Box(
+        modifier =
+            Modifier.fillMaxSize().background(PageGray).pointerInput(state.isAccountDrawerOpen) {
+                var dragStartX: Float = 0f
+                var dragAmount: Float = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        dragStartX = offset.x
+                        dragAmount = 0f
+                    },
+                    onHorizontalDrag = { change, amount ->
+                        dragAmount += amount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        if (dragStartX > size.width - EDGE_GESTURE_WIDTH.toPx() &&
+                            dragAmount < -EDGE_GESTURE_DISTANCE.toPx()
+                        ) {
+                            actions.accountDrawerChanged(true)
+                        }
+                        if (state.isAccountDrawerOpen && dragAmount > EDGE_GESTURE_DISTANCE.toPx()) actions.accountDrawerChanged(false)
+                    },
                 )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Organize categories and tags") }
-            OutlinedButton(onClick = actions.openBudgets, modifier = Modifier.weight(1f).testTag("open-budgets")) { Text("Budgets") }
-        }
-        if (recentActivity.isEmpty()) {
-            Text("No transactions yet")
-            Text("Record income or an expense to start your history.")
-        } else {
-            Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-            recentActivity.forEach { activity: OverviewActivityItem ->
-                val transaction: FinanceTransaction? = activity.transaction
-                val transfer: FinanceTransfer? = activity.transfer
-                Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                    if (transaction != null) {
-                        val isAccountActive: Boolean = state.accounts.firstOrNull { it.id == transaction.accountId }?.isArchived == false
-                        TextButton(onClick = { actions.edit(transaction) }, enabled = isAccountActive) {
-                            Text(
-                                "${transaction.direction.name.lowercase().replaceFirstChar(
-                                    Char::uppercase,
-                                )} · ${state.currency} ${formatMoney(transaction.amountMinor, state.currency)}",
+            },
+    ) {
+        Column(
+            modifier =
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).semantics {
+                    customActions =
+                        listOf(
+                            CustomAccessibilityAction("Open Account selection") {
+                                actions.accountDrawerChanged(true)
+                                true
+                            },
+                        )
+                },
+        ) {
+            OverviewMonthHeader(selectedMonth, actions.monthChanged)
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("CLOSING BALANCE", color = Color(0xFF686B70), style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            "${state.currency} ${formatMoney(projection.closingBalanceMinor, state.currency)}",
+                            style = MaterialTheme.typography.headlineLarge,
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SummaryAmount("Income", projection.incomeMinor, state.currency, IncomeGreen, Modifier.weight(1f))
+                            SummaryAmount("Expenses", projection.expenseMinor, state.currency, ExpenseRed, Modifier.weight(1f))
+                            SummaryAmount(
+                                "Net",
+                                projection.incomeMinor - projection.expenseMinor,
+                                state.currency,
+                                Charcoal,
+                                Modifier.weight(1f),
                             )
                         }
-                        Text(
-                            "${LocalDate.ofEpochDay(
-                                transaction.date,
-                            )} · ${transaction.accountName}${transaction.categoryName?.let {
-                                " · $it"
-                            }.orEmpty()}${transaction.tagNames.takeIf {
-                                it
-                                    .isNotEmpty()
-                            }?.joinToString(
-                                prefix = " · ",
-                            ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
-                        )
-                        TextButton(onClick = { actions.delete(transaction.id) }, enabled = isAccountActive) { Text("Delete") }
-                    } else if (transfer != null) {
-                        val isTransferEditable: Boolean =
-                            state.accounts
-                                .filter { it.id == transfer.sourceAccountId || it.id == transfer.destinationAccountId }
-                                .all { !it.isArchived }
-                        TextButton(onClick = { actions.editTransfer(transfer) }, enabled = isTransferEditable) {
-                            Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}")
-                        }
-                        Text(
-                            "${LocalDate.ofEpochDay(
-                                transfer.date,
-                            )} · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}",
-                        )
                     }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { actions.create(TransactionDirection.EXPENSE) },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Add expense") }
+                    Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+                    Button(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer") }
+                }
+                if (budgets.isNotEmpty()) {
+                    Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                    budgets.forEach { budget -> BudgetCard(budget, state.currency) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
+                    OutlinedButton(
+                        onClick = actions.openBudgets,
+                        modifier = Modifier.weight(1f).testTag("open-budgets"),
+                    ) { Text("Budgets") }
+                }
+                Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                state.accounts.filter { it.id in state.selectedOverviewAccountIds }.forEach { account ->
+                    AccountCard(account, projection.closingBalancesMinor[account.id] ?: 0L, state.currency, actions.openAccountHistory)
+                }
+                Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                if (activity.isEmpty()) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                        Text("No activity for this month and Account selection.", Modifier.padding(18.dp))
+                    }
+                } else {
+                    activity.forEach { item -> ActivityCard(item, state, actions) }
                 }
             }
         }
-        Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        state.accounts.forEach { account ->
-            val archiveLabel: String = if (account.isArchived) " · Archived" else ""
-            val balanceLabel: String = "${state.currency} ${formatMoney(account.balanceMinor, state.currency)}"
-            TextButton(onClick = { actions.openAccountHistory(account.id) }) {
-                Text("${account.name} · ${account.type.label}$archiveLabel · $balanceLabel")
+        if (state.isAccountDrawerOpen) {
+            AccountSelectionDrawer(state, projection, actions)
+        }
+    }
+}
+
+@Composable
+private fun OverviewMonthHeader(
+    month: YearMonth,
+    monthChanged: (String) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().background(Charcoal).padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 18.dp)) {
+        Text("Overview", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(onClick = {
+                monthChanged(month.minusMonths(1).toString())
+            }) { Text("‹", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            Text(
+                month.format(
+                    java.time.format.DateTimeFormatter
+                        .ofPattern("MMMM yyyy"),
+                ),
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+            )
+            TextButton(onClick = {
+                monthChanged(month.plusMonths(1).toString())
+            }) { Text("›", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+        }
+    }
+}
+
+@Composable
+private fun SummaryAmount(
+    label: String,
+    amountMinor: Long,
+    currency: String,
+    color: Color,
+    modifier: Modifier,
+) {
+    Column(modifier) {
+        Text(label, color = Color(0xFF686B70), style = MaterialTheme.typography.labelMedium)
+        Text(formatMoney(amountMinor, currency), color = color, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun AccountCard(
+    account: Account,
+    balanceMinor: Long,
+    currency: String,
+    openHistory: (String) -> Unit,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp), onClick = {
+        openHistory(account.id)
+    }) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            Column {
+                Text(account.name, style = MaterialTheme.typography.titleMedium)
+                Text(account.type.label + if (account.isArchived) " · Archived" else "", style = MaterialTheme.typography.bodySmall)
+            }
+            Text("$currency ${formatMoney(balanceMinor, currency)}", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+@Composable
+private fun BudgetCard(
+    budget: CategoryBudget,
+    currency: String,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(budget.categoryName, style = MaterialTheme.typography.titleMedium)
+            Text("$currency ${formatMoney(budget.spentMinor, currency)} of ${formatMoney(budget.limitMinor, currency)}")
+            Text(if (budget.isOverBudget) "Over budget" else "Remaining $currency ${formatMoney(budget.remainingMinor, currency)}")
+        }
+    }
+}
+
+@Composable
+private fun AccountSelectionDrawer(
+    state: TransactionsUiState,
+    projection: MonthlyOverview,
+    actions: OverviewScreenActions,
+) {
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = DRAWER_OVERLAY_ALPHA)), contentAlignment = Alignment.CenterEnd) {
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(
+                    DRAWER_WIDTH_FRACTION,
+                ).shadow(12.dp)
+                .background(Color.White)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Accounts", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
+                TextButton(onClick = { actions.accountDrawerChanged(false) }) { Text("Close") }
+            }
+            Text(
+                projection.month.format(
+                    java.time.format.DateTimeFormatter
+                        .ofPattern("MMMM yyyy"),
+                ),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            state.accounts.forEach { account ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(account.name, style = MaterialTheme.typography.titleMedium)
+                        if (account.isArchived) Text("Archived", style = MaterialTheme.typography.bodySmall)
+                        Text("${state.currency} ${formatMoney(projection.closingBalancesMinor[account.id] ?: 0L, state.currency)}")
+                    }
+                    Switch(
+                        checked = account.id in state.selectedOverviewAccountIds,
+                        onCheckedChange = { actions.overviewAccountToggled(account.id) },
+                        modifier =
+                            Modifier.semantics {
+                                contentDescription = "${account.name} Account selection"
+                                stateDescription = if (account.id in state.selectedOverviewAccountIds) "Selected" else "Not selected"
+                            },
+                    )
+                }
             }
         }
     }
@@ -164,6 +315,52 @@ private data class OverviewActivityItem(
     val transaction: FinanceTransaction? = null,
     val transfer: FinanceTransfer? = null,
 )
+
+@Composable
+private fun ActivityCard(
+    item: OverviewActivityItem,
+    state: TransactionsUiState,
+    actions: OverviewScreenActions,
+) {
+    val transaction: FinanceTransaction? = item.transaction
+    val transfer: FinanceTransfer? = item.transfer
+    val date: LocalDate = LocalDate.ofEpochDay(item.date)
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.fillMaxWidth().padding(14.dp)) {
+            if (transaction != null) {
+                val isEditable: Boolean = state.accounts.firstOrNull { it.id == transaction.accountId }?.isArchived == false
+                TextButton(onClick = { actions.edit(transaction) }, enabled = isEditable) {
+                    Text(
+                        "${transaction.direction.name.lowercase().replaceFirstChar(
+                            Char::uppercase,
+                        )} · ${state.currency} ${formatMoney(transaction.amountMinor, state.currency)}",
+                    )
+                }
+                Text(
+                    "$date · ${transaction.accountName}${transaction.categoryName?.let {
+                        " · $it"
+                    }.orEmpty()}${transaction.tagNames.takeIf {
+                        it
+                            .isNotEmpty()
+                    }?.joinToString(
+                        prefix = " · ",
+                    ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
+                )
+                TextButton(onClick = { actions.delete(transaction.id) }, enabled = isEditable) { Text("Delete") }
+            } else if (transfer != null) {
+                val canEdit: Boolean =
+                    state.accounts
+                        .filter {
+                            it.id == transfer.sourceAccountId || it.id == transfer.destinationAccountId
+                        }.all { !it.isArchived }
+                TextButton(onClick = {
+                    actions.editTransfer(transfer)
+                }, enabled = canEdit) { Text("Transfer · ${state.currency} ${formatMoney(transfer.amountMinor, state.currency)}") }
+                Text("$date · ${transfer.sourceAccountName} → ${transfer.destinationAccountName}")
+            }
+        }
+    }
+}
 
 private fun buildOverviewActivityItems(
     transactions: List<FinanceTransaction>,

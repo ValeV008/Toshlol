@@ -28,6 +28,7 @@ class PersonalFinanceApplication : Application() {
         )
     }
     val firstRunSetup: FirstRunSetup by lazy { FirstRunSetup(accountRepository) }
+    val appPreferences: AppPreferences by lazy { AppPreferences(this) }
     val accountManagement: AccountManagement by lazy { AccountManagement(accountRepository) }
     val transferManagement: TransferManagement by lazy { TransferManagement(transferRepository) }
 }

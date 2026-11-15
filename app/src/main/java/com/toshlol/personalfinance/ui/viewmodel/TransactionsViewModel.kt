@@ -3,6 +3,7 @@ package com.toshlol.personalfinance.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.toshlol.personalfinance.data.Account
+import com.toshlol.personalfinance.data.AppPreferences
 import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.BudgetRepository
 import com.toshlol.personalfinance.data.CategoryBudget
@@ -12,11 +13,13 @@ import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FinanceTransfer
+import com.toshlol.personalfinance.data.MonthlyOverview
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransactionRepository
 import com.toshlol.personalfinance.data.TransferDraft
+import com.toshlol.personalfinance.data.projectMonthlyOverview
 import com.toshlol.personalfinance.domain.AccountDetailsDraft
 import com.toshlol.personalfinance.domain.AccountManagement
 import com.toshlol.personalfinance.domain.FirstRunSetup
@@ -79,13 +82,25 @@ data class TransactionsUiState(
             .toString(),
     val budgetCategoryId: String? = null,
     val budgetAmount: String = "",
-    val selectedMonth: String = "",
+    val selectedMonth: String = YearMonth.now().toString(),
+    val selectedOverviewAccountIds: Set<String> = emptySet(),
+    val isAccountDrawerOpen: Boolean = false,
     val selectedAccountId: String? = null,
     val selectedCategoryId: String? = null,
     val selectedTagId: String? = null,
     val selectedArea: String = "Overview",
     val accountHistoryAccountId: String? = null,
-)
+) {
+    val monthlyOverview: MonthlyOverview
+        get() =
+            projectMonthlyOverview(
+                runCatching { YearMonth.parse(selectedMonth) }.getOrDefault(YearMonth.now()),
+                accounts,
+                transactions,
+                transfers,
+                selectedOverviewAccountIds,
+            )
+}
 
 class TransactionsViewModel(
     private val repository: TransactionRepository,
@@ -94,6 +109,7 @@ class TransactionsViewModel(
     private val categoryTagRepository: CategoryTagRepository,
     private val budgetRepository: BudgetRepository,
     private val transferManagement: TransferManagement,
+    private val preferences: AppPreferences,
 ) : ViewModel() {
     private val mutableUiState: MutableStateFlow<TransactionsUiState> = MutableStateFlow(TransactionsUiState())
     val uiState = mutableUiState.asStateFlow()
@@ -110,6 +126,7 @@ class TransactionsViewModel(
                 val budgets: List<CategoryBudget> = budgetRepository.load()
                 val accounts: List<Account> = setup.accounts
                 val transfers: List<FinanceTransfer> = transferManagement.loadTransfers()
+                val selectedAccountIds: Set<String> = preferences.loadOverviewAccountIds()
                 mutableUiState.value =
                     uiState.value.copy(
                         accountId = account?.id.orEmpty(),
@@ -128,6 +145,7 @@ class TransactionsViewModel(
                         budgets = budgets,
                         accounts = accounts,
                         transfers = transfers,
+                        selectedOverviewAccountIds = selectedAccountIds,
                     )
             } catch (
                 exception: IOException,
@@ -156,6 +174,17 @@ class TransactionsViewModel(
 
     fun updateSelectedMonth(value: String) {
         mutableUiState.value = uiState.value.copy(selectedMonth = value)
+    }
+
+    fun toggleOverviewAccount(id: String) {
+        val selectedAccountIds: Set<String> = uiState.value.selectedOverviewAccountIds
+        val updatedAccountIds: Set<String> = if (id in selectedAccountIds) selectedAccountIds - id else selectedAccountIds + id
+        mutableUiState.value = uiState.value.copy(selectedOverviewAccountIds = updatedAccountIds)
+        viewModelScope.launch { preferences.saveOverviewAccountIds(updatedAccountIds) }
+    }
+
+    fun setAccountDrawerOpen(isOpen: Boolean) {
+        mutableUiState.value = uiState.value.copy(isAccountDrawerOpen = isOpen)
     }
 
     fun updateSelectedAccount(id: String?) {
@@ -532,17 +561,15 @@ class TransactionsViewModel(
     }
 
     fun showBudgets() {
-        mutableUiState.value = uiState.value.copy(selectedArea = "Budgets")
+        val currentState: TransactionsUiState = uiState.value
+        mutableUiState.value = currentState.copy(selectedArea = "Budgets", budgetMonth = currentState.selectedMonth)
         viewModelScope.launch {
             try {
                 mutableUiState.value =
                     uiState.value.copy(
                         isBudgetsVisible = true,
                         budgets = budgetRepository.load(),
-                        budgetMonth =
-                            java.time.YearMonth
-                                .now()
-                                .toString(),
+                        budgetMonth = uiState.value.selectedMonth,
                         budgetCategoryId = null,
                         budgetAmount = "",
                         error = null,
@@ -558,7 +585,7 @@ class TransactionsViewModel(
     }
 
     fun updateBudgetMonth(value: String) {
-        mutableUiState.value = uiState.value.copy(budgetMonth = value, error = null)
+        mutableUiState.value = uiState.value.copy(budgetMonth = value, selectedMonth = value, error = null)
     }
 
     fun updateBudgetCategory(value: String?) {

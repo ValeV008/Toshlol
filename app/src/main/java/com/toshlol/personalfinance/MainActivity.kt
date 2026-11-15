@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     application.categoryTagRepository,
                     application.budgetRepository,
                     application.transferManagement,
+                    application.appPreferences,
                 )
             }
         }
@@ -262,6 +263,8 @@ class MainActivity : ComponentActivity() {
                                     accountChanged = transactionsViewModel::updateSelectedAccount,
                                     categoryChanged = transactionsViewModel::updateSelectedCategory,
                                     tagChanged = transactionsViewModel::updateSelectedTag,
+                                    overviewAccountToggled = transactionsViewModel::toggleOverviewAccount,
+                                    accountDrawerChanged = transactionsViewModel::setAccountDrawerOpen,
                                 ),
                             exportBackup = { exportBackup.launch("Toshlol-Backup.json") },
                             importBackup = importSelectedBackup,

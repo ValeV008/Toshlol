@@ -8,7 +8,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 
 | Issue | Blocked by | Status |
 | --- | --- | --- |
-| [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | ready-for-agent |
+| [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | claimed |
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | ready-for-agent |
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | ready-for-agent |
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | ready-for-agent |

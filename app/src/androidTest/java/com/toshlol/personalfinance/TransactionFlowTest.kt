@@ -12,13 +12,14 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -38,7 +39,11 @@ import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
 import com.toshlol.personalfinance.data.TransferDraft
+import com.toshlol.personalfinance.data.projectMonthlyOverview
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -55,7 +60,6 @@ import java.time.YearMonth
 class TransactionFlowTest {
     private val composeRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> = createAndroidComposeRule()
     private val ui: FinanceUiDriver = FinanceUiDriver(composeRule)
-    private var filterTestDate: LocalDate = LocalDate.now()
 
     @get:Rule
     val rules: RuleChain =
@@ -113,9 +117,210 @@ class TransactionFlowTest {
     }
 
     @Test
+    fun editTransactionKeepsIdentityAndRecalculatesBothAccountBalances() {
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "8.25", "transaction-form")
+        ui.enterText("Note (optional)", "original note", "transaction-form")
+        ui.clickText("Food", "transaction-form")
+        composeRule
+            .onNodeWithTag("transaction-tag-${tagId("Lunch")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsOn()
+        ui.clickText("Save")
+        ui.clickText("Expense \u00b7 EUR 8.25")
+        composeRule.onNodeWithTag("transaction-amount").assert(hasText("EUR 8.25"))
+        composeRule.onNodeWithTag("transaction-direction-EXPENSE").assertIsSelected()
+        ui.showText(LocalDate.now().toString(), "transaction-form")
+        ui.showText("original note", "transaction-form")
+        ui.showText("Food", "transaction-form").assertIsSelected()
+        composeRule.onNodeWithTag("transaction-tag-${tagId("Lunch")}").assertIsOn()
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val repository: com.toshlol.personalfinance.data.RoomTransactionRepository =
+            com.toshlol.personalfinance.data
+                .RoomTransactionRepository(AppDatabase.getInstance(context))
+        val original: com.toshlol.personalfinance.data.FinanceTransaction = runBlocking { repository.loadTransactions().single() }
+        ui.enterText("Note (optional)", "edited after save", "transaction-form")
+        ui.enterText("Amount", "9.00", "transaction-form")
+        ui.clickText("Save")
+        composeRule.activityRule.scenario.recreate()
+        ui.showText("Expense \u00b7 EUR 9.00")
+        val edited: com.toshlol.personalfinance.data.FinanceTransaction = runBlocking { repository.loadTransactions().single() }
+        assertEquals(original.id, edited.id)
+        assertEquals(original.createdAt, edited.createdAt)
+        assertEquals(original.accountId, edited.accountId)
+        assertEquals("edited after save", edited.note)
+        assertNotNull(edited.categoryId)
+        assertEquals(listOf("Lunch"), edited.tagNames)
+        val accountsAfterAmountEdit: List<Account> =
+            runBlocking { FinanceTestFixtures(AppDatabase.getInstance(context)).accounts.loadSetup().accounts }
+        assertEquals(-900L, accountsAfterAmountEdit.single { it.name == "Cash" }.balanceMinor)
+        val monthlyAfterAmountEdit: com.toshlol.personalfinance.data.MonthlyOverview =
+            projectMonthlyOverview(
+                YearMonth.now(),
+                accountsAfterAmountEdit,
+                runBlocking {
+                    repository.loadTransactions()
+                },
+                emptyList(),
+                accountsAfterAmountEdit.map { it.id }.toSet(),
+            )
+        assertEquals(900L, monthlyAfterAmountEdit.expenseMinor)
+        ui.clickText("Expense \u00b7 EUR 9.00")
+        composeRule.onNodeWithTag("transaction-account-${accountId("Savings")}").performScrollTo().performClick()
+        ui.clickText("Save")
+        val moved: com.toshlol.personalfinance.data.FinanceTransaction = runBlocking { repository.loadTransactions().single() }
+        val accounts: List<Account> = runBlocking { FinanceTestFixtures(AppDatabase.getInstance(context)).accounts.loadSetup().accounts }
+        assertEquals(original.id, moved.id)
+        assertEquals(original.createdAt, moved.createdAt)
+        assertEquals(original.categoryId, moved.categoryId)
+        assertEquals(original.tagIds, moved.tagIds)
+        assertEquals(0L, accounts.single { it.name == "Cash" }.balanceMinor)
+        assertEquals(-900L, accounts.single { it.name == "Savings" }.balanceMinor)
+        val monthlyAfterAccountChange: com.toshlol.personalfinance.data.MonthlyOverview =
+            projectMonthlyOverview(
+                YearMonth.now(),
+                accounts,
+                runBlocking {
+                    repository.loadTransactions()
+                },
+                emptyList(),
+                accounts.map { it.id }.toSet(),
+            )
+        assertEquals(900L, monthlyAfterAccountChange.expenseMinor)
+        ui.showOverview()
+    }
+
+    @Test
+    fun validatesAmountAndDateWithoutMutationAndSavesWithoutOptionalFields() {
+        ui.clickText("Add expense")
+        ui.showText(LocalDate.now().toString(), "transaction-form")
+        ui.enterText("Amount", "0", "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Enter a positive amount and a valid date.", "transaction-form")
+        assertEquals(
+            0,
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).transactions.loadTransactions().size
+            },
+        )
+        composeRule.onNodeWithTag("amount-key-C").performClick()
+        composeRule.onNodeWithTag("amount-key-9").performClick()
+        composeRule.onNodeWithTag("amount-key-\u232b").performClick()
+        listOf("1", "2", "3", "4", "5").forEach { digit -> composeRule.onNodeWithTag("amount-key-$digit").performClick() }
+        composeRule.onNodeWithTag("amount-key-\u232b").performClick()
+        ui.enterText("Date (YYYY-MM-DD)", "2026-02-30", "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Enter a positive amount and a valid date.", "transaction-form")
+        assertEquals(
+            0,
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).transactions.loadTransactions().size
+            },
+        )
+        ui.enterText("Date (YYYY-MM-DD)", "2020-01-02", "transaction-form")
+        ui.showText("Uncategorized", "transaction-form").assertIsSelected()
+        composeRule.onNodeWithTag("transaction-save").performClick()
+        val saved: com.toshlol.personalfinance.data.FinanceTransaction =
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).transactions.loadTransactions().single()
+            }
+        assertEquals(1234L, saved.amountMinor)
+        assertEquals(LocalDate.parse("2020-01-02").toEpochDay(), saved.date)
+        assertNull(saved.categoryId)
+        assertTrue(saved.tagIds.isEmpty())
+        assertNull(saved.note)
+        ui.showOverview()
+        ui.showText("No activity for this month and Account selection.")
+        ui.clickText("Add income")
+        ui.enterText("Amount", "7.50", "transaction-form")
+        ui.clickText("Cancel")
+        assertEquals(
+            1,
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).transactions.loadTransactions().size
+            },
+        )
+    }
+
+    @Test
+    fun cancelAndConfirmTransactionDeletionUpdateLedger() {
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "4.00", "transaction-form")
+        ui.clickText("Save")
+        ui.clickText("Expense \u00b7 EUR 4.00")
+        ui.clickText("Delete")
+        ui.showText("Delete transaction?")
+        composeRule.onAllNodesWithText("Cancel").get(1).performClick()
+        assertEquals(2, runBlocking { transactionRepository().loadTransactions().size })
+        ui.clickText("Delete")
+        ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
+        ui.showText("No activity for this month and Account selection.")
+        val remainingTransactions: List<com.toshlol.personalfinance.data.FinanceTransaction> =
+            runBlocking { transactionRepository().loadTransactions() }
+        assertEquals(1, remainingTransactions.size)
+        assertEquals("unrelated record", remainingTransactions.single().note)
+        assertEquals(
+            0L,
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).accounts.loadSetup().accounts.single { it.name == "Cash" }.balanceMinor
+            },
+        )
+        assertEquals(
+            100L,
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).accounts.loadSetup().accounts.single { it.name == "Savings" }.balanceMinor
+            },
+        )
+    }
+
+    @Test
+    fun requiresAnActiveAccountBeforeSavingTransaction() {
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "2.00", "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Choose an active Account.", "transaction-form")
+        assertTrue(
+            runBlocking {
+                FinanceTestFixtures(
+                    AppDatabase.getInstance(ApplicationProvider.getApplicationContext()),
+                ).transactions.loadTransactions().isEmpty()
+            },
+        )
+    }
+
+    @Test
+    fun transactionEntryRemainsUsableAtLargeFontScale() {
+        ui.clickText("Add income")
+        composeRule.onNodeWithTag("transaction-direction-INCOME").assertIsSelected()
+        composeRule.onNodeWithTag("transaction-account-${accountId("Cash")}").assertIsDisplayed()
+        ui.showText("Amount", "transaction-form")
+        ui.showText("Date (YYYY-MM-DD)", "transaction-form")
+        ui.showText("Note (optional)", "transaction-form")
+        ui.showText("Large text tag", "transaction-form")
+        ui.showText("Save").assertHasClickAction()
+        ui.showText("Cancel").assertHasClickAction()
+        ui.clickText("Cancel")
+        ui.showOverview()
+    }
+
+    @Test
     @Suppress("ktlint:standard:no-unit-return")
     fun createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals(): Unit {
-        ui.clickText("Categories & Tags")
+        val previousMonth: YearMonth = YearMonth.now().minusMonths(1)
+        openOrganizer()
         ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("New account name", "Savings", "category-tag-list")
         ui.enterText("New account opening balance", "3.00", "category-tag-list")
@@ -128,21 +333,24 @@ class TransactionFlowTest {
         ui.clickText("Save account details", "category-tag-list")
         ui.showText("Savings · Bank · EUR 5.00", "category-tag-list")
         ui.click(hasText("Edit Cash", substring = true), "category-tag-list")
+        ui.enterText("Account opening date (YYYY-MM-DD)", LocalDate.now().toString(), "category-tag-list")
+        ui.clickText("Save account details", "category-tag-list")
         ui.click(hasText("Edit Savings", substring = true), "category-tag-list")
         ui.showText("2026-01-01", "category-tag-list")
         ui.clickText("Back to overview")
         ui.clickText("Add expense")
         ui.enterText("Amount", "1.00", "transaction-form")
-        ui.enterText("Date (YYYY-MM-DD)", "2020-01-01", "transaction-form")
+        ui.enterText("Date (YYYY-MM-DD)", previousMonth.atEndOfMonth().toString(), "transaction-form")
         ui.clickText("Save")
-        navigateTo("Transactions")
-        ui.enterText("Month (YYYY-MM, blank for all)", "")
-        ui.showText("Expense \u00b7 EUR 1.00")
-        ui.enterText("Month (YYYY-MM, blank for all)", YearMonth.now().toString())
+        navigateTo("Expenses")
+        ui.clickText("<")
+        ui.showText("-EUR 1.00")
+        ui.clickText(">")
+        ui.showText("No Expenses activity for this month and Account selection.")
         navigateTo("Overview")
         ui.selectOverviewAccount("Savings")
         composeRule.onNodeWithText("Expense \u00b7 EUR 1.00").assertDoesNotExist()
-        ui.clickText("Transfer")
+        ui.clickText("Transfer money")
         ui.showText("New Transfer")
         composeRule.onNodeWithTag("transfer-source-${accountId("Cash")}").assertIsNotSelected()
         composeRule.onNodeWithTag("transfer-source-${accountId("Savings")}").assertIsNotSelected()
@@ -166,7 +374,7 @@ class TransactionFlowTest {
         ui.showOverview()
         composeRule.onAllNodesWithText("0.00").assertCountEquals(3)
         composeRule.onNodeWithText("Expense \u00b7 EUR 1.00").assertDoesNotExist()
-        ui.clickText("Categories & Tags")
+        openOrganizer()
         ui.clickText("Manage accounts", "category-tag-list")
         ui.click(hasText("Editing Savings", substring = true), "category-tag-list")
         ui.enterText("Account name", "Reserve", "category-tag-list")
@@ -182,42 +390,47 @@ class TransactionFlowTest {
         ui.showText("Transfer in · EUR 10.00")
         ui.showText("From Cash", substring = true)
         ui.clickText("Back to overview")
-        navigateTo("Transactions")
-        ui.enterText("Month (YYYY-MM, blank for all)", LocalDate.now().toString().take(7))
-        ui.showText("Transfer out", substring = true)
-        assertTrue(
-            composeRule
-                .onAllNodes(hasText("Transfer in", substring = true))
-                .fetchSemanticsNodes()
-                .isNotEmpty(),
-        )
-        ui.clickText("Account: All Account")
-        ui.clickText("Cash")
-        ui.showText("Transfer out", substring = true)
+        navigateTo("Income")
+        ui.showText("+EUR 10.00 \u00b7 Transfer in")
+        composeRule.onAllNodesWithText("+EUR 10.00 \u00b7 Transfer in").assertCountEquals(1)
+        ui.showText("EUR 0.00")
+        toggleLedgerAccount("Reserve", 2)
+        ui.showText("No Income activity for this month and Account selection.")
+        toggleLedgerAccount("Reserve", 1)
+        ui.clickText("+EUR 10.00 \u00b7 Transfer in")
+        ui.showText("10.00", "transfer-form")
+        ui.clickText("Cancel")
+        navigateTo("Expenses")
+        ui.showText("-EUR 10.00 \u00b7 Transfer out")
+        composeRule.onAllNodesWithText("-EUR 10.00 \u00b7 Transfer out").assertCountEquals(1)
+        ui.showText("EUR 0.00")
+        toggleLedgerAccount("Cash", 2)
+        ui.showText("No Expenses activity for this month and Account selection.")
+        toggleLedgerAccount("Cash", 1)
         ui.clickText("Category: All Category")
         ui.clickText("Food")
-        ui.showText("No transactions match these filters.")
+        ui.showText("No Expenses activity for this month and Account selection.")
         ui.clickText("Category: Food")
         ui.clickText("All Category")
         ui.clickText("Tag: All Tag")
         ui.clickText("Lunch")
-        ui.showText("No transactions match these filters.")
+        ui.showText("No Expenses activity for this month and Account selection.")
         ui.clickText("Tag: Lunch")
         ui.clickText("All Tag")
-        ui.showText("Transfer out", substring = true)
-        ui.click(hasText("Transfer out", substring = true))
+        ui.clickText("-EUR 10.00 \u00b7 Transfer out")
         ui.enterText("Amount", "4.00", "transfer-form")
         ui.clickText("Save")
-        ui.showText("EUR 4.00", substring = true)
+        ui.showText("-EUR 4.00 \u00b7 Transfer out")
+        ui.showText("EUR 0.00")
         navigateTo("Overview")
         showOverviewAccount("Cash", "-4.00")
         showOverviewAccount("Reserve", "9.00")
-        navigateTo("Transactions")
-        ui.click(hasText("Transfer out", substring = true))
+        navigateTo("Income")
+        ui.clickText("+EUR 4.00 \u00b7 Transfer in")
         ui.clickText("Delete")
         ui.showText("Delete Transfer?")
         ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
-        ui.showText("No transactions match these filters.")
+        ui.showText("No Income activity for this month and Account selection.")
         navigateTo("Overview")
         showOverviewAccount("Cash", "0.00")
         showOverviewAccount("Reserve", "5.00")
@@ -235,7 +448,7 @@ class TransactionFlowTest {
         ui.enterText("Date (YYYY-MM-DD)", LocalDate.now().toString(), "transaction-form")
         ui.clickText("Save")
         ui.showText("Expense \u00b7 EUR 12.50")
-        ui.showText("Expenses")
+        ui.show(hasText("Expenses") and hasAnySibling(hasText("12.50")))
         ui.showText("12.50")
         ui.showText("Net")
         ui.showText("-12.50")
@@ -253,20 +466,23 @@ class TransactionFlowTest {
         ui.clickText("Add tag", "category-tag-list")
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
         ui.clickText("Back to overview")
-        ui.clickText("Categories & Tags")
+        openOrganizer()
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
         ui.clickText("Back to overview")
         ui.clickText("Add expense")
         ui.enterText("Amount", "8.25", "transaction-form")
         ui.clickText("Food", "transaction-form")
         ui.showText("Food", "transaction-form").assertIsSelected()
-        ui.clickText("Lunch", "transaction-form")
-        ui.showText("Lunch", "transaction-form").assertIsOn()
+        composeRule
+            .onNodeWithTag("transaction-tag-${tagId("Lunch")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsOn()
         ui.clickText("Save")
         ui.showText("Expense \u00b7 EUR 8.25")
         ui.showText("Food", substring = true)
         ui.showText("Lunch", substring = true)
-        ui.clickText("Categories & Tags")
+        openOrganizer()
         ui.clickText("Manage accounts", "category-tag-list")
         ui.enterText("Account name", "Wallet", "category-tag-list")
         ui.show(hasText("Wallet") and hasSetTextAction(), "category-tag-list")
@@ -306,6 +522,7 @@ class TransactionFlowTest {
         createFoodCategory()
         ui.clickText("Back to overview")
         recordFoodExpense()
+        navigateTo("Overview")
         composeRule.onNodeWithTag("open-budgets").performClick()
         ui.clickText("Food")
         ui.showText("Food").assertIsSelected()
@@ -352,97 +569,121 @@ class TransactionFlowTest {
 
     @Test
     fun navigateFilterTransactionsAndQuickAddFromEveryMainArea() {
-        val currentDate: LocalDate = filterTestDate
-        ui.showOverview()
-        navigateTo("Transactions")
-        ui.enterText("Month (YYYY-MM, blank for all)", "")
-        ui.showText("Month (YYYY-MM, blank for all)").assert(hasSetTextAction())
-        ui.showText("Account: All Account").assertHasClickAction()
-        ui.showText("Category: All Category").assertHasClickAction()
-        ui.showText("Tag: All Tag").assertHasClickAction()
-        ui.showText("Add expense").assertHasClickAction()
-        ui.showText("Expense · EUR 8.25")
-        ui.showText("Expense · EUR 4.00")
+        navigateTo("Expenses")
+        verifyLedgerMonthsAndOrdering()
+        verifyLedgerAccountFiltering()
+        verifyLedgerCategoryFiltering()
+        verifyLedgerTagFiltering()
+        navigateTo("Income")
+        ui.showText("No Income activity for this month and Account selection.")
+        ui.showText("EUR 0.00")
+        listOf("Overview", "Expenses", "Income").forEach { area -> verifyMainLedgerActions(area) }
+        verifySecondaryAreaEntry()
+    }
+
+    private fun verifyLedgerMonthsAndOrdering() {
+        ui.showText("EUR 16.25")
+        showTransactionRow("-EUR 8.25")
+        showTransactionRow("-EUR 3.00")
         val newerPosition: Float =
             composeRule
-                .onNodeWithText("Expense · EUR 8.25")
+                .onNodeWithText("-EUR 8.25")
                 .fetchSemanticsNode()
                 .boundsInRoot.top
         val olderPosition: Float =
             composeRule
-                .onNodeWithText("Expense · EUR 4.00")
+                .onNodeWithText("-EUR 3.00")
                 .fetchSemanticsNode()
                 .boundsInRoot.top
         assertTrue(newerPosition < olderPosition)
-        ui.enterText("Month (YYYY-MM, blank for all)", currentDate.toString().take(7))
-        showTransactionRow("Expense · EUR 8.25")
-        composeRule.onNodeWithText("Expense · EUR 4.00").assertDoesNotExist()
-        ui.enterText("Month (YYYY-MM, blank for all)", currentDate.minusMonths(1).toString().take(7))
-        ui.showText("Expense · EUR 4.00")
-        composeRule.onNodeWithText("Expense · EUR 8.25").assertDoesNotExist()
-        ui.enterText("Month (YYYY-MM, blank for all)", currentDate.minusYears(5).toString().take(7))
-        ui.showText("No transactions match these filters.")
-        ui.enterText("Month (YYYY-MM, blank for all)", currentDate.toString().take(7))
-        ui.clickText("Account: All Account")
-        ui.clickText("Cash")
-        composeRule.onNodeWithText("EUR 6.00", substring = true).assertDoesNotExist()
-        ui.clickText("Account: Cash")
-        ui.clickText("All Account")
-        ui.showText("EUR 6.00", substring = true)
-        ui.showText("Expense · EUR 8.25")
+        composeRule.onNodeWithText("-EUR 4.00").assertDoesNotExist()
+        composeRule.onNodeWithText("-EUR 6.00").assertDoesNotExist()
+        ui.clickText("<")
+        ui.showText("EUR 4.00")
+        showTransactionRow("-EUR 4.00")
+        composeRule.onNodeWithText("-EUR 8.25").assertDoesNotExist()
+        ui.clickText("<")
+        ui.showText("No Expenses activity for this month and Account selection.")
+        ui.clickText(">")
+        ui.clickText(">")
+        ui.showText("EUR 16.25")
+    }
+
+    private fun verifyLedgerAccountFiltering() {
+        toggleLedgerAccount("Savings", 1)
+        ui.showText("EUR 22.25")
+        showTransactionRow("-EUR 6.00")
+        toggleLedgerAccount("Savings", 2)
+        ui.showText("EUR 16.25")
+        composeRule.onNodeWithText("-EUR 6.00").assertDoesNotExist()
+    }
+
+    private fun verifyLedgerCategoryFiltering() {
         ui.clickText("Category: All Category")
         ui.clickText("Food")
-        composeRule.onNodeWithText("EUR 5.00", substring = true).assertDoesNotExist()
+        ui.showText("EUR 11.25")
+        composeRule.onNodeWithText("-EUR 5.00").assertDoesNotExist()
         ui.clickText("Category: Food")
         ui.clickText("All Category")
-        ui.showText("EUR 5.00", substring = true)
-        ui.showText("Expense · EUR 8.25")
+        ui.showText("EUR 16.25")
+        showTransactionRow("-EUR 5.00")
+    }
+
+    private fun verifyLedgerTagFiltering() {
         ui.clickText("Tag: All Tag")
         ui.clickText("Lunch")
-        composeRule.onNodeWithText("EUR 3.00", substring = true).assertDoesNotExist()
+        ui.showText("EUR 8.25")
+        showTransactionRow("-EUR 8.25")
+        composeRule.onNodeWithText("-EUR 3.00").assertDoesNotExist()
         ui.clickText("Tag: Lunch")
         ui.clickText("All Tag")
-        ui.showText("EUR 3.00", substring = true)
-        ui.showText("Expense · EUR 8.25")
-        ui.enterText("Month (YYYY-MM, blank for all)", "")
-        ui.showText("EUR 4.00", substring = true)
-        ui.enterText("Month (YYYY-MM, blank for all)", YearMonth.now().toString())
-        navigateTo("Overview")
-        ui.showText("Add expense").assertHasClickAction()
-        ui.clickText("Add expense")
-        ui.showText("New transaction")
-        ui.clickText("Cancel")
-        navigateTo("Transactions")
-        ui.showText("Add expense").assertHasClickAction()
-        ui.clickText("Add expense")
-        ui.showText("New transaction")
-        ui.clickText("Cancel")
-        navigateTo("Budgets")
-        ui.showText("Add transaction").assertHasClickAction()
-        ui.clickText("Add transaction")
-        ui.showText("New transaction")
-        ui.clickText("Cancel")
-        navigateTo("Settings")
-        ui.showText("Currency: EUR")
-        ui.showText("Manage categories and tags").assertHasClickAction()
+        ui.showText("EUR 16.25")
+        showTransactionRow("-EUR 3.00")
+    }
+
+    private fun verifySecondaryAreaEntry() {
+        listOf("Budgets", "Settings").forEach { area ->
+            navigateTo(area)
+            ui.clickText("Add transaction")
+            composeRule.onNodeWithTag("transaction-direction-EXPENSE").assertIsSelected()
+            ui.clickText("Cancel")
+        }
         ui.clickText("Manage categories and tags")
         ui.showText("Category name", "category-tag-list")
         ui.clickText("Back to overview")
-        navigateTo("Settings")
-        ui.clickText("Add transaction")
-        ui.showText("New transaction")
+        navigateTo("Overview")
+    }
+
+    private fun verifyMainLedgerActions(area: String) {
+        navigateTo(area)
+        listOf("Add expense", "Add income").forEach { action ->
+            ui.clickText(action)
+            val direction: String = if (action == "Add expense") "EXPENSE" else "INCOME"
+            composeRule.onNodeWithTag("transaction-direction-$direction").assertIsSelected()
+            ui.clickText("Cancel")
+        }
+        ui.clickText("Transfer money")
+        ui.showText("New Transfer")
+        ui.clickText("Cancel")
+    }
+
+    private fun toggleLedgerAccount(
+        name: String,
+        selectedCount: Int,
+    ) {
+        ui.clickText("Accounts ($selectedCount selected)")
+        composeRule.onNodeWithContentDescription("$name Account selection").performClick()
+        ui.clickText("Close")
     }
 
     private fun navigateTo(area: String) {
-        val navigationTag: String = "navigation-$area"
-        composeRule.waitUntil(15_000) {
-            composeRule.onAllNodesWithTag(navigationTag, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
-        }
-        composeRule.onNodeWithTag(navigationTag, useUnmergedTree = true).performClick()
+        val navigationTag: String = "drawer-$area"
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag(navigationTag).performClick()
         composeRule.waitUntil(15_000) {
             runCatching {
                 composeRule
-                    .onNodeWithTag(navigationTag, useUnmergedTree = true)
+                    .onNodeWithTag(navigationTag)
                     .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Current section"))
             }.isSuccess
         }
@@ -452,7 +693,8 @@ class TransactionFlowTest {
         }
         val screenText: String =
             when (area) {
-                "Transactions" -> "Month (YYYY-MM, blank for all)"
+                "Expenses" -> "Add expense"
+                "Income" -> "Add income"
                 "Accounts" -> "Balance · EUR 0.00"
                 "Budgets" -> "Monthly expense limits"
                 else -> "Currency: EUR"
@@ -482,6 +724,11 @@ class TransactionFlowTest {
         }
     }
 
+    private fun transactionRepository(): com.toshlol.personalfinance.data.RoomTransactionRepository {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        return FinanceTestFixtures(AppDatabase.getInstance(context)).transactions
+    }
+
     private fun tagId(name: String): String {
         val context: Context = ApplicationProvider.getApplicationContext()
         return runBlocking {
@@ -501,12 +748,13 @@ class TransactionFlowTest {
     }
 
     private fun recordFoodExpense() {
+        navigateTo("Expenses")
         ui.clickText("Add expense")
         ui.enterText("Amount", "12.50", "transaction-form")
         ui.clickText("Food", "transaction-form")
         ui.showText("Food", "transaction-form").assertIsSelected()
         ui.clickText("Save")
-        ui.showText("Expense \u00b7 EUR 12.50")
+        assertEquals(1250L, runBlocking { transactionRepository().loadTransactions().single().amountMinor })
     }
 
     private fun verifyRemainingBudgetOnBothScreens() {
@@ -547,10 +795,17 @@ class TransactionFlowTest {
     }
 
     private fun createFoodCategory() {
-        ui.clickText("Categories & Tags")
+        openOrganizer()
         ui.enterText("Category name", "Food", "category-tag-list")
         ui.clickText("Add category", "category-tag-list")
         ui.showText("Food \u00b7 expense", "category-tag-list")
+    }
+
+    private fun openOrganizer() {
+        navigateTo("Overview")
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Categories & Tags").performClick()
+        ui.showText("Category name", "category-tag-list")
     }
 
     private class SeedAccountRule : ExternalResource() {
@@ -562,6 +817,59 @@ class TransactionFlowTest {
 
     private inner class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "cancelAndConfirmTransactionDeletionUpdateLedger") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val unrelatedAccount: Account = fixtures.createAdditionalAccount("Savings")
+                    fixtures.transactions.save(
+                        TransactionDraft(
+                            accountId = unrelatedAccount.id,
+                            amountMinor = 100L,
+                            direction = TransactionDirection.INCOME,
+                            date = LocalDate.now().toEpochDay(),
+                            note = "unrelated record",
+                        ),
+                    )
+                }
+                return
+            }
+            if (description.methodName == "editTransactionKeepsIdentityAndRecalculatesBothAccountBalances") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    fixtures.createAdditionalAccount("Savings")
+                    val category: FinanceCategory =
+                        fixtures.organization
+                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
+                            .categories
+                            .single()
+                    fixtures.organization.saveTag(TagDraft(name = "Lunch", categoryId = category.id))
+                }
+                return
+            }
+            if (description.methodName == "requiresAnActiveAccountBeforeSavingTransaction") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
+                    val onlyAccount: Account =
+                        fixtures.accounts
+                            .loadSetup()
+                            .accounts
+                            .single()
+                    fixtures.accounts.archiveAccount(onlyAccount.id)
+                }
+                return
+            }
+            if (description.methodName == "transactionEntryRemainsUsableAtLargeFontScale") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    FinanceTestFixtures(
+                        AppDatabase.getInstance(context),
+                    ).organization.saveTag(TagDraft(name = "Large text tag"))
+                }
+                return
+            }
             if (description.methodName == "editTransactionPreservesAccountAndReusesLastAccountAcrossDirections") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {
@@ -643,7 +951,6 @@ class TransactionFlowTest {
                 return
             }
             if (description.methodName != "navigateFilterTransactionsAndQuickAddFromEveryMainArea") return
-            filterTestDate = LocalDate.now()
             val context: Context = ApplicationProvider.getApplicationContext()
             runBlocking {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
@@ -678,7 +985,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 825,
                         direction = TransactionDirection.EXPENSE,
-                        date = filterTestDate.toEpochDay(),
+                        date = YearMonth.now().atEndOfMonth().toEpochDay(),
                         note = null,
                         categoryId = category.id,
                         tagIds = setOf(tag.id),
@@ -689,7 +996,7 @@ class TransactionFlowTest {
                         accountId = savingsAccount.id,
                         amountMinor = 600,
                         direction = TransactionDirection.EXPENSE,
-                        date = filterTestDate.toEpochDay(),
+                        date = LocalDate.now().toEpochDay(),
                         note = null,
                     ),
                 )
@@ -698,7 +1005,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 500,
                         direction = TransactionDirection.EXPENSE,
-                        date = filterTestDate.toEpochDay(),
+                        date = LocalDate.now().toEpochDay(),
                         note = null,
                         categoryId = transportCategory.id,
                     ),
@@ -708,7 +1015,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 300,
                         direction = TransactionDirection.EXPENSE,
-                        date = filterTestDate.toEpochDay(),
+                        date = YearMonth.now().atDay(1).toEpochDay(),
                         note = null,
                         categoryId = category.id,
                         tagIds = setOf(dinnerTag.id),
@@ -719,7 +1026,7 @@ class TransactionFlowTest {
                         accountId = account.id,
                         amountMinor = 400,
                         direction = TransactionDirection.EXPENSE,
-                        date = filterTestDate.minusMonths(1).toEpochDay(),
+                        date = LocalDate.now().minusMonths(1).toEpochDay(),
                         note = null,
                     ),
                 )

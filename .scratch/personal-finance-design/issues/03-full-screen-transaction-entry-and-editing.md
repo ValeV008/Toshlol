@@ -1,6 +1,6 @@
 # 03: Full-screen Transaction entry and editing
 
-Status: ready-for-human
+Status: resolved
 Blocked by: 01
 
 **What to build:** Create and edit Income and Expenses through the reference full-screen amount/keypad layout, with explicit Account choices, optional text-only Categories, compatible Tags, editable date, and optional Note. Fix the existing behavior that can move an edited Transaction to the primary Account.
@@ -17,13 +17,13 @@ Blocked by: 01
 
 - [x] Income/Expense entry uses a full-screen charcoal direction/amount/Note area and the reference amount keypad, with clear save/cancel actions. Selecting a direction scopes Categories correctly while maintaining a consistent form composition.
 - [x] Account choices are visible and accessible. A new Transaction uses the most recently used active Account across Income and Expense; an empty or unrelated drawer selection does not remove the mandatory Account requirement or silently change the form's Account.
-- [ ] Editing loads the Transaction's actual Account, amount, date, direction, Note, Category, and Tags. Changing only Note/amount and saving preserves Account, stable identity, and creation time; deliberately changing Account recalculates both affected balances and monthly totals.
-- [ ] Amount input supports valid positive precise monetary values and correction/backspace without floating-point rounding. Invalid/nonpositive amount, missing active Account, or invalid date prevents mutation and exposes readable validation; valid input saves and refreshes visible values.
-- [ ] Date defaults to today's local calendar date and remains editable for backdated records. The description field is one optional Note, not an additional duplicate text field.
-- [ ] A valid Transaction can be saved without Category, Tags, or Note. Category choices are text-only with no icons or icon picker; no mandatory Pick a Category gate remains.
+- [x] Editing loads the Transaction's actual Account, amount, date, direction, Note, Category, and Tags. Changing only Note/amount and saving preserves Account, stable identity, and creation time; deliberately changing Account recalculates both affected balances and monthly totals.
+- [x] Amount input supports valid positive precise monetary values and correction/backspace without floating-point rounding. Invalid/nonpositive amount, missing active Account, or invalid date prevents mutation and exposes readable validation; valid input saves and refreshes visible values.
+- [x] Date defaults to today's local calendar date and remains editable for backdated records. The description field is one optional Note, not an additional duplicate text field.
+- [x] A valid Transaction can be saved without Category, Tags, or Note. Category choices are text-only with no icons or icon picker; no mandatory Pick a Category gate remains.
 - [x] Changing direction, clearing Category, or choosing a different Category retains only compatible Tags under the existing rules. Archived entities/history remain readable, but prohibited new assignments and archived-Account edits are not enabled.
-- [ ] Cancel/dismiss does not save. Existing confirmed Transaction deletion still works from the redesigned edit journey and updates activity, balances, and Budget spending without changing unrelated records.
-- [ ] Expose reusable amount/date/entry presentation controls that ticket 05 can use without coupling Transfer semantics to Transaction classification. Relevant public behavior and Android 10 form journeys, lint, formatting, and screenshots for both directions verify the delivered slice.
+- [x] Cancel/dismiss does not save. Existing confirmed Transaction deletion still works from the redesigned edit journey and updates activity, balances, and Budget spending without changing unrelated records.
+- [x] Expose reusable amount/date/entry presentation controls that ticket 05 can use without coupling Transfer semantics to Transaction classification. Relevant public behavior and Android 10 form journeys, lint, formatting, and screenshots for both directions verify the delivered slice.
 
 ## Named behavior tests
 
@@ -51,4 +51,6 @@ Replaced the transaction editor with a full-screen charcoal Income/Expense form,
 
 - 2026-11-17: The new API 29 journey `editTransactionPreservesAccountAndReusesLastAccountAcrossDirections` passed, verifying a non-primary Account remains on edit and is reused for the opposite direction. `:app:testDebugUnitTest`, `:app:ktlintCheck`, and `:app:lintDebug` passed.
 - 2026-11-17: Full connected run exercised 53 tests; 9 legacy `TransactionFlowTest` journeys timed out in the existing navigation/category/Account flows documented by ticket 02. The new ticket 03 journey passed in that run. Screenshots: [Expense entry](../evidence/03/expense-entry.png) and [Income entry](../evidence/03/income-entry.png).
-- 2026-11-17: Ticket remains ready for human review because account-change/relaunch identity and balance assertions, invalid input/no-mutation, category-free saving, deletion, and large-font form journeys are not yet verified by a ticket-specific test. The reusable controls and both-direction screenshots are present, but the large-font criterion remains open.
+- 2026-11-17: The initial implementation was left ready for human review because several ticket-specific journeys did not yet have test evidence.
+- 2026-11-17: Added and passed focused API 29 Compose journeys for Account/identity/date/Note/Category/Tag preservation and Account changes, monthly totals and balances, precise keypad correction, invalid amount/date and missing active Account no-mutation, uncategorized save, cancellation, confirmed deletion, and 1.5x-font usability. Also reran direction/Category/Tag compatibility. `:app:ktlintCheck`, `:app:lintDebug`, and `:app:testDebugUnitTest` pass. Ticket-specific journeys are now covered; the known unrelated legacy navigation timeouts remain tracked under issue 02.
+- 2026-11-17: Reran the categorized Budget progress journey through the current drawer navigation and verified deleting the Transaction returns Budget spending to zero. The deletion test also confirms a same-month transaction in another Account remains unchanged. Ticket 03 acceptance criteria and focused Android 10 checks are complete.

@@ -34,8 +34,9 @@ def assert_overview(root, selected):
         "Net": "2.00" if selected else "0.00",
     }
     parents = {child: parent for parent in root.iter() for child in parent}
+    summary = find_overview_summary(root, parents, expected.keys())
     for label, amount in expected.items():
-        labels = [node for node in root.iter("node") if node.get("text") == label]
+        labels = [node for node in summary.iter("node") if node.get("text") == label]
         if len(labels) != 1:
             raise AssertionError(f"Expected one {label} label; observed {get_texts(root)}")
         siblings = list(parents[labels[0]])
@@ -43,6 +44,18 @@ def assert_overview(root, selected):
         if index >= len(siblings) or amount not in get_texts(siblings[index]):
             raise AssertionError(f"Expected {label}: {amount}; observed {get_texts(root)}")
     assert_no_selection_prompt(root)
+
+
+def find_overview_summary(root, parents, labels):
+    anchors = [node for node in root.iter("node") if node.get("text") == "CLOSING BALANCE"]
+    if len(anchors) != 1:
+        raise AssertionError(f"Expected one CLOSING BALANCE label; observed {get_texts(root)}")
+    summary = parents[anchors[0]]
+    while not set(labels).issubset(get_texts(summary)):
+        if summary not in parents:
+            raise AssertionError(f"Missing Overview summary labels; observed {get_texts(root)}")
+        summary = parents[summary]
+    return summary
 
 
 def assert_no_selection_prompt(root):

@@ -10,7 +10,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | --- | --- | --- |
 | [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | resolved |
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | resolved |
-| [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | ready-for-human |
+| [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | resolved |
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | ready-for-agent |
 | [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | ready-for-agent |
 | [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | ready-for-agent |
@@ -26,7 +26,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 
 - 01 and 02 are resolved.
 - 04, 06, 08, and 09 can proceed without waiting for each other.
-- 03 is implemented and ready for human review; its remaining acceptance test coverage is listed in the ticket.
+- 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
 - 05 opens after both 02 and 03 resolve.
 - 07 opens after 06 resolves.
 - 10 opens after both 02 and 07 resolve.
@@ -36,10 +36,10 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 
 - Each feature slice includes public behavior, persisted state where applicable, UI integration, named tests, and visual evidence. The final verification ticket does not defer feature-level testing.
 - Issue 01 has passing API 29 emulator journeys and screenshots for Overview, Account drawer, selected-account month navigation, and saved/empty selection after host-driven process restarts. The issue records the test and lint commands plus captured UI hierarchy evidence.
-- Issue 02 has passing focused API 29 ledger/navigation journeys and screenshots for Expenses, Income, shared Account selection, empty selection, the drawer, and Overview actions. Nine legacy `TransactionFlowTest` journeys still expect the replaced combined Transactions UI and need reconciliation during integration.
-- Issue 03 has a passing API 29 non-primary Account edit/reuse journey and screenshots for both transaction directions. The same nine legacy `TransactionFlowTest` navigation/category/Account journeys continue to time out as recorded under issue 02; the ticket 03 journey passes in the full run.
-- Issue 03 has remaining ticket-specific acceptance coverage recorded in the issue, including amount validation, deletion, large-font operation, and identity/balance checks after account changes.
-- Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. CI runs it before the connected suite and uploads each run's evidence.
+- Issue 02 has passing API 29 ledger/navigation journeys and screenshots for Expenses, Income, shared Account selection, empty selection, the drawer, and Overview actions. Its legacy journeys now use the split ledgers. The unfiltered full connected suite passed on 2026-11-17: 58 tests, zero failures/errors/skips, including all 16 `TransactionFlowTest` journeys. JVM tests, lint, formatting, and all 11 host-runner tests also pass.
+- Issue 03 has passing focused API 29 journeys for preserved edit fields and identity, Account changes and monthly balances, amount/date validation, missing active Account, optional Category/Tag/Note, cancellation, deletion, and large-font operation. Screenshots for both transaction directions remain in `evidence/03/`.
+- The legacy failure records in issues 02 and 03 are historical and superseded by issue 02's passing full-suite verification. They are no longer deferred to integration; CI and pre-push retain their full connected-suite gates.
+- Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. The runner now scopes Income/Expenses labels to the financial summary to allow duplicate navigation-tab labels. Both selected and empty restart checks passed on 2026-11-17. CI runs it before the connected suite and uploads each run's evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.
 - Budget tickets 06-07 include their own schema, migration, validation, and complete-record Backup paths. Ticket 10 delivers the styled document-management journey over those working contracts.
 - Before legacy Budget schema/data mutation, 06 must document a deterministic lossless mapping and resolve any product-dependent missing Account-scope choice from the parent spec. The approved breakdown does not invent that mapping or authorize data loss.

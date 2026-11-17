@@ -25,6 +25,20 @@ class OverviewPersistenceAssertionsTest(unittest.TestCase):
         assert_overview(overview(), True)
         assert_overview(overview("EUR 0.00", "0.00", net="0.00"), False)
 
+    def test_scopes_totals_to_summary_when_navigation_repeats_labels(self):
+        for selected in (True, False):
+            with self.subTest(selected=selected):
+                root = ET.Element("hierarchy")
+                navigation = ET.SubElement(root, "node")
+                for label in ("Overview", "Expenses", "Income"):
+                    ET.SubElement(navigation, "node", text=label)
+                summary = overview() if selected else overview("EUR 0.00", "0.00", net="0.00")
+                root.append(summary)
+                assert_overview(root, selected)
+                summary[1][1].set("text", "9.00")
+                with self.assertRaises(AssertionError):
+                    assert_overview(root, selected)
+
     def test_rejects_all_accounts_fallback_and_wrong_period_flows(self):
         for root in (overview("EUR 6009.00", "9.00", net="9.00"), overview(income="9.00"),
                      overview(expense="3.00"), overview(net="9.00")):

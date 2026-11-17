@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AccountType
@@ -34,9 +35,25 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val AccountsPageGray: Color = Color(0xFFF1F2F4)
-private val AccountsCharcoal: Color = Color(0xFF292B2F)
-private val AccountsYellow: Color = Color(0xFFFFD23F)
+private val accountsPageGray: Color = Color(0xFFF1F2F4)
+private val accountsCharcoal: Color = Color(0xFF292B2F)
+private val accountsYellow: Color = Color(0xFFFFD23F)
+private val accountsPageHorizontalPadding: Dp = 18.dp
+private val accountsPageVerticalPadding: Dp = 16.dp
+private val accountsListItemSpacing: Dp = 12.dp
+private val accountCardPadding: Dp = 16.dp
+private val accountCardItemSpacing: Dp = 6.dp
+private val accountCardCornerRadius: Dp = 18.dp
+private val accountActionSpacing: Dp = 8.dp
+private val accountEditorPadding: Dp = 18.dp
+private val accountEditorItemSpacing: Dp = 12.dp
+private val accountEditorCornerRadius: Dp = 20.dp
+private val accountTypeItemSpacing: Dp = 4.dp
+private val accountTypeLabelTopPadding: Dp = 12.dp
+private val accountHeaderHorizontalPadding: Dp = 18.dp
+private val accountHeaderTopPadding: Dp = 16.dp
+private val accountHeaderBottomPadding: Dp = 10.dp
+private val accountMonthLabelTopPadding: Dp = 12.dp
 
 data class AccountsScreenActions(
     val back: () -> Unit,
@@ -55,32 +72,38 @@ fun AccountsScreen(
     state: TransactionsUiState,
     actions: AccountsScreenActions,
 ): Unit {
-    val selectedMonth: YearMonth = runCatching { YearMonth.parse(state.selectedMonth) }.getOrDefault(YearMonth.now())
-    Column(Modifier.fillMaxSize().background(AccountsPageGray)) {
-        AccountMonthHeader(
-            title = if (state.isAccountEditorVisible) accountEditorTitle(state) else "Accounts",
+    val selectedMonth: YearMonth = parseSelectedMonth(state.selectedMonth)
+    Column(Modifier.fillMaxSize().background(accountsPageGray)) {
+        ShowAccountMonthHeader(
+            title = if (state.isAccountEditorVisible) getAccountEditorTitle(state) else "Accounts",
             month = selectedMonth,
             monthChanged = actions.monthChanged,
         )
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(
+                horizontal = accountsPageHorizontalPadding,
+                vertical = accountsPageVerticalPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(accountsListItemSpacing),
         ) {
             OutlinedButton(onClick = if (state.isAccountEditorVisible) actions.closeEditor else actions.back) {
                 Text(if (state.isAccountEditorVisible) "Back to Accounts" else "Back to overview")
             }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (state.isAccountEditorVisible) {
-                AccountEditor(state, actions)
+                ShowAccountEditor(state, actions)
             } else {
-                Text("Closing balances for ${selectedMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))}")
+                Text("Closing balances for ${formatMonthLabel(selectedMonth)}")
                 if (state.accounts.isEmpty()) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-                        Text("No Accounts yet", Modifier.fillMaxWidth().padding(18.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(accountCardCornerRadius),
+                    ) {
+                        Text("No Accounts yet", Modifier.fillMaxWidth().padding(accountCardPadding))
                     }
                 }
                 state.accounts.forEach { account ->
-                    AccountManagementCard(
+                    ShowAccountManagementCard(
                         account = account,
                         balanceMinor = state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L,
                         currency = state.currency,
@@ -94,19 +117,23 @@ fun AccountsScreen(
 }
 
 @Composable
-private fun AccountManagementCard(
+@Suppress("ktlint:standard:no-unit-return")
+private fun ShowAccountManagementCard(
     account: Account,
     balanceMinor: Long,
     currency: String,
     actions: AccountsScreenActions,
-) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+): Unit {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(accountCardCornerRadius)) {
+        Column(
+            Modifier.fillMaxWidth().padding(accountCardPadding),
+            verticalArrangement = Arrangement.spacedBy(accountCardItemSpacing),
+        ) {
             Text(account.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             Text("Type \u00B7 ${account.type.label}")
             if (account.isArchived) Text("Archived")
             Text("Balance \u00B7 $currency ${formatMoney(balanceMinor, currency)}", style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(accountActionSpacing)) {
                 TextButton(onClick = { actions.openHistory(account.id) }) { Text("View ${account.name} history") }
                 if (!account.isArchived) {
                     TextButton(onClick = { actions.edit(account.id) }) { Text("Edit ${account.name}") }
@@ -118,13 +145,17 @@ private fun AccountManagementCard(
 }
 
 @Composable
-private fun AccountEditor(
+@Suppress("ktlint:standard:no-unit-return")
+private fun ShowAccountEditor(
     state: TransactionsUiState,
     actions: AccountsScreenActions,
-) {
+): Unit {
     val isCreating: Boolean = state.editingAccountId == null
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(accountEditorCornerRadius)) {
+        Column(
+            Modifier.fillMaxWidth().padding(accountEditorPadding),
+            verticalArrangement = Arrangement.spacedBy(accountEditorItemSpacing),
+        ) {
             Text(if (isCreating) "New Account" else "Account details", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
                 value = if (isCreating) state.newAccountName else state.accountNameDraft,
@@ -149,7 +180,7 @@ private fun AccountEditor(
                 modifier = Modifier.fillMaxWidth(),
             )
             if (isCreating) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(accountTypeItemSpacing)) {
                     Text("Account type", style = MaterialTheme.typography.titleMedium)
                     AccountType.entries.forEach { type ->
                         Row(
@@ -161,7 +192,7 @@ private fun AccountEditor(
                                 selected = state.newAccountType == type,
                                 onClick = { actions.accountEditor.newTypeChanged(type) },
                             )
-                            Text(type.label, modifier = Modifier.padding(top = 12.dp))
+                            Text(type.label, modifier = Modifier.padding(top = accountTypeLabelTopPadding))
                         }
                     }
                 }
@@ -178,30 +209,49 @@ private fun AccountEditor(
 }
 
 @Composable
-internal fun AccountMonthHeader(
+@Suppress("ktlint:standard:no-unit-return")
+internal fun ShowAccountMonthHeader(
     title: String,
     month: YearMonth,
     monthChanged: (String) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().background(AccountsCharcoal).padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 10.dp)) {
+    Column(
+        Modifier.fillMaxWidth().background(accountsCharcoal).padding(
+            start = accountHeaderHorizontalPadding,
+            end = accountHeaderHorizontalPadding,
+            top = accountHeaderTopPadding,
+            bottom = accountHeaderBottomPadding,
+        ),
+    ) {
         Text(title, color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(
                 onClick = { monthChanged(month.minusMonths(1).toString()) },
                 modifier = Modifier.semantics { contentDescription = "Previous month" },
-            ) { Text("‹", color = AccountsYellow, style = MaterialTheme.typography.headlineMedium) }
+            ) { Text("‹", color = accountsYellow, style = MaterialTheme.typography.headlineMedium) }
             Text(
-                month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())),
+                formatMonthLabel(month),
                 color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = accountMonthLabelTopPadding),
             )
             TextButton(
                 onClick = { monthChanged(month.plusMonths(1).toString()) },
                 modifier = Modifier.semantics { contentDescription = "Next month" },
-            ) { Text("›", color = AccountsYellow, style = MaterialTheme.typography.headlineMedium) }
+            ) { Text("›", color = accountsYellow, style = MaterialTheme.typography.headlineMedium) }
         }
     }
 }
 
-private fun accountEditorTitle(state: TransactionsUiState): String = if (state.editingAccountId == null) "Add Account" else "Edit Account"
+private fun getAccountEditorTitle(state: TransactionsUiState): String =
+    if (state.editingAccountId ==
+        null
+    ) {
+        "Add Account"
+    } else {
+        "Edit Account"
+    }
+
+internal fun parseSelectedMonth(value: String): YearMonth = runCatching { YearMonth.parse(value) }.getOrDefault(YearMonth.now())
+
+internal fun formatMonthLabel(month: YearMonth): String = month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))

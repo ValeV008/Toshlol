@@ -183,12 +183,14 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(accountHistoryAccountId = null)
     }
 
-    fun showAccountEditor(id: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun showAccountEditor(id: String): Unit {
         selectAccountForEditing(id)
         mutableUiState.value = uiState.value.copy(isAccountEditorVisible = true)
     }
 
-    fun beginCreateAccount() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun beginCreateAccount(): Unit {
         mutableUiState.value =
             uiState.value.copy(
                 isAccountEditorVisible = true,
@@ -201,7 +203,8 @@ class TransactionsViewModel(
             )
     }
 
-    fun closeAccountEditor() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun closeAccountEditor(): Unit {
         mutableUiState.value = uiState.value.copy(isAccountEditorVisible = false, error = null)
     }
 

@@ -95,6 +95,9 @@ data class TagActions(
 data class AccountEditorActions(
     val nameChanged: (String) -> Unit,
     val select: (String) -> Unit,
+    val openEditor: (String) -> Unit,
+    val beginCreate: () -> Unit,
+    val closeEditor: () -> Unit,
     val save: () -> Unit,
     val openingBalanceChanged: (String) -> Unit,
     val openingDateChanged: (String) -> Unit,
@@ -242,18 +245,13 @@ fun PersonalFinanceApp(
                                 actions =
                                     AccountsScreenActions(
                                         back = { actions.navigation.selectArea("Overview") },
+                                        monthChanged = actions.navigation.monthChanged,
                                         openHistory = actions.accountHistory.open,
-                                        edit = { id ->
-                                            actions.organizer.accounts.select(id)
-                                            actions.organizer.open()
-                                        },
+                                        edit = actions.organizer.accounts.openEditor,
                                         archive = actions.organizer.accounts.archive,
-                                        addAccount = {
-                                            actions.organizer.accounts.select(
-                                                transactionsState.editingAccountId ?: transactionsState.accountId,
-                                            )
-                                            actions.organizer.open()
-                                        },
+                                        addAccount = actions.organizer.accounts.beginCreate,
+                                        closeEditor = actions.organizer.accounts.closeEditor,
+                                        accountEditor = actions.organizer.accounts,
                                     ),
                             )
                         uiState.isSetupComplete && transactionsState.selectedArea == "Transactions" ->

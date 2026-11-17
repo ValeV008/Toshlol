@@ -54,11 +54,11 @@ fun CategoryTagScreen(
                     Text(if (isAccountSectionVisible) "Hide accounts" else "Manage accounts")
                 }
                 if (isAccountSectionVisible) {
-                    Text("Accounts and balances", style = MaterialTheme.typography.titleMedium)
+                    Text("Account closing balances for ${state.selectedMonth}", style = MaterialTheme.typography.titleMedium)
                     state.accounts.forEach { account ->
                         Text(
                             "${account.name} · ${account.type.label} · ${state.currency} ${formatMoney(
-                                account.balanceMinor,
+                                state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L,
                                 state.currency,
                             )}${if (account.isArchived) " · Archived" else ""}",
                         )

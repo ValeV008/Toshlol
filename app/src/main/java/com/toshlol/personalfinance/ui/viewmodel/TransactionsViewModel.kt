@@ -39,6 +39,7 @@ data class TransactionsUiState(
     val accountId: String = "",
     val accountName: String = "",
     val editingAccountId: String? = null,
+    val isAccountEditorVisible: Boolean = false,
     val accountNameDraft: String = "",
     val openingBalanceAmount: String = "0.00",
     val openingBalanceDate: String = LocalDate.now().toString(),
@@ -163,18 +164,45 @@ class TransactionsViewModel(
 
     @Suppress("ktlint:standard:no-unit-return")
     fun selectArea(area: String): Unit {
-        mutableUiState.value = uiState.value.copy(selectedArea = area, accountHistoryAccountId = null)
+        mutableUiState.value =
+            uiState.value.copy(
+                selectedArea = area,
+                accountHistoryAccountId = null,
+                isAccountEditorVisible = false,
+            )
     }
 
     @Suppress("ktlint:standard:no-unit-return")
     fun openAccountHistory(id: String): Unit {
         if (uiState.value.accounts.none { it.id == id }) return
-        mutableUiState.value = uiState.value.copy(accountHistoryAccountId = id, selectedArea = "Overview")
+        mutableUiState.value = uiState.value.copy(accountHistoryAccountId = id)
     }
 
     @Suppress("ktlint:standard:no-unit-return")
     fun closeAccountHistory(): Unit {
         mutableUiState.value = uiState.value.copy(accountHistoryAccountId = null)
+    }
+
+    fun showAccountEditor(id: String) {
+        selectAccountForEditing(id)
+        mutableUiState.value = uiState.value.copy(isAccountEditorVisible = true)
+    }
+
+    fun beginCreateAccount() {
+        mutableUiState.value =
+            uiState.value.copy(
+                isAccountEditorVisible = true,
+                editingAccountId = null,
+                newAccountName = "",
+                newAccountType = com.toshlol.personalfinance.data.AccountType.BANK,
+                newAccountOpeningBalance = "0.00",
+                newAccountOpeningDate = LocalDate.now().toString(),
+                error = null,
+            )
+    }
+
+    fun closeAccountEditor() {
+        mutableUiState.value = uiState.value.copy(isAccountEditorVisible = false, error = null)
     }
 
     fun updateSelectedMonth(value: String) {
@@ -459,6 +487,7 @@ class TransactionsViewModel(
                         accounts = accounts,
                         transactions = transactions,
                         transfers = transfers,
+                        isAccountEditorVisible = false,
                         isSaving = false,
                         error = null,
                     )
@@ -511,6 +540,7 @@ class TransactionsViewModel(
             mutableUiState.value = state.copy(error = "Enter an account name, signed opening balance, and valid date.")
             return
         }
+        mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
                 val account: Account =
@@ -527,10 +557,12 @@ class TransactionsViewModel(
                         newAccountName = "",
                         newAccountOpeningBalance = "0.00",
                         newAccountOpeningDate = LocalDate.now().toString(),
+                        isAccountEditorVisible = false,
+                        isSaving = false,
                         error = null,
                     )
             } catch (exception: Exception) {
-                mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not create Account.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not create Account.")
             }
         }
     }

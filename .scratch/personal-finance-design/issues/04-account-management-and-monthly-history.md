@@ -1,6 +1,6 @@
 # 04: Account management and monthly history
 
-Status: ready-for-agent
+Status: claimed
 Blocked by: 01
 
 **What to build:** Review and manage Accounts in the shared visual style, with selected-month Closing balances and movement histories consistent with Overview and the Account drawer, while preserving signed Opening balances, renames, and archived read-only history.

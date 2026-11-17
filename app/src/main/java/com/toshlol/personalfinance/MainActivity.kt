@@ -226,6 +226,9 @@ class MainActivity : ComponentActivity() {
                                         AccountEditorActions(
                                             nameChanged = transactionsViewModel::updateAccountName,
                                             select = transactionsViewModel::selectAccountForEditing,
+                                            openEditor = transactionsViewModel::showAccountEditor,
+                                            beginCreate = transactionsViewModel::beginCreateAccount,
+                                            closeEditor = transactionsViewModel::closeAccountEditor,
                                             save = transactionsViewModel::saveAccountDetails,
                                             openingBalanceChanged = transactionsViewModel::updateOpeningBalanceAmount,
                                             openingDateChanged = transactionsViewModel::updateOpeningBalanceDate,
@@ -252,6 +255,7 @@ class MainActivity : ComponentActivity() {
                                     screen =
                                         AccountHistoryScreenActions(
                                             back = transactionsViewModel::closeAccountHistory,
+                                            monthChanged = transactionsViewModel::updateSelectedMonth,
                                             editTransaction = transactionsViewModel::beginEdit,
                                             deleteTransaction = transactionsViewModel::requestDelete,
                                             editTransfer = transactionsViewModel::beginEditTransfer,

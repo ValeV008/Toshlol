@@ -11,7 +11,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | resolved |
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | resolved |
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | resolved |
-| [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | ready-for-agent |
+| [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | claimed |
 | [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | ready-for-agent |
 | [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | ready-for-agent |
 | [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | ready-for-agent |

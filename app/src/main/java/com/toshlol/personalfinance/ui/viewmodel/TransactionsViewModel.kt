@@ -59,6 +59,7 @@ data class TransactionsUiState(
     val isFormVisible: Boolean = false,
     val editingId: String? = null,
     val amount: String = "",
+    val transactionAccountId: String? = null,
     val direction: TransactionDirection = TransactionDirection.EXPENSE,
     val date: String = LocalDate.now().toString(),
     val note: String = "",
@@ -127,6 +128,7 @@ class TransactionsViewModel(
                 val accounts: List<Account> = setup.accounts
                 val transfers: List<FinanceTransfer> = transferManagement.loadTransfers()
                 val selectedAccountIds: Set<String> = preferences.loadOverviewAccountIds()
+                val lastTransactionAccountId: String? = preferences.loadLastTransactionAccountId()
                 mutableUiState.value =
                     uiState.value.copy(
                         accountId = account?.id.orEmpty(),
@@ -146,6 +148,9 @@ class TransactionsViewModel(
                         accounts = accounts,
                         transfers = transfers,
                         selectedOverviewAccountIds = selectedAccountIds,
+                        transactionAccountId =
+                            lastTransactionAccountId?.takeIf { id -> accounts.any { it.id == id && !it.isArchived } }
+                                ?: accounts.firstOrNull { !it.isArchived }?.id,
                     )
             } catch (
                 exception: IOException,
@@ -200,8 +205,17 @@ class TransactionsViewModel(
     }
 
     fun beginCreate(direction: TransactionDirection) {
+        val state: TransactionsUiState = uiState.value
+        val activeAccountIds: Set<String> =
+            state.accounts
+                .filterNot(Account::isArchived)
+                .map(Account::id)
+                .toSet()
+        val selectedAccountId: String? =
+            state.transactionAccountId?.takeIf { it in activeAccountIds }
+                ?: state.accounts.firstOrNull { !it.isArchived }?.id
         mutableUiState.value =
-            uiState.value.copy(
+            state.copy(
                 isFormVisible = true,
                 editingId = null,
                 amount = "",
@@ -210,6 +224,7 @@ class TransactionsViewModel(
                 note = "",
                 categoryId = null,
                 tagIds = emptySet(),
+                transactionAccountId = selectedAccountId,
                 error = null,
             )
     }
@@ -335,6 +350,7 @@ class TransactionsViewModel(
 
     fun beginEdit(transaction: FinanceTransaction) {
         val fractionDigits: Int = fractionDigits(uiState.value.currency)
+        if (uiState.value.accounts.none { it.id == transaction.accountId && !it.isArchived }) return
         mutableUiState.value =
             uiState.value.copy(
                 isFormVisible = true,
@@ -348,6 +364,7 @@ class TransactionsViewModel(
                 note = transaction.note.orEmpty(),
                 categoryId = transaction.categoryId,
                 tagIds = transaction.tagIds.toSet(),
+                transactionAccountId = transaction.accountId,
                 error = null,
             )
     }
@@ -358,6 +375,10 @@ class TransactionsViewModel(
 
     fun updateAmount(value: String) {
         mutableUiState.value = uiState.value.copy(amount = value, error = null)
+    }
+
+    fun updateTransactionAccount(id: String) {
+        mutableUiState.value = uiState.value.copy(transactionAccountId = id, error = null)
     }
 
     fun updateDate(value: String) {
@@ -799,6 +820,12 @@ class TransactionsViewModel(
             mutableUiState.value = state.copy(error = "Enter a positive amount and a valid date.")
             return
         }
+        val transactionAccountId: String? =
+            state.transactionAccountId?.takeIf { id -> state.accounts.any { it.id == id && !it.isArchived } }
+        if (transactionAccountId == null) {
+            mutableUiState.value = state.copy(error = "Choose an active Account.")
+            return
+        }
         mutableUiState.value =
             state.copy(isSaving = true, error = null)
         viewModelScope.launch {
@@ -808,7 +835,7 @@ class TransactionsViewModel(
                     repository.save(
                         TransactionDraft(
                             state.editingId,
-                            state.accountId,
+                            transactionAccountId,
                             minorAmount,
                             state.direction,
                             epochDay,
@@ -819,11 +846,13 @@ class TransactionsViewModel(
                     )
                 val budgets: List<CategoryBudget> = budgetRepository.load()
                 val accounts: List<Account> = accountManagement.loadAccounts()
+                preferences.saveLastTransactionAccountId(transactionAccountId)
                 mutableUiState.value =
                     uiState.value.copy(
                         transactions = newState,
                         budgets = budgets,
                         accounts = accounts,
+                        transactionAccountId = transactionAccountId,
                         isFormVisible = false,
                         isSaving = false,
                     )

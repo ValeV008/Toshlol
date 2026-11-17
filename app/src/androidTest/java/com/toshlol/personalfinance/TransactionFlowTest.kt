@@ -95,6 +95,24 @@ class TransactionFlowTest {
     }
 
     @Test
+    fun editTransactionPreservesAccountAndReusesLastAccountAcrossDirections() {
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "8.25", "transaction-form")
+        val savingsAccountTag: String = "transaction-account-${accountId("Savings")}"
+        composeRule.onNodeWithTag(savingsAccountTag).performClick()
+        ui.clickText("Save")
+        ui.selectOverviewAccount("Savings")
+        ui.clickText("Expense \u00b7 EUR 8.25")
+        ui.enterText("Note (optional)", "kept on Savings", "transaction-form")
+        ui.clickText("Save")
+        ui.clickText("Add income")
+        ui.showText("Selected account: Savings", "transaction-form")
+        ui.enterText("Amount", "1.00", "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Income \u00b7 EUR 1.00")
+    }
+
+    @Test
     @Suppress("ktlint:standard:no-unit-return")
     fun createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals(): Unit {
         ui.clickText("Categories & Tags")
@@ -544,6 +562,13 @@ class TransactionFlowTest {
 
     private inner class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "editTransactionPreservesAccountAndReusesLastAccountAcrossDirections") {
+                val context: Context = ApplicationProvider.getApplicationContext()
+                runBlocking {
+                    FinanceTestFixtures(AppDatabase.getInstance(context)).createAdditionalAccount("Savings")
+                }
+                return
+            }
             if (description.methodName == "changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {

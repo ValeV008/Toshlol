@@ -1,33 +1,53 @@
 package com.toshlol.personalfinance.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.toshlol.personalfinance.data.FinanceCategory
-import com.toshlol.personalfinance.data.FinanceTag
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
@@ -40,6 +60,7 @@ data class TransactionFormActions(
     val save: () -> Unit,
     val categoryChanged: (String?) -> Unit,
     val tagToggled: (String) -> Unit,
+    val accountChanged: (String) -> Unit,
 )
 
 data class TransactionDeleteActions(
@@ -71,90 +92,8 @@ fun TransactionDialogs(
     actions: TransactionDialogActions,
 ): Unit {
     val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
-    LaunchedEffect(state.isFormVisible) {
-        if (!state.isFormVisible) keyboardController?.hide()
-    }
-    if (state.isFormVisible) {
-        AlertDialog(
-            onDismissRequest = actions.form.close,
-            title = { Text(if (state.editingId == null) "New transaction" else "Edit transaction") },
-            text = {
-                Column(
-                    Modifier.verticalScroll(rememberScrollState()).testTag("transaction-form"),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row {
-                        TransactionDirection.entries.forEach { direction: TransactionDirection ->
-                            Row(Modifier.clickable { actions.form.directionChanged(direction) }) {
-                                RadioButton(
-                                    selected = state.direction == direction,
-                                    onClick = { actions.form.directionChanged(direction) },
-                                    modifier = Modifier.testTag("transaction-direction-${direction.name}"),
-                                )
-                                Text(direction.name.lowercase().replaceFirstChar(Char::uppercase))
-                            }
-                        }
-                    }
-                    OutlinedTextField(state.amount, actions.form.amountChanged, label = { Text("Amount") }, singleLine = true)
-                    OutlinedTextField(state.date, actions.form.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
-                    OutlinedTextField(state.note, actions.form.noteChanged, label = { Text("Note (optional)") }, singleLine = true)
-                    Text("Category (optional)", style = MaterialTheme.typography.titleSmall)
-                    Row(
-                        Modifier.heightIn(min = 48.dp).selectable(
-                            selected = state.categoryId == null,
-                            role = Role.RadioButton,
-                            onClick = { actions.form.categoryChanged(null) },
-                        ),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = state.categoryId == null, onClick = null)
-                        Text("Uncategorized")
-                    }
-                    state.categories
-                        .filter { !it.archived || it.id == state.categoryId }
-                        .filter { it.direction == state.direction }
-                        .forEach { category: FinanceCategory ->
-                            Row(
-                                Modifier.heightIn(min = 48.dp).selectable(
-                                    selected = state.categoryId == category.id,
-                                    role = Role.RadioButton,
-                                    onClick = { actions.form.categoryChanged(category.id) },
-                                ),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                RadioButton(selected = state.categoryId == category.id, onClick = null)
-                                Text(category.name + if (category.archived) " (archived)" else "")
-                            }
-                        }
-                    Text("Tags (optional)", style = MaterialTheme.typography.titleSmall)
-                    state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag: FinanceTag ->
-                        val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
-                        Row(
-                            Modifier
-                                .heightIn(min = 48.dp)
-                                .toggleable(
-                                    value = tag.id in state.tagIds,
-                                    enabled = canAssignTag,
-                                    role = Role.Checkbox,
-                                    onValueChange = { actions.form.tagToggled(tag.id) },
-                                ).testTag("transaction-tag-${tag.id}"),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            androidx.compose.material3.Checkbox(
-                                checked = tag.id in state.tagIds,
-                                onCheckedChange = null,
-                                enabled = canAssignTag,
-                            )
-                            Text(tag.name + tag.categoryName?.let { " · $it" }.orEmpty() + if (tag.archived) " (archived)" else "")
-                        }
-                    }
-                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = { Button(onClick = actions.form.save, enabled = !state.isSaving) { Text("Save") } },
-            dismissButton = { OutlinedButton(onClick = actions.form.close) { Text("Cancel") } },
-        )
-    }
+    LaunchedEffect(state.isFormVisible) { if (!state.isFormVisible) keyboardController?.hide() }
+    if (state.isFormVisible) TransactionEntryDialog(state, actions.form)
     state.pendingDeleteId?.let {
         AlertDialog(
             onDismissRequest = actions.delete.cancelDelete,
@@ -164,6 +103,245 @@ fun TransactionDialogs(
             dismissButton = { TextButton(onClick = actions.delete.cancelDelete) { Text("Cancel") } },
         )
     }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun TransactionEntryDialog(
+    state: TransactionsUiState,
+    actions: TransactionFormActions,
+): Unit {
+    val charcoal: Color = Color(0xFF292B2F)
+    Dialog(onDismissRequest = actions.close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
+            color = charcoal,
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                        .testTag("transaction-form"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text(if (state.editingId == null) "New transaction" else "Edit transaction", color = Color.White)
+                    }
+                    Row(Modifier.fillMaxWidth()) {
+                        TransactionDirection.entries.forEach { direction ->
+                            TextButton(
+                                onClick = { actions.directionChanged(direction) },
+                                Modifier
+                                    .weight(1f)
+                                    .semantics {
+                                        role = Role.RadioButton
+                                        selected = state.direction == direction
+                                    }.testTag("transaction-direction-${direction.name}"),
+                            ) {
+                                Text(
+                                    direction.name.lowercase().replaceFirstChar(Char::uppercase),
+                                    color =
+                                        if (state.direction ==
+                                            direction
+                                        ) {
+                                            Color(0xFFFFD23F)
+                                        } else {
+                                            Color.White
+                                        },
+                                )
+                            }
+                        }
+                    }
+                    Text("Account", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Selected account: ${state.accounts
+                            .firstOrNull {
+                                it.id == state.transactionAccountId
+                            }?.name ?: "Choose an Account"}",
+                        color = Color.White,
+                    )
+                    state.accounts.filterNot { it.isArchived }.forEach { account ->
+                        TextButton(
+                            onClick = { actions.accountChanged(account.id) },
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .semantics {
+                                        role = Role.RadioButton
+                                        selected = state.transactionAccountId == account.id
+                                    }.testTag("transaction-account-${account.id}"),
+                        ) {
+                            RadioButton(selected = state.transactionAccountId == account.id, onClick = null)
+                            Text(account.name, color = Color.White)
+                        }
+                    }
+                    Text("Amount", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${state.currency} ${state.amount.ifBlank { "0.00" }}",
+                        Modifier.fillMaxWidth().semantics { contentDescription = "Amount" }.testTag("transaction-amount"),
+                        color = Color.White,
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    OutlinedTextField(state.note, actions.noteChanged, label = {
+                        Text("Note (optional)")
+                    }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    TransactionDateField(state.date, actions.dateChanged)
+                    Text("Category (optional)", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    CategoryChoice("Uncategorized", state.categoryId == null) { actions.categoryChanged(null) }
+                    state.categories
+                        .filter { (!it.archived || it.id == state.categoryId) && it.direction == state.direction }
+                        .forEach { category ->
+                            CategoryChoice(category.name + if (category.archived) " (archived)" else "", state.categoryId == category.id) {
+                                actions.categoryChanged(category.id)
+                            }
+                        }
+                    Text("Tags (optional)", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag ->
+                        val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .toggleable(
+                                    value = tag.id in state.tagIds,
+                                    enabled = canAssignTag,
+                                    role = Role.Checkbox,
+                                    onValueChange = { actions.tagToggled(tag.id) },
+                                ).testTag("transaction-tag-${tag.id}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = tag.id in state.tagIds, onCheckedChange = null, enabled = canAssignTag)
+                            Text(
+                                tag.name + tag.categoryName?.let { " · $it" }.orEmpty() + if (tag.archived) " (archived)" else "",
+                                color = Color.White,
+                            )
+                        }
+                    }
+                    state.error?.let { Text(it, color = Color(0xFFFF8A80)) }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedButton(onClick = actions.close, modifier = Modifier.weight(1f).testTag("transaction-cancel")) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = actions.save,
+                        enabled = !state.isSaving,
+                        modifier = Modifier.weight(1f).testTag("transaction-save"),
+                    ) {
+                        Text("Save")
+                    }
+                }
+                AmountKeypad(state.amount, state.currency, actions.amountChanged)
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun CategoryChoice(
+    label: String,
+    isSelected: Boolean,
+    onSelected: () -> Unit,
+): Unit {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(
+            selected = isSelected,
+            role = Role.RadioButton,
+            onClick = onSelected,
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = isSelected, onClick = null)
+        Text(label, color = Color.White)
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+fun AmountKeypad(
+    amount: String,
+    currency: String,
+    onAmountChanged: (String) -> Unit,
+): Unit {
+    val fractionDigits: Int =
+        runCatching {
+            java.util.Currency
+                .getInstance(
+                    currency,
+                ).defaultFractionDigits
+                .coerceAtLeast(0)
+        }.getOrDefault(2)
+    val currentMinor: Long = amount.toBigDecimalOrNull()?.movePointRight(fractionDigits)?.toLong() ?: 0L
+    val keys: List<String> = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "C")
+    Column(
+        Modifier.fillMaxWidth().background(Color(0xFF292B2F)).padding(horizontal = 18.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        keys.chunked(3).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { key ->
+                    Card(
+                        Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .clickable {
+                                val nextMinor: Long =
+                                    when (key) {
+                                        "C" -> 0L
+                                        "⌫" -> currentMinor / 10L
+                                        else ->
+                                            if (currentMinor >
+                                                (Long.MAX_VALUE - key.toLong()) / 10L
+                                            ) {
+                                                currentMinor
+                                            } else {
+                                                currentMinor * 10L + key.toLong()
+                                            }
+                                    }
+                                onAmountChanged(
+                                    java.math.BigDecimal
+                                        .valueOf(nextMinor, fractionDigits)
+                                        .toPlainString(),
+                                )
+                            }.testTag("amount-key-$key"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF414348)),
+                    ) {
+                        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(key, color = Color.White, fontSize = 20.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+fun TransactionDateField(
+    value: String,
+    onValueChange: (String) -> Unit,
+): Unit {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text("Date (YYYY-MM-DD)") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -182,13 +360,12 @@ fun TransferDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
-                    OutlinedTextField(state.date, actions.dateChanged, label = { Text("Date (YYYY-MM-DD)") }, singleLine = true)
+                    TransactionDateField(state.date, actions.dateChanged)
                     Text("From Account")
                     state.accounts.filterNot { it.isArchived }.forEach { account ->
                         Row(
                             Modifier.heightIn(min = 48.dp).testTag("transfer-source-${account.id}").selectable(
-                                selected =
-                                    state.transferSourceAccountId == account.id,
+                                selected = state.transferSourceAccountId == account.id,
                                 role = Role.RadioButton,
                                 onClick = { actions.sourceChanged(account.id) },
                             ),
@@ -202,8 +379,7 @@ fun TransferDialog(
                     state.accounts.filterNot { it.isArchived }.forEach { account ->
                         Row(
                             Modifier.heightIn(min = 48.dp).testTag("transfer-destination-${account.id}").selectable(
-                                selected =
-                                    state.transferDestinationAccountId == account.id,
+                                selected = state.transferDestinationAccountId == account.id,
                                 role = Role.RadioButton,
                                 onClick = { actions.destinationChanged(account.id) },
                             ),
@@ -218,7 +394,9 @@ fun TransferDialog(
             },
             confirmButton = {
                 Row {
-                    state.editingTransferId?.let { id -> TextButton(onClick = { actions.delete(id) }) { Text("Delete") } }
+                    state.editingTransferId?.let { id ->
+                        TextButton(onClick = { actions.delete(id) }) { Text("Delete") }
+                    }
                     Button(onClick = actions.save) { Text("Save") }
                 }
             },
@@ -226,12 +404,12 @@ fun TransferDialog(
         )
     }
     if (state.pendingTransferDeleteId != null) {
-        AlertDialog(onDismissRequest = actions.cancelDelete, title = {
-            Text("Delete Transfer?")
-        }, text = {
-            Text("This Transfer will be permanently deleted.")
-        }, confirmButton = {
-            Button(onClick = actions.confirmDelete) { Text("Delete") }
-        }, dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } })
+        AlertDialog(
+            onDismissRequest = actions.cancelDelete,
+            title = { Text("Delete Transfer?") },
+            text = { Text("This Transfer will be permanently deleted.") },
+            confirmButton = { Button(onClick = actions.confirmDelete) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } },
+        )
     }
 }

@@ -73,6 +73,13 @@ class FinanceUiDriver(
         value: String,
         containerTag: String? = null,
     ) {
+        if (label == "Amount" && containerTag == "transaction-form") {
+            rule.onNodeWithTag("amount-key-C").performClick()
+            value.filter(Char::isDigit).forEach { digit ->
+                rule.onNodeWithTag("amount-key-$digit").performClick()
+            }
+            return
+        }
         showText(label, containerTag).performTextReplacement(value)
         dismissKeyboard()
     }

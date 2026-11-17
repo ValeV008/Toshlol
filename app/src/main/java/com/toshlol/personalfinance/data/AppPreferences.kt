@@ -19,6 +19,7 @@ class AppPreferences(
     private val currencyKey: Preferences.Key<String> = stringPreferencesKey("selected_currency")
     private val setupCompleteKey: Preferences.Key<Boolean> = booleanPreferencesKey("setup_complete")
     private val selectedOverviewAccountsKey: Preferences.Key<Set<String>> = stringSetPreferencesKey("overview_account_ids")
+    private val lastTransactionAccountKey: Preferences.Key<String> = stringPreferencesKey("last_transaction_account_id")
 
     suspend fun loadLegacyCurrency(): String? = context.dataStore.data.first()[currencyKey]
 
@@ -40,5 +41,15 @@ class AppPreferences(
 
     suspend fun clearOverviewAccountIds() {
         context.dataStore.edit { preferences -> preferences.remove(selectedOverviewAccountsKey) }
+    }
+
+    suspend fun loadLastTransactionAccountId(): String? = context.dataStore.data.first()[lastTransactionAccountKey]
+
+    suspend fun saveLastTransactionAccountId(accountId: String) {
+        context.dataStore.edit { preferences -> preferences[lastTransactionAccountKey] = accountId }
+    }
+
+    suspend fun clearLastTransactionAccountId() {
+        context.dataStore.edit { preferences -> preferences.remove(lastTransactionAccountKey) }
     }
 }

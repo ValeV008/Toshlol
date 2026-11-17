@@ -25,6 +25,7 @@ class ResetFinanceDataRule(
         runBlocking {
             AppPreferences(context).clearLegacySetup()
             AppPreferences(context).clearOverviewAccountIds()
+            AppPreferences(context).clearLastTransactionAccountId()
         }
     }
 }

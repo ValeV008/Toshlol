@@ -177,6 +177,7 @@ class MainActivity : ComponentActivity() {
                                             save = transactionsViewModel::save,
                                             categoryChanged = transactionsViewModel::updateCategory,
                                             tagToggled = transactionsViewModel::toggleTag,
+                                            accountChanged = transactionsViewModel::updateTransactionAccount,
                                         ),
                                     deleteConfirmation =
                                         TransactionDeleteActions(

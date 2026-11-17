@@ -363,6 +363,7 @@ fun PersonalFinanceApp(
                                         save = actions.transactions.form.save,
                                         categoryChanged = actions.transactions.form.categoryChanged,
                                         tagToggled = actions.transactions.form.tagToggled,
+                                        accountChanged = actions.transactions.form.accountChanged,
                                     ),
                                 delete =
                                     TransactionDeleteActions(

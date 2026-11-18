@@ -192,7 +192,7 @@ Create one `FinanceTestFixtures(database)` per test/database. Its Account, Categ
 5. If a test fails, collect the Gradle report, logcat, screenshot, and semantics-tree output.
 6. Reproduce the failure with the narrowest class or method filter before editing code.
 7. Make the smallest fix and rerun that focused test. Repeat focused runs while implementation is changing.
-8. After related changes settle, pass the [ticket completion checklist](#ticket-completion) once against the finished changes, whether handing off locally or pushing. If later implementation changes invalidate those results, repeat the affected checks, including the full Android suite for app, Android-test, or build changes.
+8. Finish the spec and coding-standards reviews and resolve their findings before starting the [ticket completion checklist](#ticket-completion). Then pass the checklist once against the finished changes, whether handing off locally or pushing. If later implementation changes invalidate those results, repeat the affected checks, including the full Android suite for app, Android-test, or build changes.
 9. Upload reports, screenshots, diffs, and logs as CI artifacts.
 
 For this app, the high-value automated journeys are account creation, transaction entry, budget display, export, import merge, import overwrite, and the mandatory-account validation path.

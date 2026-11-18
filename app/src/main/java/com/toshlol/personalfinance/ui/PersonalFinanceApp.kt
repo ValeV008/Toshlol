@@ -39,6 +39,7 @@ import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FinanceTransfer
+import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
@@ -121,8 +122,11 @@ data class BudgetActions(
     val open: () -> Unit,
     val close: () -> Unit,
     val monthChanged: (String) -> Unit,
-    val categoryChanged: (String?) -> Unit,
+    val nameChanged: (String) -> Unit,
     val amountChanged: (String) -> Unit,
+    val accountToggled: (String) -> Unit,
+    val create: () -> Unit,
+    val edit: (RecurringBudgetProgress) -> Unit,
     val save: () -> Unit,
 )
 
@@ -230,14 +234,16 @@ fun PersonalFinanceApp(
                             )
                         uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
                             BudgetsScreen(
-                                transactionsState.copy(currency = uiState.currency),
-                                actions.budgets.close,
-                                actions.budgets.monthChanged,
-                                actions.budgets.categoryChanged,
-                                actions.budgets.amountChanged,
-                                actions.budgets.save,
-                                { actions.transactions.create(TransactionDirection.EXPENSE) },
-                                actions.transfers.create,
+                                state = transactionsState.copy(currency = uiState.currency),
+                                onBack = actions.budgets.close,
+                                onMonthChanged = actions.budgets.monthChanged,
+                                onNameChanged = actions.budgets.nameChanged,
+                                onAmountChanged = actions.budgets.amountChanged,
+                                onAccountToggled = actions.budgets.accountToggled,
+                                onCreate = actions.budgets.create,
+                                onEdit = actions.budgets.edit,
+                                onSave = actions.budgets.save,
+                                onAddTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
                             )
                         uiState.isSetupComplete && transactionsState.selectedArea == "Accounts" ->
                             AccountsScreen(

@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
                     application.accountManagement,
                     application.categoryTagRepository,
                     application.budgetRepository,
+                    application.recurringBudgetRepository,
                     application.transferManagement,
                     application.appPreferences,
                 )
@@ -245,8 +246,11 @@ class MainActivity : ComponentActivity() {
                                     open = transactionsViewModel::showBudgets,
                                     close = transactionsViewModel::closeBudgets,
                                     monthChanged = transactionsViewModel::updateBudgetMonth,
-                                    categoryChanged = transactionsViewModel::updateBudgetCategory,
+                                    nameChanged = transactionsViewModel::updateBudgetName,
                                     amountChanged = transactionsViewModel::updateBudgetAmount,
+                                    accountToggled = transactionsViewModel::toggleBudgetAccount,
+                                    create = transactionsViewModel::beginBudgetCreate,
+                                    edit = transactionsViewModel::beginBudgetEdit,
                                     save = transactionsViewModel::saveBudget,
                                 ),
                             accountHistory =

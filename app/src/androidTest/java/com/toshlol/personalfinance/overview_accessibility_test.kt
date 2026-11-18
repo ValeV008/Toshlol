@@ -115,8 +115,9 @@ class OverviewAccessibilityTest {
             .assertIsDisplayed()
             .assertHeightIsAtLeast(48.dp)
         composeRule.onNodeWithText("Food").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("EUR 70.00 of 250.00").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Remaining EUR 180.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Spent  EUR 70.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Limit  EUR 250.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Remaining  EUR 180.00").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("overview-root").assertIsDisplayed().performTouchInput {
             swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
         }
@@ -131,8 +132,9 @@ class OverviewAccessibilityTest {
         composeRule.onNodeWithText("Close").performScrollTo().performClick()
         composeRule.onNodeWithTag("overview-root").assertIsDisplayed()
         composeRule.onNodeWithText("Food").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("EUR 70.00 of 250.00").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Remaining EUR 180.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Spent  EUR 70.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Limit  EUR 250.00").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Remaining  EUR 180.00").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("$olderDate · Emergency savings 1 · older-date").performScrollTo()
         val sameDateZTop: Float =
             composeRule

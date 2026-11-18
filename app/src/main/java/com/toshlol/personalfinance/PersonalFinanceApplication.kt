@@ -6,6 +6,7 @@ import com.toshlol.personalfinance.data.AppPreferences
 import com.toshlol.personalfinance.data.RoomAccountRepository
 import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomCategoryTagRepository
+import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
 import com.toshlol.personalfinance.domain.AccountManagement
 import com.toshlol.personalfinance.domain.FirstRunSetup
@@ -19,6 +20,7 @@ class PersonalFinanceApplication : Application() {
     }
     val categoryTagRepository: RoomCategoryTagRepository by lazy { RoomCategoryTagRepository(AppDatabase.getInstance(this)) }
     val budgetRepository: RoomBudgetRepository by lazy { RoomBudgetRepository(AppDatabase.getInstance(this)) }
+    val recurringBudgetRepository: RoomRecurringBudgetRepository by lazy { RoomRecurringBudgetRepository(AppDatabase.getInstance(this)) }
     val accountRepository: RoomAccountRepository by lazy {
         val preferences: AppPreferences = AppPreferences(this)
         RoomAccountRepository(

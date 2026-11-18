@@ -17,7 +17,7 @@ import java.io.IOException
 import java.io.OutputStream
 import java.time.LocalDate
 
-const val CURRENT_BACKUP_SCHEMA_VERSION: Int = 2
+const val CURRENT_BACKUP_SCHEMA_VERSION: Int = 3
 const val MAX_BACKUP_BYTES: Int = 5 * 1024 * 1024
 const val MAX_BACKUP_RECORDS: Int = 100_000
 private const val DEFAULT_OPENING_BALANCE_MINOR: Long = 0
@@ -32,6 +32,7 @@ data class FinanceBackup(
     val transactions: List<BackupTransaction>,
     val transfers: List<BackupTransfer>,
     val budgets: List<BackupBudget>,
+    val recurringBudgets: List<BackupRecurringBudget> = emptyList(),
 )
 
 @Serializable
@@ -104,6 +105,17 @@ data class BackupBudget(
     val amountMinor: Long,
     val createdAt: Long,
     override val updatedAt: Long,
+    val accountIds: List<String> = emptyList(),
+) : BackupEntityRecord
+
+@Serializable
+data class BackupRecurringBudget(
+    override val id: String,
+    val name: String,
+    val limitMinor: Long,
+    val accountIds: List<String>,
+    val createdAt: Long,
+    override val updatedAt: Long,
 ) : BackupEntityRecord
 
 @Serializable
@@ -114,6 +126,18 @@ private data class FinanceBackupV1(
     val categories: List<BackupCategory>,
     val tags: List<BackupTag>,
     val transactions: List<BackupTransaction>,
+    val budgets: List<BackupBudget>,
+)
+
+@Serializable
+private data class FinanceBackupV2(
+    val schemaVersion: Int,
+    val settings: BackupSettings,
+    val accounts: List<BackupAccount>,
+    val categories: List<BackupCategory>,
+    val tags: List<BackupTag>,
+    val transactions: List<BackupTransaction>,
+    val transfers: List<BackupTransfer>,
     val budgets: List<BackupBudget>,
 )
 
@@ -147,6 +171,7 @@ object FinanceBackupCodec {
                 ?: throw SerializationException("Backup schema version is missing.")
         return when (version) {
             1 -> normalizeV1(json.decodeFromString<FinanceBackupV1>(contents))
+            2 -> normalizeV2(json.decodeFromString<FinanceBackupV2>(contents))
             CURRENT_BACKUP_SCHEMA_VERSION -> json.decodeFromString<FinanceBackup>(contents)
             else -> throw SerializationException("Unsupported Backup schema version: $version")
         }
@@ -177,7 +202,21 @@ object FinanceBackupCodec {
             backup.tags,
             backup.transactions,
             emptyList(),
-            backup.budgets,
+            backup.budgets.map { budget -> budget.copy(accountIds = backup.accounts.map(BackupAccountV1::id)) },
+        )
+    }
+
+    private fun normalizeV2(backup: FinanceBackupV2): FinanceBackup {
+        val accountIds: List<String> = backup.accounts.map(BackupAccount::id)
+        return FinanceBackup(
+            CURRENT_BACKUP_SCHEMA_VERSION,
+            backup.settings,
+            backup.accounts,
+            backup.categories,
+            backup.tags,
+            backup.transactions,
+            backup.transfers,
+            backup.budgets.map { budget -> budget.copy(accountIds = accountIds) },
         )
     }
 }
@@ -237,7 +276,12 @@ class RoomBackupExporter(
                 transaction.toBackup(tagsByTransaction[transaction.id].orEmpty())
             },
             database.transferDao().loadAll().map { transfer: TransferEntity -> transfer.toBackup() },
-            database.budgetDao().loadAll().map { budget: BudgetEntity -> budget.toBackup() },
+            database.budgetDao().loadAll().map { budget: BudgetEntity ->
+                budget.toBackup(database.budgetDao().loadAccountIds(budget.id))
+            },
+            database.recurringBudgetDao().loadAll().map { budget: RecurringBudgetEntity ->
+                budget.toBackup(database.recurringBudgetDao().loadAccountIds(budget.id))
+            },
         )
     }
 
@@ -254,5 +298,9 @@ class RoomBackupExporter(
     private fun TransferEntity.toBackup(): BackupTransfer =
         BackupTransfer(id, sourceAccountId, destinationAccountId, amountMinor, date, createdAt, updatedAt)
 
-    private fun BudgetEntity.toBackup(): BackupBudget = BackupBudget(id, categoryId, month, amountMinor, createdAt, updatedAt)
+    private fun BudgetEntity.toBackup(accountIds: List<String>): BackupBudget =
+        BackupBudget(id, categoryId, month, amountMinor, createdAt, updatedAt, accountIds)
+
+    private fun RecurringBudgetEntity.toBackup(accountIds: List<String>): BackupRecurringBudget =
+        BackupRecurringBudget(id, name, limitMinor, accountIds, createdAt, updatedAt)
 }

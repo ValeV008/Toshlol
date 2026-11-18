@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 
 enum class BackupImportMode { MERGE, OVERWRITE }
 
-enum class BackupEntityType { ACCOUNT, CATEGORY, TAG, TRANSACTION, TRANSFER, BUDGET }
+enum class BackupEntityType { ACCOUNT, CATEGORY, TAG, TRANSACTION, TRANSFER, BUDGET, LEGACY_BUDGET }
 
 interface BackupEntityRecord {
     val id: String

@@ -15,7 +15,7 @@ internal object BackupValidator {
     fun validate(backup: FinanceBackup): Unit {
         val recordCount: Int =
             backup.accounts.size + backup.categories.size + backup.tags.size + backup.transactions.size +
-                backup.transfers.size + backup.budgets.size
+                backup.transfers.size + backup.budgets.size + backup.recurringBudgets.size
         require(recordCount <= MAX_BACKUP_RECORDS) { "Backup contains too many records." }
         require(backup.settings.currency.matches(Regex("[A-Z]{3}"))) { "Backup currency is invalid." }
         val identifiers: List<String> = collectIdentifiers(backup)
@@ -36,13 +36,15 @@ internal object BackupValidator {
         validateTags(backup.tags, references.categories)
         validateTransactions(backup.transactions, references)
         validateTransfers(backup.transfers, references.accounts)
-        validateBudgets(backup.budgets, references.categories)
+        validateBudgets(backup.budgets, references.categories, references.accounts)
+        validateRecurringBudgets(backup.recurringBudgets, references.accounts)
     }
 
     private fun collectIdentifiers(backup: FinanceBackup): List<String> =
         backup.accounts.map(BackupAccount::id) + backup.categories.map(BackupCategory::id) +
             backup.tags.map(BackupTag::id) + backup.transactions.map(BackupTransaction::id) +
-            backup.transfers.map(BackupTransfer::id) + backup.budgets.map(BackupBudget::id)
+            backup.transfers.map(BackupTransfer::id) + backup.budgets.map(BackupBudget::id) +
+            backup.recurringBudgets.map(BackupRecurringBudget::id)
 
     private fun validateAccounts(accounts: List<BackupAccount>): Unit {
         accounts.forEach { account ->
@@ -125,17 +127,37 @@ internal object BackupValidator {
     private fun validateBudgets(
         budgets: List<BackupBudget>,
         categories: Map<String, BackupCategory>,
+        accounts: Map<String, BackupAccount>,
     ): Unit {
         budgets.forEach { budget ->
             require(
                 categories[budget.categoryId]?.direction == TransactionDirection.EXPENSE.name &&
                     budget.amountMinor > 0 &&
                     budget.updatedAt >= budget.createdAt &&
-                    runCatching { YearMonth.parse(budget.month) }.isSuccess,
+                    runCatching { YearMonth.parse(budget.month) }.isSuccess &&
+                    budget.accountIds.distinct().size == budget.accountIds.size &&
+                    budget.accountIds.all { it in accounts },
             ) { "Backup contains an invalid Budget." }
         }
         val monthlyBudgetKeys: List<String> = budgets.map { "${it.categoryId}:${it.month}" }
         require(monthlyBudgetKeys.distinct().size == budgets.size) { "Backup contains duplicate monthly Budgets." }
+    }
+
+    private fun validateRecurringBudgets(
+        budgets: List<BackupRecurringBudget>,
+        accounts: Map<String, BackupAccount>,
+    ): Unit {
+        budgets.forEach { budget ->
+            require(
+                budget.name.isNotBlank() &&
+                    budget.name == budget.name.trim() &&
+                    budget.limitMinor > 0 &&
+                    budget.updatedAt >= budget.createdAt &&
+                    budget.accountIds.isNotEmpty() &&
+                    budget.accountIds.distinct().size == budget.accountIds.size &&
+                    budget.accountIds.all { it in accounts },
+            ) { "Backup contains an invalid Budget." }
+        }
     }
 
     private fun requireUniqueNames(

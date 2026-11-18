@@ -7,11 +7,13 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.BackupAccount
+import com.toshlol.personalfinance.data.BackupBudget
 import com.toshlol.personalfinance.data.BackupCategory
 import com.toshlol.personalfinance.data.BackupDocumentWriter
 import com.toshlol.personalfinance.data.BackupEntityType
 import com.toshlol.personalfinance.data.BackupImportMode
 import com.toshlol.personalfinance.data.BackupImportOutcome
+import com.toshlol.personalfinance.data.BackupRecurringBudget
 import com.toshlol.personalfinance.data.BackupSettings
 import com.toshlol.personalfinance.data.BackupTransaction
 import com.toshlol.personalfinance.data.FinanceBackup
@@ -29,12 +31,83 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class BackupImportTest {
+    @Test
+    fun reconcileBudgetAsCompleteBackupRecordWithoutStaleAccountUnion(): Unit =
+        runTest {
+            val database: AppDatabase = createDatabase()
+            try {
+                val importer: RoomBackupImporter = RoomBackupImporter(database)
+                val secondAccount: BackupAccount = BackupAccount("savings", "Savings", "BANK", 1L, 2L, 0L, 0L, false)
+                val originalBudget: BackupRecurringBudget = BackupRecurringBudget("budget", "Household", 500L, listOf("account"), 1L, 2L)
+                val initial: FinanceBackup =
+                    createBackup().copy(
+                        accounts = createBackup().accounts + secondAccount,
+                        recurringBudgets = listOf(originalBudget),
+                    )
+                assertTrue(importBackup(importer, initial) is BackupImportOutcome.Success)
+                assertEquals(initial, captureBackup(database))
+                val updatedBudget: BackupRecurringBudget =
+                    originalBudget.copy(
+                        limitMinor = 700L,
+                        accountIds = listOf("savings"),
+                        updatedAt = 3L,
+                    )
+                val updatedBackup: FinanceBackup = initial.copy(recurringBudgets = listOf(updatedBudget))
+                val updateOutcome: BackupImportOutcome.Success = importBackup(importer, updatedBackup) as BackupImportOutcome.Success
+                assertEquals(
+                    1,
+                    updateOutcome.report.counts
+                        .getValue(BackupEntityType.BUDGET)
+                        .updated,
+                )
+                assertEquals(listOf("savings"), captureBackup(database).recurringBudgets.single().accountIds)
+                val repeatedOutcome: BackupImportOutcome.Success = importBackup(importer, updatedBackup) as BackupImportOutcome.Success
+                assertEquals(
+                    1,
+                    repeatedOutcome.report.counts
+                        .getValue(BackupEntityType.BUDGET)
+                        .unchanged,
+                )
+                val divergentBudget: BackupRecurringBudget = updatedBudget.copy(name = "Different name")
+                assertTrue(
+                    importBackup(importer, updatedBackup.copy(recurringBudgets = listOf(divergentBudget))) is BackupImportOutcome.Failure,
+                )
+                val invalidBudget: BackupRecurringBudget = updatedBudget.copy(accountIds = listOf("missing"), updatedAt = 4L)
+                assertTrue(
+                    importBackup(importer, updatedBackup.copy(recurringBudgets = listOf(invalidBudget))) is BackupImportOutcome.Failure,
+                )
+                assertEquals(updatedBackup, captureBackup(database))
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
+    fun versionTwoBudgetsRestoreWithTheirOriginalAllAccountScope(): Unit =
+        runTest {
+            val versionTwoBackup: String =
+                """{"schemaVersion":2,"settings":{"currency":"EUR"},"accounts":[{"id":"cash","name":"Cash","type":"CASH","createdAt":1,"updatedAt":2,"openingBalanceMinor":0,"openingBalanceDate":0,"archived":false},{"id":"savings","name":"Savings","type":"BANK","createdAt":3,"updatedAt":4,"openingBalanceMinor":0,"openingBalanceDate":0,"archived":false}],"categories":[{"id":"food","name":"Food","direction":"EXPENSE","archived":false,"createdAt":5,"updatedAt":6}],"tags":[],"transactions":[],"transfers":[],"budgets":[{"id":"old-budget","categoryId":"food","month":"2025-12","amountMinor":9000,"createdAt":7,"updatedAt":8}]}"""
+            val actualBackup: FinanceBackup = FinanceBackupCodec.decode(versionTwoBackup)
+            assertEquals(3, actualBackup.schemaVersion)
+            assertEquals(
+                listOf(BackupBudget("old-budget", "food", "2025-12", 9000L, 7L, 8L, listOf("cash", "savings"))),
+                actualBackup.budgets,
+            )
+            assertFalse(
+                actualBackup.budgets
+                    .single()
+                    .accountIds
+                    .isEmpty(),
+            )
+        }
+
     @Test
     fun mergeIsIdempotentAndAppliesNewerWholeRecords(): Unit =
         runTest {
@@ -145,7 +218,7 @@ class BackupImportTest {
                     )
                 assertEquals(expected, captureBackup(database))
                 val unsupportedContents: ByteArray =
-                    legacyContents.replace("\"schemaVersion\":1", "\"schemaVersion\":3").toByteArray()
+                    legacyContents.replace("\"schemaVersion\":1", "\"schemaVersion\":99").toByteArray()
                 assertTrue(importer.import(unsupportedContents) is BackupImportOutcome.Failure)
                 assertEquals(expected, captureBackup(database))
             } finally {
@@ -261,7 +334,7 @@ class BackupImportTest {
 
     private fun createBackup(): FinanceBackup =
         FinanceBackup(
-            schemaVersion = 2,
+            schemaVersion = 3,
             settings = BackupSettings("EUR"),
             accounts = listOf(BackupAccount("account", "Cash", "CASH", 1L, 2L, 0L, 0L, false)),
             categories = listOf(BackupCategory("category", "Food", TransactionDirection.EXPENSE.name, false, 1L, 2L)),

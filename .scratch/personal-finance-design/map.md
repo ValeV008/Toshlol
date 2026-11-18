@@ -13,7 +13,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | resolved |
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | resolved |
 | [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | resolved |
-| [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | ready-for-agent |
+| [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | resolved |
 | [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | ready-for-agent |
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | ready-for-agent |
 | [09: Redesigned first-run setup](issues/09-redesigned-first-run-setup.md) | 01 | ready-for-agent |
@@ -25,7 +25,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 ## Work frontier
 
 - 01, 02, 03, 04, and 05 are resolved.
-- 06, 08, and 09 can proceed without waiting for each other.
+- 07, 08, and 09 can proceed without waiting for each other.
 - 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
 - 05 opened after both 02 and 03 resolved and is complete with ticket-specific API 29 creation, editing, paired-list, filter, deletion, archived-counterpart, and larger-font verification.
 - 07 opens after 06 resolves.
@@ -44,7 +44,8 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. The runner now scopes Income/Expenses labels to the financial summary to allow duplicate navigation-tab labels. Both selected and empty restart checks passed on 2026-11-17. CI runs it before the connected suite and uploads each run's evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.
 - Budget tickets 06-07 include their own schema, migration, validation, and complete-record Backup paths. Ticket 10 delivers the styled document-management journey over those working contracts.
-- Before legacy Budget schema/data mutation, 06 must document a deterministic lossless mapping and resolve any product-dependent missing Account-scope choice from the parent spec. The approved breakdown does not invent that mapping or authorize data loss.
+- Issue 06 resolved the legacy Budget Account-scope choice by mapping each old monthly record to every Account present at upgrade, preserving prior totals and keeping later Accounts outside the saved scope. Version 1 and 2 Backups use the same mapping.
+- Issue 06 is complete with named recurring Budgets, explicit Account scopes, migration and versioned Backup compatibility, passing API 29/JVM/host-runner checks, and screenshots in `issues/evidence/06/`.
 - Preserve older supported Backups, stable identities, renamed/archived references, and the existing atomic-import ADR throughout the staged implementation.
 - Keep source specifications and earlier resolved issues intact. On future completion, add the ticket's Answer and verification evidence, mark it resolved, and update this map only when its criteria and required checks pass.
 

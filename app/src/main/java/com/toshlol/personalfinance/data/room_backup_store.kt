@@ -29,6 +29,7 @@ internal class RoomBackupStore(
         saveTransactions(backup.transactions)
         saveTransfers(backup.transfers)
         saveBudgets(backup.budgets)
+        saveRecurringBudgets(backup.recurringBudgets)
     }
 
     private suspend fun requireEmptyLedger(): Unit {
@@ -38,7 +39,8 @@ internal class RoomBackupStore(
                 database.categoryTagDao().loadTags().isNotEmpty() ||
                 database.transactionDao().loadAll().isNotEmpty() ||
                 database.transferDao().loadAll().isNotEmpty() ||
-                database.budgetDao().loadAll().isNotEmpty()
+                database.budgetDao().loadAll().isNotEmpty() ||
+                database.recurringBudgetDao().loadAll().isNotEmpty()
         if (hasLocalData) throw BackupImportRejected("local_data_invalid", "Local ledger settings are missing.")
     }
 
@@ -53,7 +55,12 @@ internal class RoomBackupStore(
             database.categoryTagDao().loadTags().map(::createBackupTag),
             database.transactionDao().loadAll().map { transaction -> createBackupTransaction(transaction, transactionTagAssociationsById) },
             database.transferDao().loadAll().map(::createBackupTransfer),
-            database.budgetDao().loadAll().map(::createBackupBudget),
+            database.budgetDao().loadAll().map { budget ->
+                createBackupBudget(budget, database.budgetDao().loadAccountIds(budget.id))
+            },
+            database.recurringBudgetDao().loadAll().map { budget ->
+                createBackupRecurringBudget(budget, database.recurringBudgetDao().loadAccountIds(budget.id))
+            },
         )
     }
 
@@ -103,12 +110,22 @@ internal class RoomBackupStore(
             transfer.updatedAt,
         )
 
-    private fun createBackupBudget(budget: BudgetEntity): BackupBudget =
-        BackupBudget(budget.id, budget.categoryId, budget.month, budget.amountMinor, budget.createdAt, budget.updatedAt)
+    private fun createBackupBudget(
+        budget: BudgetEntity,
+        accountIds: List<String>,
+    ): BackupBudget =
+        BackupBudget(budget.id, budget.categoryId, budget.month, budget.amountMinor, budget.createdAt, budget.updatedAt, accountIds)
+
+    private fun createBackupRecurringBudget(
+        budget: RecurringBudgetEntity,
+        accountIds: List<String>,
+    ): BackupRecurringBudget =
+        BackupRecurringBudget(budget.id, budget.name, budget.limitMinor, accountIds, budget.createdAt, budget.updatedAt)
 
     private suspend fun clearLedger(): Unit {
         database.categoryTagDao().clearAllTransactionTags()
         database.budgetDao().clear()
+        database.recurringBudgetDao().clear()
         database.transferDao().clear()
         database.transactionDao().clear()
         database.categoryTagDao().clearTags()
@@ -190,6 +207,22 @@ internal class RoomBackupStore(
             database.budgetDao().save(
                 BudgetEntity(budget.id, budget.categoryId, budget.month, budget.amountMinor, budget.createdAt, budget.updatedAt),
             )
+            database.budgetDao().clearAccountIds(budget.id)
+            budget.accountIds.forEach { accountId ->
+                database.budgetDao().saveAccount(LegacyBudgetAccountEntity(budget.id, accountId))
+            }
+        }
+    }
+
+    private suspend fun saveRecurringBudgets(budgets: List<BackupRecurringBudget>): Unit {
+        budgets.forEach { budget ->
+            database.recurringBudgetDao().save(
+                RecurringBudgetEntity(budget.id, budget.name, budget.limitMinor, budget.createdAt, budget.updatedAt),
+            )
+            database.recurringBudgetDao().clearAccountIds(budget.id)
+            budget.accountIds.forEach { accountId ->
+                database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(budget.id, accountId))
+            }
         }
     }
 }

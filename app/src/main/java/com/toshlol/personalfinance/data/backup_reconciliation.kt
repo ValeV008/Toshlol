@@ -16,6 +16,7 @@ internal class BackupReconciler {
             reconcile(local.transactions, imported.transactions),
             reconcile(local.transfers, imported.transfers),
             reconcile(local.budgets, imported.budgets),
+            reconcile(local.recurringBudgets, imported.recurringBudgets),
         )
 
     fun createReport(
@@ -31,7 +32,8 @@ internal class BackupReconciler {
                     BackupEntityType.TAG to BackupEntityCounts(inserted = imported.tags.size),
                     BackupEntityType.TRANSACTION to BackupEntityCounts(inserted = imported.transactions.size),
                     BackupEntityType.TRANSFER to BackupEntityCounts(inserted = imported.transfers.size),
-                    BackupEntityType.BUDGET to BackupEntityCounts(inserted = imported.budgets.size),
+                    BackupEntityType.BUDGET to BackupEntityCounts(inserted = imported.recurringBudgets.size),
+                    BackupEntityType.LEGACY_BUDGET to BackupEntityCounts(inserted = imported.budgets.size),
                 ),
             )
         } else {
@@ -50,7 +52,8 @@ internal class BackupReconciler {
                 BackupEntityType.TAG to countImported(previous?.tags.orEmpty(), imported.tags),
                 BackupEntityType.TRANSACTION to countImported(previous?.transactions.orEmpty(), imported.transactions),
                 BackupEntityType.TRANSFER to countImported(previous?.transfers.orEmpty(), imported.transfers),
-                BackupEntityType.BUDGET to countImported(previous?.budgets.orEmpty(), imported.budgets),
+                BackupEntityType.BUDGET to countImported(previous?.recurringBudgets.orEmpty(), imported.recurringBudgets),
+                BackupEntityType.LEGACY_BUDGET to countImported(previous?.budgets.orEmpty(), imported.budgets),
             ),
         )
     }

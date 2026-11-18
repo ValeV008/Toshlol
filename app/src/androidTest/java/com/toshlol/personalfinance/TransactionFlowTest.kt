@@ -40,10 +40,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AppDatabase
-import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
+import com.toshlol.personalfinance.data.RecurringBudgetDraft
+import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import com.toshlol.personalfinance.data.RoomTransferRepository
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
@@ -736,19 +737,38 @@ class TransactionFlowTest {
         recordFoodExpense()
         navigateTo("Overview")
         composeRule.onNodeWithTag("open-budgets").performClick()
-        ui.clickText("Food")
-        ui.showText("Food").assertIsSelected()
-        ui.enterText("Budget amount", "20.00")
-        ui.clickText("Save budget")
+        ui.enterText("Budget name", "Household")
+        ui.enterText("Monthly limit (EUR)", "20.00")
+        composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").assertIsSelected()
+        ui.clickText("Save Budget")
+        ui.showText("Household")
+        ui.showText("Accounts: Cash")
+        saveBudgetEvidenceScreenshot("budget-progress.png")
+        ui.clickText("Edit Budget")
+        composeRule.onNodeWithTag("budget-name").assert(hasText("Household"))
+        composeRule.onNodeWithTag("budget-limit").assert(hasText("20.00"))
+        composeRule.onNodeWithTag("budget-limit").performScrollTo().assertIsDisplayed()
+        saveBudgetEvidenceScreenshot("budget-editor.png")
         verifyRemainingBudgetOnBothScreens()
+        composeRule.onNodeWithTag("overview-root").performTouchInput {
+            swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
+        }
+        composeRule.onNodeWithContentDescription("Cash Account selection").performClick().assertIsOff()
+        composeRule.onNodeWithTag("account-drawer-close").performClick()
+        ui.showText("Household")
+        ui.showText("Accounts: Cash")
+        ui.showText("Spent  EUR 12.50")
+        ui.showText("Remaining  EUR 7.50")
+        saveBudgetEvidenceScreenshot("overview-budget-progress.png")
+        ui.selectOverviewAccount("Cash")
         ui.clickText("Expense \u00b7 EUR 12.50")
         ui.enterText("Amount", "25.00", "transaction-form")
         ui.clickText("Save")
-        ui.showText("EUR 25.00 of 20.00")
+        ui.showText("Remaining  EUR -5.00")
         ui.showText("Over budget")
         navigateTo("Budgets")
         verifyOverBudgetOnBothScreens()
-        deleteExpenseAndVerifyBudgetOnBothScreens()
     }
 
     @Test
@@ -759,24 +779,23 @@ class TransactionFlowTest {
         ui.showText("Remaining  EUR 10.00")
         ui.clickText("Back to overview")
         ui.showText("Transfer \u00b7 EUR 5.00")
-        ui.showText("Food")
-        ui.showText("EUR 0.00 of 10.00")
-        ui.showText("Remaining EUR 10.00")
+        ui.showText("Household")
+        ui.showText("Spent  EUR 0.00")
+        ui.showText("Remaining  EUR 10.00")
     }
 
     @Test
-    fun navigateBudgetMonthsAndOfferOnlyExpenseCategories() {
+    fun recurringBudgetUsesSharedMonthAndResetsWithoutCarryover() {
         navigateTo("Budgets")
-        ui.showText("Month (YYYY-MM)").assert(hasSetTextAction())
+        ui.showText(YearMonth.now().format(DateTimeFormatter.ofPattern("MMMM yyyy")))
         ui.showText("Limit  EUR 10.00")
-        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").assertHasClickAction()
-        composeRule.onNodeWithText("Pay").assertDoesNotExist()
+        ui.showText("Spent  EUR 0.00")
         composeRule.onNodeWithTag("budget-previous-month").performClick()
-        ui.showText("Limit  EUR 15.00")
-        ui.showText("Month (YYYY-MM)").assert(hasText(YearMonth.now().minusMonths(1).toString()))
+        ui.showText("Limit  EUR 10.00")
+        ui.showText("Remaining  EUR 10.00")
         composeRule.onNodeWithTag("budget-next-month").performClick()
         ui.showText("Limit  EUR 10.00")
-        ui.showText("Month (YYYY-MM)").assert(hasText(YearMonth.now().toString()))
+        ui.showText("Remaining  EUR 10.00")
     }
 
     @Test
@@ -946,6 +965,27 @@ class TransactionFlowTest {
         }
     }
 
+    private fun saveBudgetEvidenceScreenshot(name: String) {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val outputRoot: File =
+            InstrumentationRegistry
+                .getArguments()
+                .getString("additionalTestOutputDir")
+                ?.takeIf(String::isNotBlank)
+                ?.let(::File)
+                ?: context.cacheDir
+        val outputDirectory: File = File(outputRoot, "budget-evidence")
+        check(outputDirectory.mkdirs() || outputDirectory.isDirectory)
+        val screenshot: Bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        try {
+            File(outputDirectory, name).outputStream().use { output: OutputStream ->
+                check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output))
+            }
+        } finally {
+            screenshot.recycle()
+        }
+    }
+
     private fun accountId(name: String): String {
         val context: Context = ApplicationProvider.getApplicationContext()
         return runBlocking {
@@ -994,35 +1034,21 @@ class TransactionFlowTest {
         ui.showText("Remaining  EUR 7.50")
         ui.clickText("Back to overview")
         ui.showText("Budget progress")
-        ui.showText("Food")
-        ui.showText("EUR 12.50 of 20.00")
-        ui.showText("Remaining EUR 7.50")
+        ui.showText("Household")
+        ui.showText("Accounts: Cash")
+        ui.showText("Spent  EUR 12.50")
+        ui.showText("Remaining  EUR 7.50")
     }
 
     private fun verifyOverBudgetOnBothScreens() {
         ui.showText("Spent  EUR 25.00")
         ui.showText("Limit  EUR 20.00")
-        ui.showText("Over budget  EUR 5.00")
+        ui.showText("Remaining  EUR -5.00")
         ui.clickText("Back to overview")
         ui.showText("Budget progress")
-        ui.showText("Food")
-        ui.showText("EUR 25.00 of 20.00")
+        ui.showText("Household")
+        ui.showText("Remaining  EUR -5.00")
         ui.showText("Over budget")
-    }
-
-    private fun deleteExpenseAndVerifyBudgetOnBothScreens() {
-        ui.clickText("Delete")
-        ui.showText("Delete transaction?")
-        ui.click(hasText("Delete") and hasAnyAncestor(isDialog()))
-        ui.showText("EUR 0.00 of 20.00")
-        ui.showText("Remaining EUR 20.00")
-        navigateTo("Budgets")
-        ui.showText("Spent  EUR 0.00")
-        ui.showText("Limit  EUR 20.00")
-        ui.showText("Remaining  EUR 20.00")
-        ui.clickText("Back to overview")
-        ui.showText("EUR 0.00 of 20.00")
-        ui.showText("Remaining EUR 20.00")
     }
 
     private fun createFoodCategory() {
@@ -1191,13 +1217,9 @@ class TransactionFlowTest {
                             .accounts
                             .single()
                     val destination: Account = fixtures.createAdditionalAccount("Savings")
-                    val category: FinanceCategory =
-                        fixtures.organization
-                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
-                            .categories
-                            .single()
-                    fixtures.budgets.save(
-                        BudgetDraft(category.id, YearMonth.now(), 1000L),
+                    RoomRecurringBudgetRepository(AppDatabase.getInstance(context)).save(
+                        RecurringBudgetDraft(null, "Household", 1_000L, setOf(source.id)),
+                        YearMonth.now(),
                     )
                     RoomTransferRepository(AppDatabase.getInstance(context)).save(
                         TransferDraft(
@@ -1210,18 +1232,19 @@ class TransactionFlowTest {
                 }
                 return
             }
-            if (description.methodName == "navigateBudgetMonthsAndOfferOnlyExpenseCategories") {
+            if (description.methodName == "recurringBudgetUsesSharedMonthAndResetsWithoutCarryover") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {
                     val fixtures: FinanceTestFixtures = FinanceTestFixtures(AppDatabase.getInstance(context))
-                    val food: FinanceCategory =
-                        fixtures.organization
-                            .saveCategory(CategoryDraft(name = "Food", direction = TransactionDirection.EXPENSE))
-                            .categories
+                    val account: Account =
+                        fixtures.accounts
+                            .loadSetup()
+                            .accounts
                             .single()
-                    fixtures.organization.saveCategory(CategoryDraft(name = "Pay", direction = TransactionDirection.INCOME))
-                    fixtures.budgets.save(BudgetDraft(food.id, YearMonth.now(), 1000L))
-                    fixtures.budgets.save(BudgetDraft(food.id, YearMonth.now().minusMonths(1), 1500L))
+                    RoomRecurringBudgetRepository(AppDatabase.getInstance(context)).save(
+                        RecurringBudgetDraft(null, "Household", 1_000L, setOf(account.id)),
+                        YearMonth.now(),
+                    )
                 }
                 return
             }

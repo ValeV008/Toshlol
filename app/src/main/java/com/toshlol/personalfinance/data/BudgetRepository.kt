@@ -22,6 +22,15 @@ interface BudgetDao {
     @Upsert
     suspend fun save(budget: BudgetEntity)
 
+    @Query("SELECT accountId FROM legacy_budget_accounts WHERE budgetId = :budgetId ORDER BY accountId")
+    suspend fun loadAccountIds(budgetId: String): List<String>
+
+    @Query("DELETE FROM legacy_budget_accounts WHERE budgetId = :budgetId")
+    suspend fun clearAccountIds(budgetId: String)
+
+    @Upsert
+    suspend fun saveAccount(account: LegacyBudgetAccountEntity)
+
     @Query("DELETE FROM budgets")
     suspend fun clear()
 }
@@ -53,9 +62,10 @@ class RoomBudgetRepository(
                 }
                 val existing: BudgetEntity? = database.budgetDao().load(draft.categoryId, monthKey)
                 val timestamp: Long = currentTime()
+                val identifier: String = existing?.id ?: nextIdentifier()
                 database.budgetDao().save(
                     BudgetEntity(
-                        existing?.id ?: nextIdentifier(),
+                        identifier,
                         draft.categoryId,
                         monthKey,
                         draft.amountMinor,
@@ -63,6 +73,10 @@ class RoomBudgetRepository(
                         timestamp,
                     ),
                 )
+                database.budgetDao().clearAccountIds(identifier)
+                database.accountDao().loadAccounts().forEach { account ->
+                    database.budgetDao().saveAccount(LegacyBudgetAccountEntity(identifier, account.id))
+                }
                 loadInsideTransaction()
             }
         }
@@ -70,21 +84,39 @@ class RoomBudgetRepository(
 
     private suspend fun loadInsideTransaction(): List<CategoryBudget> {
         val categories: Map<String, CategoryEntity> = database.categoryTagDao().loadCategories().associateBy(CategoryEntity::id)
+        val budgets: List<BudgetEntity> = database.budgetDao().loadAll()
+        val accountIdsByBudget: Map<String, Set<String>> =
+            budgets.associate { budget ->
+                budget.id to database.budgetDao().loadAccountIds(budget.id).toSet()
+            }
         val expenses: List<TransactionEntity> =
             database.transactionDao().loadAll().filter {
                 it.direction ==
                     TransactionDirection.EXPENSE.name
             }
-        return database.budgetDao().loadAll().mapNotNull { budget: BudgetEntity ->
+        return budgets.mapNotNull { budget: BudgetEntity ->
             val category: CategoryEntity = categories[budget.categoryId] ?: return@mapNotNull null
             val month: YearMonth = YearMonth.parse(budget.month)
+            val accountIds: Set<String> = accountIdsByBudget.getValue(budget.id)
             val spent: Long =
                 expenses
                     .asSequence()
                     .filter { it.categoryId == budget.categoryId }
+                    .filter { it.accountId in accountIds }
                     .filter { YearMonth.from(java.time.LocalDate.ofEpochDay(it.date)) == month }
                     .sumOf(TransactionEntity::amountMinor)
-            CategoryBudget(budget.id, category.id, category.name, category.archived, month, budget.amountMinor, spent)
+            CategoryBudget(
+                budget.id,
+                category.id,
+                category.name,
+                category.archived,
+                month,
+                budget.amountMinor,
+                spent,
+                accountIds,
+                budget.createdAt,
+                budget.updatedAt,
+            )
         }
     }
 

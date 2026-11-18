@@ -132,7 +132,7 @@ class BackupImportUiTest {
         val destination = requireNotNull(context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
         val backup: FinanceBackup =
             FinanceBackup(
-                schemaVersion = 2,
+                schemaVersion = 3,
                 settings = BackupSettings("USD"),
                 accounts =
                     listOf(

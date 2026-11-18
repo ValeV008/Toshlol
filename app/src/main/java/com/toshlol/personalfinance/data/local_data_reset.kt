@@ -11,6 +11,7 @@ class RoomLocalDataResetter(
         database.withTransaction {
             database.categoryTagDao().clearAllTransactionTags()
             database.budgetDao().clear()
+            database.recurringBudgetDao().clear()
             database.transferDao().clear()
             database.transactionDao().clear()
             database.categoryTagDao().clearTags()

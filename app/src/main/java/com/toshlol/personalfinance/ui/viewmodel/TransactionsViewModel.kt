@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AppPreferences
-import com.toshlol.personalfinance.data.BudgetDraft
 import com.toshlol.personalfinance.data.BudgetRepository
 import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.CategoryDraft
@@ -14,6 +13,9 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.MonthlyOverview
+import com.toshlol.personalfinance.data.RecurringBudgetDraft
+import com.toshlol.personalfinance.data.RecurringBudgetProgress
+import com.toshlol.personalfinance.data.RecurringBudgetRepository
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
@@ -78,12 +80,15 @@ data class TransactionsUiState(
     val editingTagId: String? = null,
     val isBudgetsVisible: Boolean = false,
     val budgets: List<CategoryBudget> = emptyList(),
+    val recurringBudgets: List<RecurringBudgetProgress> = emptyList(),
     val budgetMonth: String =
         java.time.YearMonth
             .now()
             .toString(),
-    val budgetCategoryId: String? = null,
+    val editingBudgetId: String? = null,
+    val budgetName: String = "",
     val budgetAmount: String = "",
+    val budgetAccountIds: Set<String> = emptySet(),
     val selectedMonth: String = YearMonth.now().toString(),
     val selectedOverviewAccountIds: Set<String> = emptySet(),
     val isAccountDrawerOpen: Boolean = false,
@@ -110,6 +115,7 @@ class TransactionsViewModel(
     private val accountManagement: AccountManagement,
     private val categoryTagRepository: CategoryTagRepository,
     private val budgetRepository: BudgetRepository,
+    private val recurringBudgetRepository: RecurringBudgetRepository,
     private val transferManagement: TransferManagement,
     private val preferences: AppPreferences,
 ) : ViewModel() {
@@ -128,6 +134,8 @@ class TransactionsViewModel(
                 val budgets: List<CategoryBudget> = budgetRepository.load()
                 val accounts: List<Account> = setup.accounts
                 val transfers: List<FinanceTransfer> = transferManagement.loadTransfers()
+                val selectedMonth: YearMonth = runCatching { YearMonth.parse(uiState.value.selectedMonth) }.getOrDefault(YearMonth.now())
+                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(selectedMonth)
                 val selectedAccountIds: Set<String> = preferences.loadOverviewAccountIds()
                 val lastTransactionAccountId: String? = preferences.loadLastTransactionAccountId()
                 mutableUiState.value =
@@ -146,6 +154,7 @@ class TransactionsViewModel(
                         categories = organization.categories,
                         tags = organization.tags,
                         budgets = budgets,
+                        recurringBudgets = recurringBudgets,
                         accounts = accounts,
                         transfers = transfers,
                         selectedOverviewAccountIds = selectedAccountIds,
@@ -210,6 +219,17 @@ class TransactionsViewModel(
 
     fun updateSelectedMonth(value: String) {
         mutableUiState.value = uiState.value.copy(selectedMonth = value)
+        val month: YearMonth = runCatching { YearMonth.parse(value) }.getOrNull() ?: return
+        viewModelScope.launch {
+            try {
+                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(month)
+                if (uiState.value.selectedMonth == value) {
+                    mutableUiState.value = uiState.value.copy(recurringBudgets = recurringBudgets)
+                }
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not load budgets.")
+            }
+        }
     }
 
     fun toggleOverviewAccount(id: String) {
@@ -625,13 +645,17 @@ class TransactionsViewModel(
         mutableUiState.value = currentState.copy(selectedArea = "Budgets", budgetMonth = currentState.selectedMonth)
         viewModelScope.launch {
             try {
+                val month: YearMonth = YearMonth.parse(uiState.value.selectedMonth)
                 mutableUiState.value =
                     uiState.value.copy(
                         isBudgetsVisible = true,
                         budgets = budgetRepository.load(),
-                        budgetMonth = uiState.value.selectedMonth,
-                        budgetCategoryId = null,
+                        recurringBudgets = recurringBudgetRepository.load(month),
+                        budgetMonth = month.toString(),
+                        editingBudgetId = null,
+                        budgetName = "",
                         budgetAmount = "",
+                        budgetAccountIds = emptySet(),
                         error = null,
                     )
             } catch (exception: IOException) {
@@ -646,23 +670,58 @@ class TransactionsViewModel(
 
     fun updateBudgetMonth(value: String) {
         mutableUiState.value = uiState.value.copy(budgetMonth = value, selectedMonth = value, error = null)
+        val month: YearMonth = runCatching { YearMonth.parse(value) }.getOrNull() ?: return
+        viewModelScope.launch {
+            try {
+                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(month)
+                if (uiState.value.budgetMonth == value) {
+                    mutableUiState.value = uiState.value.copy(recurringBudgets = recurringBudgets)
+                }
+            } catch (exception: IOException) {
+                mutableUiState.value = uiState.value.copy(error = "Could not load budgets.")
+            }
+        }
     }
 
-    fun updateBudgetCategory(value: String?) {
-        mutableUiState.value = uiState.value.copy(budgetCategoryId = value, error = null)
+    fun updateBudgetName(value: String) {
+        mutableUiState.value = uiState.value.copy(budgetName = value, error = null)
     }
 
     fun updateBudgetAmount(value: String) {
         mutableUiState.value = uiState.value.copy(budgetAmount = value, error = null)
     }
 
+    fun toggleBudgetAccount(accountId: String) {
+        val selectedAccountIds: Set<String> = uiState.value.budgetAccountIds
+        val updatedAccountIds: Set<String> =
+            if (accountId in selectedAccountIds) selectedAccountIds - accountId else selectedAccountIds + accountId
+        mutableUiState.value = uiState.value.copy(budgetAccountIds = updatedAccountIds, error = null)
+    }
+
+    fun beginBudgetCreate() {
+        mutableUiState.value =
+            uiState.value.copy(
+                editingBudgetId = null,
+                budgetName = "",
+                budgetAmount = "",
+                budgetAccountIds = emptySet(),
+                error = null,
+            )
+    }
+
+    fun beginBudgetEdit(budget: RecurringBudgetProgress) {
+        mutableUiState.value =
+            uiState.value.copy(
+                editingBudgetId = budget.id,
+                budgetName = budget.name,
+                budgetAmount = formatAmount(budget.limitMinor, uiState.value.currency),
+                budgetAccountIds = budget.accountIds,
+                error = null,
+            )
+    }
+
     fun saveBudget() {
         val state: TransactionsUiState = uiState.value
-        val categoryId: String =
-            state.budgetCategoryId ?: run {
-                mutableUiState.value = state.copy(error = "Choose an expense category.")
-                return
-            }
         val amountMinor: Long? =
             state.budgetAmount
                 .toBigDecimalOrNull()
@@ -670,14 +729,34 @@ class TransactionsViewModel(
                     fractionDigits(state.currency),
                 )?.longValueExactOrNull()
         val budgetMonth: YearMonth? = runCatching { YearMonth.parse(state.budgetMonth) }.getOrNull()
+        if (state.budgetName.isBlank()) {
+            mutableUiState.value = state.copy(error = "Enter a Budget name.")
+            return
+        }
         if (amountMinor == null || amountMinor <= 0 || budgetMonth == null) {
-            mutableUiState.value = state.copy(error = "Enter a positive amount and a valid month.")
+            mutableUiState.value = state.copy(error = "Enter a positive limit and select a valid month.")
+            return
+        }
+        if (state.budgetAccountIds.isEmpty()) {
+            mutableUiState.value = state.copy(error = "Choose at least one Account.")
             return
         }
         viewModelScope.launch {
             try {
-                val budgets: List<CategoryBudget> = budgetRepository.save(BudgetDraft(categoryId, budgetMonth, amountMinor))
-                mutableUiState.value = uiState.value.copy(budgets = budgets, budgetAmount = "", budgetCategoryId = null, error = null)
+                val recurringBudgets: List<RecurringBudgetProgress> =
+                    recurringBudgetRepository.save(
+                        RecurringBudgetDraft(state.editingBudgetId, state.budgetName, amountMinor, state.budgetAccountIds),
+                        budgetMonth,
+                    )
+                mutableUiState.value =
+                    uiState.value.copy(
+                        recurringBudgets = recurringBudgets,
+                        editingBudgetId = null,
+                        budgetName = "",
+                        budgetAmount = "",
+                        budgetAccountIds = emptySet(),
+                        error = null,
+                    )
             } catch (exception: Exception) {
                 mutableUiState.value = uiState.value.copy(error = exception.message ?: "Could not save budget.")
             }
@@ -831,9 +910,17 @@ class TransactionsViewModel(
             try {
                 val transactions: List<FinanceTransaction> = repository.delete(id)
                 val budgets: List<CategoryBudget> = budgetRepository.load()
+                val selectedMonth: YearMonth = runCatching { YearMonth.parse(uiState.value.selectedMonth) }.getOrDefault(YearMonth.now())
+                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(selectedMonth)
                 val accounts: List<Account> = accountManagement.loadAccounts()
                 mutableUiState.value =
-                    uiState.value.copy(transactions = transactions, budgets = budgets, accounts = accounts, pendingDeleteId = null)
+                    uiState.value.copy(
+                        transactions = transactions,
+                        budgets = budgets,
+                        recurringBudgets = recurringBudgets,
+                        accounts = accounts,
+                        pendingDeleteId = null,
+                    )
             } catch (
                 exception: IOException,
             ) {
@@ -884,12 +971,15 @@ class TransactionsViewModel(
                         ),
                     )
                 val budgets: List<CategoryBudget> = budgetRepository.load()
+                val selectedMonth: YearMonth = runCatching { YearMonth.parse(uiState.value.selectedMonth) }.getOrDefault(YearMonth.now())
+                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(selectedMonth)
                 val accounts: List<Account> = accountManagement.loadAccounts()
                 preferences.saveLastTransactionAccountId(transactionAccountId)
                 mutableUiState.value =
                     uiState.value.copy(
                         transactions = newState,
                         budgets = budgets,
+                        recurringBudgets = recurringBudgets,
                         accounts = accounts,
                         transactionAccountId = transactionAccountId,
                         isFormVisible = false,

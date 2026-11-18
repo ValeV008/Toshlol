@@ -17,9 +17,12 @@ import java.util.UUID
         TagEntity::class,
         TransactionTagCrossRef::class,
         BudgetEntity::class,
+        LegacyBudgetAccountEntity::class,
+        RecurringBudgetEntity::class,
+        RecurringBudgetAccountEntity::class,
         TransferEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,6 +37,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryTagDao(): CategoryTagDao
 
     abstract fun budgetDao(): BudgetDao
+
+    abstract fun recurringBudgetDao(): RecurringBudgetDao
 
     companion object {
         @Volatile
@@ -127,6 +132,26 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_7_8: Migration =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE legacy_budget_accounts (budgetId TEXT NOT NULL, accountId TEXT NOT NULL, PRIMARY KEY(budgetId, accountId), FOREIGN KEY(budgetId) REFERENCES budgets(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(accountId) REFERENCES accounts(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_legacy_budget_accounts_accountId ON legacy_budget_accounts(accountId)")
+                    db.execSQL(
+                        "INSERT INTO legacy_budget_accounts (budgetId, accountId) SELECT budgets.id, accounts.id FROM budgets CROSS JOIN accounts",
+                    )
+                    db.execSQL(
+                        "CREATE TABLE recurring_budgets (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, limitMinor INTEGER NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL)",
+                    )
+                    db.execSQL(
+                        "CREATE TABLE recurring_budget_accounts (budgetId TEXT NOT NULL, accountId TEXT NOT NULL, PRIMARY KEY(budgetId, accountId), FOREIGN KEY(budgetId) REFERENCES recurring_budgets(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(accountId) REFERENCES accounts(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_recurring_budget_accounts_accountId ON recurring_budget_accounts(accountId)")
+                }
+            }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room
@@ -137,6 +162,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(MIGRATION_4_5)
                     .addMigrations(MIGRATION_5_6)
                     .addMigrations(MIGRATION_6_7)
+                    .addMigrations(MIGRATION_7_8)
                     .build()
                     .also { instance = it }
             }

@@ -219,17 +219,7 @@ class TransactionsViewModel(
 
     fun updateSelectedMonth(value: String) {
         mutableUiState.value = uiState.value.copy(selectedMonth = value)
-        val month: YearMonth = runCatching { YearMonth.parse(value) }.getOrNull() ?: return
-        viewModelScope.launch {
-            try {
-                val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(month)
-                if (uiState.value.selectedMonth == value) {
-                    mutableUiState.value = uiState.value.copy(recurringBudgets = recurringBudgets)
-                }
-            } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not load budgets.")
-            }
-        }
+        loadRecurringBudgets(value, isBudgetMonth = false)
     }
 
     fun toggleOverviewAccount(id: String) {
@@ -670,12 +660,22 @@ class TransactionsViewModel(
 
     fun updateBudgetMonth(value: String) {
         mutableUiState.value = uiState.value.copy(budgetMonth = value, selectedMonth = value, error = null)
+        loadRecurringBudgets(value, isBudgetMonth = true)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun loadRecurringBudgets(
+        value: String,
+        isBudgetMonth: Boolean,
+    ): Unit {
         val month: YearMonth = runCatching { YearMonth.parse(value) }.getOrNull() ?: return
         viewModelScope.launch {
             try {
                 val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(month)
-                if (uiState.value.budgetMonth == value) {
-                    mutableUiState.value = uiState.value.copy(recurringBudgets = recurringBudgets)
+                val currentState: TransactionsUiState = uiState.value
+                val currentMonth: String = if (isBudgetMonth) currentState.budgetMonth else currentState.selectedMonth
+                if (currentMonth == value) {
+                    mutableUiState.value = currentState.copy(recurringBudgets = recurringBudgets)
                 }
             } catch (exception: IOException) {
                 mutableUiState.value = uiState.value.copy(error = "Could not load budgets.")

@@ -30,7 +30,7 @@ Blocked by: 01
 
 | Test or journey | Observable result |
 | --- | --- |
-| `saveAndReloadNamedBudgetUsesOnlyItsSelectedAccounts`; `invalidBudgetDraftDoesNotMutateSavedDefinition`; `createBudgetAndSeeExpenseProgressOnBudgetsAndOverview` | Create a named positive-limit Budget with chosen Accounts; reopen and assert complete definition, explicit scope, validation, and visible progress on both destinations. |
+| `saveAndReloadNamedBudgetUsesOnlyItsSelectedAccounts`; `savedNamedBudgetAndAccountScopeSurviveDatabaseReopen`; `invalidBudgetDraftDoesNotMutateSavedDefinition`; `createBudgetAndSeeExpenseProgressOnBudgetsAndOverview` | Create a named positive-limit Budget with chosen Accounts; close and reopen persistent storage to assert the complete definition and explicit scope, then verify validation and visible progress on both destinations. |
 | `editNamedBudgetChangesAllMonthsAndReplacesItsAccountScope`; `recurringBudgetUsesSharedMonthAndResetsWithoutCarryover` | Edit limit/Accounts and compare monthly views, stable identity, no carryover, and no duplicated definitions. |
 | `overlappingBudgetsCountExpensesIndependentlyAndIgnoreIncomeTransfersAndNewAccounts`; `createBudgetAndSeeExpenseProgressOnBudgetsAndOverview` | Create overlapping scopes; assert independent progress, unchanged results after drawer changes, and exclusion of newly created Accounts. |
 | `transferDoesNotContributeToBudgetActualSpending`; `overlappingBudgetsCountExpensesIndependentlyAndIgnoreIncomeTransfersAndNewAccounts` | Assert Expense-only spending, correct remaining/over-budget values, and matching results on Overview and Budgets. |
@@ -51,8 +51,8 @@ Implemented named recurring Budgets with explicit saved Account scopes, monthly 
 
 Verification on 2026-11-18:
 
-- API 29 emulator `xperia_xz2_compact(AVD) - 10`: full unfiltered connected Android suite passed, 68 tests with 0 failures, errors, or skips.
+- API 29 emulator `xperia_xz2_compact(AVD) - 10`: full unfiltered connected Android suite passed, 69 tests with 0 failures, errors, or skips.
 - `:app:testDebugUnitTest`, `:app:lintDebug`, `:app:ktlintCheck`, `:app:assembleDebug`, and `:app:assembleDebugAndroidTest` passed; JVM suite: 15 tests.
 - Python host-runner suite passed: 11 tests.
-- `verify_overview_persistence.py` passed both selected and empty Account checks after host-driven process restarts. Evidence: `build/overview-persistence/20261118T171254057905Z`.
+- `verify_overview_persistence.py` passed both selected and empty Account checks after host-driven process restarts. Evidence: `build/overview-persistence/20261118T174659579413Z`.
 - Screenshots: [Budget progress](evidence/06/budget-progress.png), [Budget editor](evidence/06/budget-editor.png), [independent Overview progress](evidence/06/overview-budget-progress.png).

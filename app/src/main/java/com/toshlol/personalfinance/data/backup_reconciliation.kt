@@ -67,12 +67,41 @@ internal class BackupReconciler {
             val existing: T? = records[incoming.id]
             if (existing == null || incoming.updatedAt > existing.updatedAt) {
                 records[incoming.id] = incoming
-            } else if (incoming.updatedAt == existing.updatedAt && incoming != existing) {
+            } else if (incoming.updatedAt == existing.updatedAt && !hasSameContent(existing, incoming)) {
                 throw BackupImportRejected("timestamp_conflict", "Records with equal update times have different content.")
             }
         }
         return records.values.toList()
     }
+
+    private fun <T : BackupEntityRecord> hasSameContent(
+        existing: T,
+        incoming: T,
+    ): Boolean =
+        when {
+            existing is BackupBudget && incoming is BackupBudget -> hasSameContent(existing, incoming)
+            existing is BackupRecurringBudget && incoming is BackupRecurringBudget -> hasSameContent(existing, incoming)
+            else -> existing == incoming
+        }
+
+    private fun hasSameContent(
+        existing: BackupBudget,
+        incoming: BackupBudget,
+    ): Boolean =
+        existing.copy(accountIds = emptyList()) == incoming.copy(accountIds = emptyList()) &&
+            hasSameAccountScope(existing.accountIds, incoming.accountIds)
+
+    private fun hasSameContent(
+        existing: BackupRecurringBudget,
+        incoming: BackupRecurringBudget,
+    ): Boolean =
+        existing.copy(accountIds = emptyList()) == incoming.copy(accountIds = emptyList()) &&
+            hasSameAccountScope(existing.accountIds, incoming.accountIds)
+
+    private fun hasSameAccountScope(
+        existingAccountIds: List<String>,
+        incomingAccountIds: List<String>,
+    ): Boolean = existingAccountIds.sorted() == incomingAccountIds.sorted()
 
     private fun <T : BackupEntityRecord> countImported(
         local: List<T>,

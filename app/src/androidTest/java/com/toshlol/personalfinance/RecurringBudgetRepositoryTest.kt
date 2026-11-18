@@ -84,6 +84,19 @@ class RecurringBudgetRepositoryTest {
         }
 
     @Test
+    fun savedNamedBudgetAndAccountScopeSurviveDatabaseReopen(): Unit =
+        runTest {
+            val databaseName: String = "recurring-budget-persistence-${System.nanoTime()}.db"
+            context.deleteDatabase(databaseName)
+            try {
+                val expectedBudget: RecurringBudgetProgress = createPersistentBudget(databaseName)
+                assertPersistentBudgetReopens(databaseName, expectedBudget)
+            } finally {
+                context.deleteDatabase(databaseName)
+            }
+        }
+
+    @Test
     fun editNamedBudgetChangesAllMonthsAndReplacesItsAccountScope(): Unit =
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
@@ -229,6 +242,56 @@ class RecurringBudgetRepositoryTest {
             fail("Expected invalid Budget draft to be rejected")
         } catch (expectedException: IllegalArgumentException) {
             assertTrue(expectedException.message.orEmpty().isNotBlank())
+        }
+    }
+
+    private fun openPersistentDatabase(name: String): AppDatabase = Room.databaseBuilder(context, AppDatabase::class.java, name).build()
+
+    private suspend fun createPersistentBudget(databaseName: String): RecurringBudgetProgress {
+        val database: AppDatabase = openPersistentDatabase(databaseName)
+        try {
+            val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+            val selectedAccount: Account = fixtures.createFirstAccount("Cash")
+            val excludedAccount: Account = fixtures.createAdditionalAccount("Savings")
+            saveExpense(fixtures, selectedAccount, 250L, LocalDate.of(2026, 1, 4))
+            saveExpense(fixtures, excludedAccount, 400L, LocalDate.of(2026, 1, 5))
+            val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "persistent-budget" }, { 500L })
+            val expectedBudget: RecurringBudgetProgress =
+                RecurringBudgetProgress(
+                    "persistent-budget",
+                    "Household",
+                    YearMonth.of(2026, 1),
+                    setOf(selectedAccount.id),
+                    1_000L,
+                    250L,
+                    500L,
+                    500L,
+                )
+            assertEquals(
+                listOf(expectedBudget),
+                repository.save(
+                    RecurringBudgetDraft(null, "Household", 1_000L, setOf(selectedAccount.id)),
+                    YearMonth.of(2026, 1),
+                ),
+            )
+            return expectedBudget
+        } finally {
+            database.close()
+        }
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertPersistentBudgetReopens(
+        databaseName: String,
+        expectedBudget: RecurringBudgetProgress,
+    ): Unit {
+        val reopenedDatabase: AppDatabase = openPersistentDatabase(databaseName)
+        try {
+            val repository: RoomRecurringBudgetRepository =
+                RoomRecurringBudgetRepository(reopenedDatabase, { "unused-budget-id" }, { 900L })
+            assertEquals(listOf(expectedBudget), repository.load(YearMonth.of(2026, 1)))
+        } finally {
+            reopenedDatabase.close()
         }
     }
 

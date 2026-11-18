@@ -44,50 +44,70 @@ class BackupImportTest {
             val database: AppDatabase = createDatabase()
             try {
                 val importer: RoomBackupImporter = RoomBackupImporter(database)
-                val secondAccount: BackupAccount = BackupAccount("savings", "Savings", "BANK", 1L, 2L, 0L, 0L, false)
-                val originalBudget: BackupRecurringBudget = BackupRecurringBudget("budget", "Household", 500L, listOf("account"), 1L, 2L)
-                val initial: FinanceBackup =
-                    createBackup().copy(
-                        accounts = createBackup().accounts + secondAccount,
-                        recurringBudgets = listOf(originalBudget),
-                    )
+                val initial: FinanceBackup = createBackupWithRecurringBudget()
+                val originalBudget: BackupRecurringBudget = initial.recurringBudgets.single()
                 assertTrue(importBackup(importer, initial) is BackupImportOutcome.Success)
                 assertEquals(initial, captureBackup(database))
-                val updatedBudget: BackupRecurringBudget =
-                    originalBudget.copy(
-                        limitMinor = 700L,
-                        accountIds = listOf("savings"),
-                        updatedAt = 3L,
-                    )
-                val updatedBackup: FinanceBackup = initial.copy(recurringBudgets = listOf(updatedBudget))
-                val updateOutcome: BackupImportOutcome.Success = importBackup(importer, updatedBackup) as BackupImportOutcome.Success
-                assertEquals(
-                    1,
-                    updateOutcome.report.counts
-                        .getValue(BackupEntityType.BUDGET)
-                        .updated,
-                )
-                assertEquals(listOf("savings"), captureBackup(database).recurringBudgets.single().accountIds)
-                val repeatedOutcome: BackupImportOutcome.Success = importBackup(importer, updatedBackup) as BackupImportOutcome.Success
-                assertEquals(
-                    1,
-                    repeatedOutcome.report.counts
-                        .getValue(BackupEntityType.BUDGET)
-                        .unchanged,
-                )
-                val divergentBudget: BackupRecurringBudget = updatedBudget.copy(name = "Different name")
-                assertTrue(
-                    importBackup(importer, updatedBackup.copy(recurringBudgets = listOf(divergentBudget))) is BackupImportOutcome.Failure,
-                )
-                val invalidBudget: BackupRecurringBudget = updatedBudget.copy(accountIds = listOf("missing"), updatedAt = 4L)
-                assertTrue(
-                    importBackup(importer, updatedBackup.copy(recurringBudgets = listOf(invalidBudget))) is BackupImportOutcome.Failure,
-                )
+                assertReorderedBudgetScopeIsUnchanged(importer, initial, originalBudget, database)
+                val updatedBackup: FinanceBackup = replaceBudgetScopeAndAssertMerge(importer, initial, originalBudget, database)
+                assertBudgetConflictsAreRejected(importer, updatedBackup)
                 assertEquals(updatedBackup, captureBackup(database))
             } finally {
                 database.close()
             }
         }
+
+    private fun createBackupWithRecurringBudget(): FinanceBackup {
+        val secondAccount: BackupAccount = BackupAccount("savings", "Savings", "BANK", 1L, 2L, 0L, 0L, false)
+        val budget: BackupRecurringBudget = BackupRecurringBudget("budget", "Household", 500L, listOf("account", "savings"), 1L, 2L)
+        return createBackup().copy(accounts = createBackup().accounts + secondAccount, recurringBudgets = listOf(budget))
+    }
+
+    private suspend fun replaceBudgetScopeAndAssertMerge(
+        importer: RoomBackupImporter,
+        initial: FinanceBackup,
+        originalBudget: BackupRecurringBudget,
+        database: AppDatabase,
+    ): FinanceBackup {
+        val updatedBudget: BackupRecurringBudget = originalBudget.copy(limitMinor = 700L, accountIds = listOf("savings"), updatedAt = 3L)
+        val updatedBackup: FinanceBackup = initial.copy(recurringBudgets = listOf(updatedBudget))
+        val outcome: BackupImportOutcome.Success = importBackup(importer, updatedBackup) as BackupImportOutcome.Success
+        val updated: Int =
+            outcome.report.counts
+                .getValue(BackupEntityType.BUDGET)
+                .updated
+        assertEquals(1, updated)
+        assertEquals(listOf("savings"), captureBackup(database).recurringBudgets.single().accountIds)
+        assertBudgetImportIsIdempotent(importer, updatedBackup)
+        return updatedBackup
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertBudgetImportIsIdempotent(
+        importer: RoomBackupImporter,
+        backup: FinanceBackup,
+    ): Unit {
+        val outcome: BackupImportOutcome.Success = importBackup(importer, backup) as BackupImportOutcome.Success
+        val unchanged: Int =
+            outcome.report.counts
+                .getValue(BackupEntityType.BUDGET)
+                .unchanged
+        assertEquals(1, unchanged)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertBudgetConflictsAreRejected(
+        importer: RoomBackupImporter,
+        updatedBackup: FinanceBackup,
+    ): Unit {
+        val updatedBudget: BackupRecurringBudget = updatedBackup.recurringBudgets.single()
+        val divergentBudget: BackupRecurringBudget = updatedBudget.copy(name = "Different name")
+        val divergentBackup: FinanceBackup = updatedBackup.copy(recurringBudgets = listOf(divergentBudget))
+        assertTrue(importBackup(importer, divergentBackup) is BackupImportOutcome.Failure)
+        val invalidBudget: BackupRecurringBudget = updatedBudget.copy(accountIds = listOf("missing"), updatedAt = 4L)
+        val invalidBackup: FinanceBackup = updatedBackup.copy(recurringBudgets = listOf(invalidBudget))
+        assertTrue(importBackup(importer, invalidBackup) is BackupImportOutcome.Failure)
+    }
 
     @Test
     fun versionTwoBudgetsRestoreWithTheirOriginalAllAccountScope(): Unit =
@@ -322,6 +342,24 @@ class BackupImportTest {
         backup: FinanceBackup,
         mode: BackupImportMode = BackupImportMode.MERGE,
     ): BackupImportOutcome = importer.import(FinanceBackupCodec.encode(backup).toByteArray(), mode)
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertReorderedBudgetScopeIsUnchanged(
+        importer: RoomBackupImporter,
+        initial: FinanceBackup,
+        originalBudget: BackupRecurringBudget,
+        database: AppDatabase,
+    ): Unit {
+        val reorderedBudget: BackupRecurringBudget = originalBudget.copy(accountIds = listOf("savings", "account"))
+        val reorderedBackup: FinanceBackup = initial.copy(recurringBudgets = listOf(reorderedBudget))
+        val outcome: BackupImportOutcome.Success = importBackup(importer, reorderedBackup) as BackupImportOutcome.Success
+        val unchanged: Int =
+            outcome.report.counts
+                .getValue(BackupEntityType.BUDGET)
+                .unchanged
+        assertEquals(1, unchanged)
+        assertEquals(initial, captureBackup(database))
+    }
 
     private suspend fun captureBackup(database: AppDatabase): FinanceBackup {
         var encodedBackup: String = ""

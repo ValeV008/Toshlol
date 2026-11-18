@@ -37,37 +37,45 @@ class BudgetMigrationTest {
     fun migrateLegacyBudgetPreservesIdentityProvenanceAndAllExistingAccountsAcrossReopen(): Unit =
         runTest {
             val databaseName: String = "budget-migration-${UUID.randomUUID()}.db"
-            migrationHelper.createDatabase(databaseName, 7).use { legacyDatabase ->
-                seedLegacyBudget(legacyDatabase)
-            }
-            migrationHelper.runMigrationsAndValidate(databaseName, 8, true, AppDatabase.MIGRATION_7_8).close()
-            val migratedDatabase: AppDatabase = openDatabase(databaseName)
             try {
-                val actualBudget: CategoryBudget = RoomBudgetRepository(migratedDatabase).load().single()
-                assertEquals("legacy-budget", actualBudget.id)
-                assertEquals("legacy-food", actualBudget.categoryId)
-                assertEquals(YearMonth.of(2025, 12), actualBudget.month)
-                assertEquals(10_000L, actualBudget.limitMinor)
-                assertEquals(750L, actualBudget.spentMinor)
-                assertEquals(100L, actualBudget.createdAt)
-                assertEquals(200L, actualBudget.updatedAt)
-                assertEquals(setOf("cash", "savings"), actualBudget.accountIds)
+                migrationHelper.createDatabase(databaseName, 7).use(::seedLegacyBudget)
+                migrationHelper.runMigrationsAndValidate(databaseName, 8, true, AppDatabase.MIGRATION_7_8).close()
+                val migratedDatabase: AppDatabase = openDatabase(databaseName)
+                try {
+                    assertMigratedLegacyBudget(migratedDatabase)
+                } finally {
+                    migratedDatabase.close()
+                }
+                val reopenedDatabase: AppDatabase = openDatabase(databaseName)
+                try {
+                    assertReopenedLegacyBudget(reopenedDatabase)
+                } finally {
+                    reopenedDatabase.close()
+                }
             } finally {
-                migratedDatabase.close()
-            }
-            val reopenedDatabase: AppDatabase = openDatabase(databaseName)
-            try {
-                val reopenedBudget: CategoryBudget = RoomBudgetRepository(reopenedDatabase).load().single()
-                assertEquals("legacy-budget", reopenedBudget.id)
-                assertEquals(750L, reopenedBudget.spentMinor)
-                assertEquals(setOf("cash", "savings"), reopenedBudget.accountIds)
-                assertEquals(2, reopenedDatabase.transactionDao().loadAll().size)
-                assertEquals("EUR", reopenedDatabase.settingsDao().loadCurrency())
-            } finally {
-                reopenedDatabase.close()
                 context.deleteDatabase(databaseName)
             }
         }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertMigratedLegacyBudget(database: AppDatabase): Unit {
+        val actualBudget: CategoryBudget = RoomBudgetRepository(database).load().single()
+        assertEquals("legacy-budget", actualBudget.id)
+        assertEquals("legacy-food", actualBudget.categoryId)
+        assertEquals(YearMonth.of(2025, 12), actualBudget.month)
+        assertEquals(10_000L, actualBudget.limitMinor)
+        assertEquals(750L, actualBudget.spentMinor)
+        assertEquals(100L, actualBudget.createdAt)
+        assertEquals(200L, actualBudget.updatedAt)
+        assertEquals(setOf("cash", "savings"), actualBudget.accountIds)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertReopenedLegacyBudget(database: AppDatabase): Unit {
+        assertMigratedLegacyBudget(database)
+        assertEquals(2, database.transactionDao().loadAll().size)
+        assertEquals("EUR", database.settingsDao().loadCurrency())
+    }
 
     private fun seedLegacyBudget(database: SupportSQLiteDatabase) {
         database.execSQL("INSERT INTO accounts VALUES ('cash', 'Cash', 'CASH', 1, 2, 0, 20450, 0)")

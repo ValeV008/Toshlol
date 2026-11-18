@@ -3,6 +3,8 @@ package com.toshlol.personalfinance.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -102,7 +104,7 @@ fun AccountsScreen(
                         Text("No Accounts yet", Modifier.fillMaxWidth().padding(accountCardPadding))
                     }
                 }
-                state.accounts.forEach { account ->
+                state.accounts.forEach { account: Account ->
                     ShowAccountManagementCard(
                         account = account,
                         balanceMinor = state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L,
@@ -117,6 +119,7 @@ fun AccountsScreen(
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 @Suppress("ktlint:standard:no-unit-return")
 private fun ShowAccountManagementCard(
     account: Account,
@@ -133,7 +136,11 @@ private fun ShowAccountManagementCard(
             Text("Type \u00B7 ${account.type.label}")
             if (account.isArchived) Text("Archived")
             Text("Balance \u00B7 $currency ${formatMoney(balanceMinor, currency)}", style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(accountActionSpacing)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(accountActionSpacing),
+                verticalArrangement = Arrangement.spacedBy(accountActionSpacing),
+            ) {
                 TextButton(onClick = { actions.openHistory(account.id) }) { Text("View ${account.name} history") }
                 if (!account.isArchived) {
                     TextButton(onClick = { actions.edit(account.id) }) { Text("Edit ${account.name}") }
@@ -182,7 +189,7 @@ private fun ShowAccountEditor(
             if (isCreating) {
                 Column(verticalArrangement = Arrangement.spacedBy(accountTypeItemSpacing)) {
                     Text("Account type", style = MaterialTheme.typography.titleMedium)
-                    AccountType.entries.forEach { type ->
+                    AccountType.entries.forEach { type: AccountType ->
                         Row(
                             Modifier.fillMaxWidth().semantics {
                                 stateDescription = if (state.newAccountType == type) "Selected" else "Not selected"
@@ -191,6 +198,7 @@ private fun ShowAccountEditor(
                             RadioButton(
                                 selected = state.newAccountType == type,
                                 onClick = { actions.accountEditor.newTypeChanged(type) },
+                                modifier = Modifier.semantics { contentDescription = "Account type ${type.label}" },
                             )
                             Text(type.label, modifier = Modifier.padding(top = accountTypeLabelTopPadding))
                         }

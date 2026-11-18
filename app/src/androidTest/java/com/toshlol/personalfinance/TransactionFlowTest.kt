@@ -3,12 +3,15 @@ package com.toshlol.personalfinance
 import android.content.Context
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -25,6 +28,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
+import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -55,6 +61,12 @@ import org.junit.runner.Description
 import org.junit.runner.RunWith
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private const val ACCOUNT_SELECTION_SWIPE_EDGE_INSET_PX: Float = 1f
+private const val ACCOUNT_SELECTION_SWIPE_END_RATIO: Float = 0.8f
+private const val ACCOUNT_SELECTION_SWIPE_DURATION_MILLIS: Long = 450L
 
 @RunWith(AndroidJUnit4::class)
 class TransactionFlowTest {
@@ -87,6 +99,67 @@ class TransactionFlowTest {
     }
 
     @Test
+    @Suppress("ktlint:standard:no-unit-return")
+    fun createEditAndReopenAccountKeepsOverviewSelectionAndSignedOpeningValues(): Unit {
+        val openingDate: LocalDate = LocalDate.now().minusDays(1)
+        val editedOpeningDate: LocalDate = openingDate.minusDays(1)
+        createReserveAccount(openingDate)
+        editReserveAccount(editedOpeningDate)
+        reopenAndVerifyTravelAccount(editedOpeningDate)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createReserveAccount(openingDate: LocalDate): Unit {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Accounts").performClick()
+        ui.clickText("Add Account")
+        ui.enterText("Account name", "Reserve")
+        ui.enterText("Opening balance (EUR)", "-2.50")
+        ui.enterText("Opening date (YYYY-MM-DD)", openingDate.toString())
+        composeRule
+            .onNodeWithContentDescription("Account type Credit card")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
+        ui.clickText("Create Account")
+        ui.showText("Type · Credit card")
+        ui.showText("Balance · EUR -2.50")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun editReserveAccount(openingDate: LocalDate): Unit {
+        ui.clickText("Edit Reserve")
+        ui.enterText("Account name", "Travel")
+        ui.enterText("Opening balance (EUR)", "-4.25")
+        ui.enterText("Opening date (YYYY-MM-DD)", openingDate.toString())
+        ui.clickText("Save changes")
+        ui.showText("Type · Credit card")
+        ui.showText("Balance · EUR -4.25")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun reopenAndVerifyTravelAccount(openingDate: LocalDate): Unit {
+        ui.clickText("Back to overview")
+        assertOverviewAccountSelection("Travel", isSelected = false)
+        composeRule.onNodeWithContentDescription("Cash Account selection").assertIsOn()
+        composeRule.onNodeWithText("Close").performClick()
+        composeRule.activityRule.scenario.close()
+        ActivityScenario.launch(MainActivity::class.java).use {
+            ui.showOverview()
+            composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+            composeRule.onNodeWithTag("drawer-Accounts").performClick()
+            ui.showText("Travel")
+            ui.showText("Type · Credit card")
+            ui.showText("Balance · EUR -4.25")
+            ui.clickText("Edit Travel")
+            ui.showText(openingDate.toString())
+            ui.clickText("Back to Accounts")
+            ui.clickText("View Travel history")
+            ui.showText("Balance  EUR -4.25")
+        }
+    }
+
+    @Test
     fun archiveAccountKeepsReadOnlyBalanceAndHistory() {
         navigateTo("Accounts")
         ui.clickText("Archive Cash")
@@ -96,6 +169,57 @@ class TransactionFlowTest {
         ui.showText("Cash history")
         ui.showText("Balance  EUR 0.00")
         ui.showText("No account activity yet")
+    }
+
+    @Test
+    @Suppress("ktlint:standard:no-unit-return")
+    fun accountManagementWrapsArchiveActionAndKeepsArchivedHistoryReadOnly(): Unit {
+        archiveReserveAndReviewHistory()
+        verifyArchivedCounterpartTransferIsReadOnly()
+        verifyArchivedHistoryMonthRetention()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun archiveReserveAndReviewHistory(): Unit {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Accounts").performClick()
+        ui.showText("Archive Reserve")
+        ui.clickText("Archive Reserve")
+        ui.showText("Archived")
+        composeRule.onAllNodesWithText("Edit Reserve").assertCountEquals(0)
+        ui.clickText("View Reserve history")
+        ui.showText("Reserve history")
+        ui.showText("Balance  EUR 3.50")
+        ui.showText("Archived")
+        ui.showText("Read-only history")
+        ui.showText("Income · +EUR 2.50")
+        ui.showText("+EUR 1.00 · Transfer in")
+        ui.showText("From Cash", substring = true)
+        ui.clickText("Back")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyArchivedCounterpartTransferIsReadOnly(): Unit {
+        ui.clickText("View Cash history")
+        val outgoingTransfer: String = "-EUR 1.00 · Transfer out"
+        composeRule.onNodeWithText(outgoingTransfer).assertHasNoClickAction()
+        ui.clickText("Back")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyArchivedHistoryMonthRetention(): Unit {
+        ui.clickText("View Reserve history")
+        val previousMonthLabel: String =
+            YearMonth
+                .now()
+                .minusMonths(1)
+                .format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+        composeRule.onNodeWithContentDescription("Previous month").performClick()
+        ui.showText(previousMonthLabel)
+        ui.clickText("Back")
+        ui.showText("Closing balances for $previousMonthLabel")
+        ui.clickText("Back to overview")
+        ui.showText(previousMonthLabel)
     }
 
     @Test
@@ -382,14 +506,14 @@ class TransactionFlowTest {
         ui.clickText("Back to overview")
         showOverviewAccount("Cash", "-10.00").performClick()
         ui.showText("Cash history")
-        ui.showText("Transfer out · EUR 10.00")
+        ui.showText("-EUR 10.00 · Transfer out")
         ui.showText("To Reserve", substring = true)
-        ui.clickText("Back to overview")
+        ui.clickText("Back")
         showOverviewAccount("Reserve", "15.00").performClick()
         ui.showText("Reserve history")
-        ui.showText("Transfer in · EUR 10.00")
+        ui.showText("+EUR 10.00 · Transfer in")
         ui.showText("From Cash", substring = true)
-        ui.clickText("Back to overview")
+        ui.clickText("Back")
         navigateTo("Income")
         ui.showText("+EUR 10.00 \u00b7 Transfer in")
         composeRule.onAllNodesWithText("+EUR 10.00 \u00b7 Transfer in").assertCountEquals(1)
@@ -801,6 +925,22 @@ class TransactionFlowTest {
         ui.showText("Food \u00b7 expense", "category-tag-list")
     }
 
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertOverviewAccountSelection(
+        name: String,
+        isSelected: Boolean,
+    ): Unit {
+        composeRule.onNodeWithTag("overview-root").performTouchInput {
+            swipe(
+                start = center.copy(x = center.x + center.x - ACCOUNT_SELECTION_SWIPE_EDGE_INSET_PX),
+                end = center.copy(x = center.x * ACCOUNT_SELECTION_SWIPE_END_RATIO),
+                durationMillis = ACCOUNT_SELECTION_SWIPE_DURATION_MILLIS,
+            )
+        }
+        val accountSelection: SemanticsNodeInteraction = composeRule.onNodeWithContentDescription("$name Account selection")
+        if (isSelected) accountSelection.assertIsOn() else accountSelection.assertIsOff()
+    }
+
     private fun openOrganizer() {
         navigateTo("Overview")
         composeRule.onNodeWithTag("open-navigation-drawer").performClick()
@@ -815,8 +955,45 @@ class TransactionFlowTest {
         }
     }
 
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun seedArchivedReserveHistory(): Unit {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        runBlocking {
+            val database: AppDatabase = AppDatabase.getInstance(context)
+            val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+            val cash: Account =
+                fixtures.accounts
+                    .loadSetup()
+                    .accounts
+                    .single { account: Account -> account.name == "Cash" }
+            val reserve: Account = fixtures.createAdditionalAccount("Reserve")
+            val date: Long = LocalDate.now().toEpochDay()
+            fixtures.transactions.save(
+                TransactionDraft(
+                    accountId = reserve.id,
+                    amountMinor = 250L,
+                    direction = TransactionDirection.INCOME,
+                    date = date,
+                    note = null,
+                ),
+            )
+            RoomTransferRepository(database).save(
+                TransferDraft(
+                    sourceAccountId = cash.id,
+                    destinationAccountId = reserve.id,
+                    amountMinor = 100L,
+                    date = date,
+                ),
+            )
+        }
+    }
+
     private inner class SeedLedgerRule : TestWatcher() {
         override fun starting(description: Description) {
+            if (description.methodName == "accountManagementWrapsArchiveActionAndKeepsArchivedHistoryReadOnly") {
+                seedArchivedReserveHistory()
+                return
+            }
             if (description.methodName == "cancelAndConfirmTransactionDeletionUpdateLedger") {
                 val context: Context = ApplicationProvider.getApplicationContext()
                 runBlocking {

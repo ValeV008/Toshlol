@@ -62,10 +62,13 @@ fun AccountHistoryScreen(
     val selectedMonth: YearMonth = parseSelectedMonth(state.selectedMonth)
     val activities: List<AccountHistoryItem> =
         account
-            ?.let {
-                buildAccountHistoryItems(state.transactions, state.transfers, it, selectedMonth)
+            ?.let { selectedAccount: Account ->
+                buildAccountHistoryItems(state.transactions, state.transfers, selectedAccount, selectedMonth)
             }.orEmpty()
-    val closingBalanceMinor: Long = account?.let { state.monthlyOverview.closingBalancesMinor[it.id] } ?: 0L
+    val closingBalanceMinor: Long =
+        account?.let { selectedAccount: Account ->
+            state.monthlyOverview.closingBalancesMinor[selectedAccount.id]
+        } ?: 0L
     Column(Modifier.fillMaxSize().background(historyPageGray)) {
         ShowAccountMonthHeader(
             title = "${account?.name ?: "Account"} history",
@@ -76,6 +79,7 @@ fun AccountHistoryScreen(
             content =
                 AccountHistoryContentState(
                     account = account,
+                    accounts = state.accounts,
                     currency = state.currency,
                     month = selectedMonth,
                     closingBalanceMinor = closingBalanceMinor,
@@ -111,8 +115,8 @@ private fun ShowAccountHistoryContent(
                 modifier = Modifier.semantics { heading() },
             )
             if (content.activities.isEmpty()) ShowAccountHistoryMessage("No account activity yet")
-            content.activities.forEach { item ->
-                AccountHistoryActivity(item, content.account, content.currency, content.actions)
+            content.activities.forEach { item: AccountHistoryItem ->
+                AccountHistoryActivity(item, content.account, content.currency, content.actions, content.accounts)
             }
         }
     }
@@ -156,44 +160,71 @@ private fun AccountHistoryActivity(
     account: Account,
     currency: String,
     actions: AccountHistoryScreenActions,
+    accounts: List<Account>,
 ): Unit {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(historyCardCornerRadius)) {
         Column(
             Modifier.fillMaxWidth().padding(historyMovementCardPadding),
             verticalArrangement = Arrangement.spacedBy(historyMovementItemSpacing),
         ) {
-            item.transaction?.let { transaction ->
-                val isIncome: Boolean = transaction.direction == TransactionDirection.INCOME
-                val sign: String = if (isIncome) "+" else "-"
-                val label: String = if (isIncome) "Income" else "Expense"
-                val color: Color = if (isIncome) historyIncomeGreen else historyExpenseRed
-                val title: String = "$label \u00B7 $sign$currency ${formatMoney(transaction.amountMinor, currency)}"
-                if (account.isArchived) {
-                    Text(title, color = color, style = MaterialTheme.typography.titleMedium)
-                } else {
-                    TextButton(onClick = { actions.editTransaction(transaction) }) {
-                        Text(title, color = color, style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-                Text("${LocalDate.ofEpochDay(transaction.date)} \u00B7 ${transaction.categoryName ?: "No Category"}")
-                transaction.note?.let { Text(it) }
-                if (!account.isArchived) TextButton(onClick = { actions.deleteTransaction(transaction.id) }) { Text("Delete") }
+            item.transaction?.let { transaction: FinanceTransaction ->
+                ShowTransactionHistoryActivity(transaction, account, currency, actions)
             }
-            item.transfer?.let { transfer ->
-                val isOutgoing: Boolean = transfer.sourceAccountId == account.id
-                val sign: String = if (isOutgoing) "-" else "+"
-                val label: String = if (isOutgoing) "Transfer out" else "Transfer in"
-                val otherAccountName: String = if (isOutgoing) transfer.destinationAccountName else transfer.sourceAccountName
-                val title: String = "$sign$currency ${formatMoney(transfer.amountMinor, currency)} \u00B7 $label"
-                if (account.isArchived) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                } else {
-                    TextButton(onClick = { actions.editTransfer(transfer) }) { Text(title, style = MaterialTheme.typography.titleMedium) }
-                }
-                Text("${LocalDate.ofEpochDay(transfer.date)} \u00B7 ${if (isOutgoing) "To" else "From"} $otherAccountName")
+            item.transfer?.let { transfer: FinanceTransfer ->
+                ShowTransferHistoryActivity(transfer, account, accounts, currency, actions)
             }
         }
     }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun ShowTransactionHistoryActivity(
+    transaction: FinanceTransaction,
+    account: Account,
+    currency: String,
+    actions: AccountHistoryScreenActions,
+): Unit {
+    val isIncome: Boolean = transaction.direction == TransactionDirection.INCOME
+    val sign: String = if (isIncome) "+" else "-"
+    val label: String = if (isIncome) "Income" else "Expense"
+    val color: Color = if (isIncome) historyIncomeGreen else historyExpenseRed
+    val title: String = "$label \u00B7 $sign$currency ${formatMoney(transaction.amountMinor, currency)}"
+    if (account.isArchived) {
+        Text(title, color = color, style = MaterialTheme.typography.titleMedium)
+    } else {
+        TextButton(onClick = { actions.editTransaction(transaction) }) {
+            Text(title, color = color, style = MaterialTheme.typography.titleMedium)
+        }
+    }
+    Text("${LocalDate.ofEpochDay(transaction.date)} \u00B7 ${transaction.categoryName ?: "No Category"}")
+    transaction.note?.let { note: String -> Text(note) }
+    if (!account.isArchived) TextButton(onClick = { actions.deleteTransaction(transaction.id) }) { Text("Delete") }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun ShowTransferHistoryActivity(
+    transfer: FinanceTransfer,
+    account: Account,
+    accounts: List<Account>,
+    currency: String,
+    actions: AccountHistoryScreenActions,
+): Unit {
+    val isOutgoing: Boolean = transfer.sourceAccountId == account.id
+    val otherAccountId: String = if (isOutgoing) transfer.destinationAccountId else transfer.sourceAccountId
+    val otherAccount: Account? = accounts.firstOrNull { candidate: Account -> candidate.id == otherAccountId }
+    val sign: String = if (isOutgoing) "-" else "+"
+    val label: String = if (isOutgoing) "Transfer out" else "Transfer in"
+    val otherAccountName: String = if (isOutgoing) transfer.destinationAccountName else transfer.sourceAccountName
+    val title: String = "$sign$currency ${formatMoney(transfer.amountMinor, currency)} \u00B7 $label"
+    val canEdit: Boolean = !account.isArchived && otherAccount?.isArchived == false
+    if (canEdit) {
+        TextButton(onClick = { actions.editTransfer(transfer) }) { Text(title, style = MaterialTheme.typography.titleMedium) }
+    } else {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+    }
+    Text("${LocalDate.ofEpochDay(transfer.date)} \u00B7 ${if (isOutgoing) "To" else "From"} $otherAccountName")
 }
 
 private data class AccountHistoryItem(
@@ -206,6 +237,7 @@ private data class AccountHistoryItem(
 
 private data class AccountHistoryContentState(
     val account: Account?,
+    val accounts: List<Account>,
     val currency: String,
     val month: YearMonth,
     val closingBalanceMinor: Long,

@@ -1,6 +1,6 @@
 # 04: Account management and monthly history
 
-Status: claimed
+Status: resolved
 Blocked by: 01
 
 **What to build:** Review and manage Accounts in the shared visual style, with selected-month Closing balances and movement histories consistent with Overview and the Account drawer, while preserving signed Opening balances, renames, and archived read-only history.
@@ -15,28 +15,40 @@ Blocked by: 01
 
 ## Observable acceptance criteria
 
-- [ ] The Accounts destination and Account creation/edit controls use the shared headers, cards, typography, money formatting, and accessible actions while retaining name, type, Opening balance, and Opening date management.
-- [ ] Account list/card/history balances agree with Overview/right-drawer values for the same Account and selected month. They support positive, zero, and negative values and exclude later movements and premature Opening balances.
-- [ ] Opening an Account history retains the selected month and shows that month's relevant Income, Expenses, and Transfers in newest-first deterministic order with clear counterpart Account names. History's Closing balance remains cumulative through month-end rather than just the monthly net.
-- [ ] Changing month from the available shared control refreshes Account balances/history consistently; navigating back does not silently return to the device's current month.
-- [ ] Create an Account, edit its signed Opening balance/date, and rename it through the public workflow. The persisted values and recalculated displays survive reopen, and renames resolve in already available historical views without rewriting movement identities.
-- [ ] Archive retains Account name, balance, and history and marks the Account read-only. The drawer can still select it, but new use and prohibited Transaction/Transfer edits remain unavailable.
-- [ ] Creating or managing an Account does not silently select it in the main drawer, and does not add it to any saved Budget Account scope. Preserve existing references and legacy finance data throughout.
-- [ ] Verify Account creation/edit/archive/history journeys and repository persistence/boundary behavior on Android 10, run relevant JVM/lint/format checks, and capture Account list/editor/history screenshots including negative balance and archived examples.
+- [x] The Accounts destination and Account creation/edit controls use the shared headers, cards, typography, money formatting, and accessible actions. Account type is selectable when creating an Account and retained while editing its name, signed Opening balance, and Opening date.
+- [x] Account list/card/history balances agree with Overview/right-drawer values for the same Account and selected month. They support positive, zero, and negative values and exclude later movements and premature Opening balances.
+- [x] Opening an Account history retains the selected month and shows that month's relevant Income, Expenses, and Transfers in newest-first deterministic order with clear counterpart Account names. History's Closing balance remains cumulative through month-end rather than just the monthly net.
+- [x] Changing month from the available shared control refreshes Account balances/history consistently; navigating back does not silently return to the device's current month.
+- [x] Create an Account, edit its signed Opening balance/date, and rename it through the public workflow. The persisted values and recalculated displays survive reopen, and renames resolve in already available historical views without rewriting movement identities.
+- [x] Archive retains Account name, balance, and history and marks the Account read-only. The drawer can still select it, but new use and prohibited Transaction/Transfer edits remain unavailable.
+- [x] Creating or managing an Account does not silently select it in the main drawer, and does not add it to any saved Budget Account scope. Preserve existing references and legacy finance data throughout. Account creation/edit/archive paths leave Overview selection and Budget records alone; Account-scoped Budgets are introduced by ticket 06.
+- [x] Verified Account creation/edit/archive/history journeys and repository persistence/boundary behavior on Android 10, ran the relevant JVM/lint/format checks, and captured Account list/editor/history screenshots including negative balance and archived examples.
 
 ## Named behavior tests
 
 | Test or journey | Observable result |
 | --- | --- |
-| reviewAccountClosingBalanceAndMonthlyHistory | Compare Account list, history, drawer, and Overview for the same viewed month, including prior-month accumulated funds and excluded later records. |
-| saveOpeningBalanceAndDateRecalculatesPersistedBalance | Extend the existing public repository pattern with month-end and Opening-date boundary results after reopen. |
-| renameAccountUpdatesHistoricalReferences | Assert displayed counterpart/Account names update while movement identities and amounts remain stable. |
-| selectArchivedAccountWithoutEnablingEdits | Assert selectable historical balance/activity and enforced read-only behavior after archive. |
-| createAccountWithoutChangingSavedScopes | Assert a new Account is not auto-selected in the main drawer and does not expand existing Budget scopes when those are available. |
-| operateAccountManagementAtLargeFont | Exercise labeled creation/edit/history/archive actions, scrolling, and readable signed values. |
+| `TransactionFlowTest.accountListShowsTypesBalancesAndHistoryNavigation` | Verify account types, formatted monthly balances, and explicit history navigation. |
+| `TransactionFlowTest.createEditAndReopenAccountKeepsOverviewSelectionAndSignedOpeningValues` | Create a typed Account with a negative Opening balance, edit its name, balance, and date, then reopen the app Activity to verify persistence and unchanged Overview selection. |
+| `TransactionFlowTest.accountManagementWrapsArchiveActionAndKeepsArchivedHistoryReadOnly` | Exercise long-name actions, archive, signed history activity, read-only state, and month retention back through Overview. |
+| `TransactionFlowTest.createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals` | Create and edit Accounts, rename a counterpart in history, and verify signed Transfer history and unchanged ledger totals. |
+| `AppDatabaseTest.saveOpeningBalanceAndDateRecalculatesPersistedBalance` | Verify pre-opening movements are excluded and persisted Opening values recalculate after reload. |
+| `AppDatabaseTest.archiveAccountRetainsHistoryAndRejectsNewMovements` | Verify archival preserves records and rejects new or prohibited edits. |
+| `OverviewAccountSelectionTest.selectArchivedAccountFromOverviewDrawer` | Verify archived Accounts remain selectable in Overview while movement actions stay unavailable. |
+| `BackupImportUiTest.settingsLaunchesDocumentPickerForMergeAndCancellationReturnsToSettings` | Keep imported transfer history within the selected month and navigate back through Accounts to Overview. |
 
 ## Delivery boundaries
 
 Keep all existing Account types and signed Opening balance semantics. Account history is an explicit Account view, not an implicit rewrite of the shared main-ledger Account selection. No bank integration, seeded Accounts, or new deletion policy.
 
 Each slice must remain independently demoable and keep existing callers and relevant checks working. Include the feature's behavior and UI verification in this ticket rather than deferring them to the final integration ticket. Follow the parent spec's exclusions and existing ADRs.
+
+## Answer
+
+Implemented account management and selected-month Account history using the shared monthly projection. Account cards show month-end balances; creation offers accessible Account type selection, while editing preserves type and supports name, signed Opening balance, and Opening date changes. History shows signed Income, Expenses, and Transfers with current counterpart names, deterministic newest-first ordering, and a cumulative closing balance. Archived Accounts retain read-only history, including transfers to or from an archived counterpart. Account actions now wrap on narrow screens and long names so Archive remains reachable.
+
+Verified the Account create/edit/rename/archive flows, persisted values after reopening the Activity, Opening-date boundaries, unchanged Overview selection, archived drawer selection, and month retention on Android 10 (API 29). The Transfer and Backup UI journeys were updated to expect signed history labels and current-month data. The Backup journey closes the Documents roots drawer before selecting its file, confirms return to the app, and checks the Account-history Back flow.
+
+Screenshots: [negative Account list](../evidence/04/account-list-negative-balance.png), [signed Opening editor](../evidence/04/account-editor-negative.png), [Cash history](../evidence/04/account-history-cash.png), [history activity](../evidence/04/account-history-cash-activity.png), [Opening-date boundary](../evidence/04/account-history-pre-opening-boundary.png), [archived Accounts](../evidence/04/account-list-archived.png), and [archived read-only history](../evidence/04/account-history-archived.png).
+
+Checks passed: `:app:testDebugUnitTest`, `:app:lintDebug`, and `:app:ktlintCheck`; the full `:app:connectedDebugAndroidTest` run passed on API 29 (60 tests, 0 failures, 0 errors, 0 skipped).

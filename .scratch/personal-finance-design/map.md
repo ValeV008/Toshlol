@@ -11,7 +11,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [01: Account selection and month-end Overview](issues/01-account-selection-and-month-end-overview.md) | None | resolved |
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | resolved |
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | resolved |
-| [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | claimed |
+| [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | resolved |
 | [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | ready-for-agent |
 | [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | ready-for-agent |
 | [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | ready-for-agent |
@@ -24,8 +24,8 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 
 ## Work frontier
 
-- 01 and 02 are resolved.
-- 04, 06, 08, and 09 can proceed without waiting for each other.
+- 01, 02, 03, and 04 are resolved.
+- 06, 08, and 09 can proceed without waiting for each other.
 - 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
 - 05 opens after both 02 and 03 resolve.
 - 07 opens after 06 resolves.
@@ -38,6 +38,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - Issue 01 has passing API 29 emulator journeys and screenshots for Overview, Account drawer, selected-account month navigation, and saved/empty selection after host-driven process restarts. The issue records the test and lint commands plus captured UI hierarchy evidence.
 - Issue 02 has passing API 29 ledger/navigation journeys and screenshots for Expenses, Income, shared Account selection, empty selection, the drawer, and Overview actions. Its legacy journeys now use the split ledgers. The unfiltered full connected suite passed on 2026-11-17: 58 tests, zero failures/errors/skips, including all 16 `TransactionFlowTest` journeys. JVM tests, lint, formatting, and all 11 host-runner tests also pass.
 - Issue 03 has passing focused API 29 journeys for preserved edit fields and identity, Account changes and monthly balances, amount/date validation, missing active Account, optional Category/Tag/Note, cancellation, deletion, and large-font operation. Screenshots for both transaction directions remain in `evidence/03/`.
+- Issue 04 has passing full API 29 verification: 60 connected tests, 0 failures/errors/skips, plus JVM tests, lint, and formatting. Account management/history covers typed creation, signed Opening balance edits and reopen persistence, month-end balances, rename resolution, archived read-only history including archived transfer counterparts, drawer selection, month retention, and Android 10 screenshots in `evidence/04/`.
 - The legacy failure records in issues 02 and 03 are historical and superseded by issue 02's passing full-suite verification. They are no longer deferred to integration; CI and pre-push retain their full connected-suite gates.
 - Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. The runner now scopes Income/Expenses labels to the financial summary to allow duplicate navigation-tab labels. Both selected and empty restart checks passed on 2026-11-17. CI runs it before the connected suite and uploads each run's evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.

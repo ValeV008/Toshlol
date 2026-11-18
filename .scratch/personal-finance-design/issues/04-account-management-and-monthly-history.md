@@ -28,7 +28,7 @@ Blocked by: 01
 
 | Test or journey | Observable result |
 | --- | --- |
-| `TransactionFlowTest.accountListShowsTypesBalancesAndHistoryNavigation` | Verify account types, formatted monthly balances, and explicit history navigation. |
+| `TransactionFlowTest.reviewEmptyAccountBeforeAndAfterArchiving` | Verify account types, formatted monthly balances, and explicit history navigation before and after archiving. |
 | `TransactionFlowTest.createEditAndReopenAccountKeepsOverviewSelectionAndSignedOpeningValues` | Create a typed Account with a negative Opening balance, edit its name, balance, and date, then reopen the app Activity to verify persistence and unchanged Overview selection. |
 | `TransactionFlowTest.accountManagementWrapsArchiveActionAndKeepsArchivedHistoryReadOnly` | Exercise long-name actions, archive, signed history activity, read-only state, and month retention back through Overview. |
 | `TransactionFlowTest.createEditFilterAndDeleteTransferWithoutChangingIncomeOrExpenseTotals` | Create and edit Accounts, rename a counterpart in history, and verify signed Transfer history and unchanged ledger totals. |

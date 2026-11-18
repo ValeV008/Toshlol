@@ -16,10 +16,10 @@
 
 Observable acceptance criteria and regression coverage:
 
-- The Accounts destination lists active and archived Accounts with type and signed current balance; `TransactionFlowTest.accountListShowsTypesBalancesAndHistoryNavigation` verifies values and navigation.
+- The Accounts destination lists active and archived Accounts with type and signed current balance; `TransactionFlowTest.reviewEmptyAccountBeforeAndAfterArchiving` verifies values and navigation.
 - Saving a changed Opening balance or as-of date persists it and recalculates the displayed current balance; `AppDatabaseTest.saveOpeningBalanceAndDateRecalculatesPersistedBalance` verifies editing and persistence.
 - Only Income, Expense, and Transfer movements dated on or after the Opening balance date affect the balance; `AppDatabaseTest.saveOpeningBalanceAndDateRecalculatesPersistedBalance` verifies signs and the inclusive day boundary.
-- Archived Accounts remain visible with read-only history, and Transaction/Transfer saves reject them as movement endpoints; `AppDatabaseTest.archiveAccountRetainsHistoryAndRejectsNewMovements` and `TransactionFlowTest.archiveAccountKeepsReadOnlyBalanceAndHistory` verify persistence and journey behavior.
+- Archived Accounts remain visible with read-only history, and Transaction/Transfer saves reject them as movement endpoints; `AppDatabaseTest.archiveAccountRetainsHistoryAndRejectsNewMovements` and `TransactionFlowTest.reviewEmptyAccountBeforeAndAfterArchiving` verify persistence and journey behavior.
 
 - [x] Each Account has a signed Opening balance, defaulting to zero, and an as-of date, defaulting to today.
 - [x] The Opening balance represents the Account amount at the start of the as-of date; only Income, Expense, and Transfer movements dated on or after that date affect the current balance.

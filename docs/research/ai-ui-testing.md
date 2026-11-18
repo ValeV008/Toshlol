@@ -142,7 +142,7 @@ The repository includes local hooks and does not require a Git hosting service. 
 .\scripts\install_git_hooks.ps1
 ```
 
-The pre-commit hook runs unit tests, lint, and ktlint. The pre-push hook runs connected Android tests, so make an Android 10 (API 29) emulator available before pushing.
+The pre-commit hook runs unit tests, lint, and ktlint. Ticket implementation owns full verification through the [completion checklist](#ticket-completion); pushing does not run another local suite. CI continues to verify independently.
 
 Sources:
 
@@ -192,10 +192,33 @@ Create one `FinanceTestFixtures(database)` per test/database. Its Account, Categ
 5. If a test fails, collect the Gradle report, logcat, screenshot, and semantics-tree output.
 6. Reproduce the failure with the narrowest class or method filter before editing code.
 7. Make the smallest fix and rerun that focused test. Repeat focused runs while implementation is changing.
-8. After related changes settle, run the broader relevant suite once. Use the pre-push hook's full connected suite as the final gate for the pushed revision; avoid running the same full suite separately immediately before that hook. If handing off without pushing, run the full connected suite once before handoff.
+8. After related changes settle, pass the [ticket completion checklist](#ticket-completion) once against the finished changes, whether handing off locally or pushing. If later implementation changes invalidate those results, repeat the affected checks, including the full Android suite for app, Android-test, or build changes.
 9. Upload reports, screenshots, diffs, and logs as CI artifacts.
 
 For this app, the high-value automated journeys are account creation, transaction entry, budget display, export, import merge, import overwrite, and the mandatory-account validation path.
+
+### Ticket completion
+
+An implementation ticket is complete only when all of the following pass against its finished changes:
+
+1. All JVM tests and Python host-runner tests.
+2. Android lint and Kotlin formatting checks.
+3. Both host-driven Overview process-restart checks on an Android 10/API 29 test emulator.
+4. The full, unfiltered connected Android suite on that emulator, with no failed, errored, or skipped tests.
+
+Select a test emulator from `adb devices`, set its serial, and run the following sequence from PowerShell. The host runner checks that the selected device is an API 29 emulator. The assembly tasks prepare the APKs so the host check can use `--skip-build`.
+
+```powershell
+$env:ANDROID_SERIAL = 'emulator-5554'
+python -m unittest discover -s scripts -p 'test_*.py'
+.\gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:ktlintCheck :app:assembleDebug :app:assembleDebugAndroidTest --console=plain
+python scripts/verify_overview_persistence.py --serial $env:ANDROID_SERIAL --skip-build
+.\gradlew.bat :app:connectedDebugAndroidTest --console=plain
+```
+
+Check each command's exit code and stop to diagnose any failure. A focused run is useful during implementation but does not satisfy this final checklist. Keep runner selection and sharding arguments out of the full-suite invocation. If the environment prevents a required check, report the limitation and leave the ticket unresolved.
+
+Record the device/API, test counts, results, and evidence paths in the ticket's Answer or handoff. Gradle reports are under `app/build/test-results/`, `app/build/reports/`, and `app/build/outputs/androidTest-results/`; the host check saves each run under `build/overview-persistence/`. Pushing requires no additional local run; CI remains an independent check.
 
 ## What still needs a human
 

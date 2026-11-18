@@ -88,13 +88,22 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun accountListShowsTypesBalancesAndHistoryNavigation() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun reviewEmptyAccountBeforeAndAfterArchiving(): Unit {
         navigateTo("Accounts")
         ui.showText("Add Account")
         ui.showText("Type · Cash")
         ui.showText("Balance · EUR 0.00")
         ui.clickText("View Cash history")
         ui.showText("Cash history")
+        ui.showText("No account activity yet")
+        ui.clickText("Back")
+        ui.clickText("Archive Cash")
+        ui.showText("Type · Cash")
+        ui.showText("Archived")
+        ui.clickText("View Cash history")
+        ui.showText("Cash history")
+        ui.showText("Balance  EUR 0.00")
         ui.showText("No account activity yet")
     }
 
@@ -157,18 +166,6 @@ class TransactionFlowTest {
             ui.clickText("View Travel history")
             ui.showText("Balance  EUR -4.25")
         }
-    }
-
-    @Test
-    fun archiveAccountKeepsReadOnlyBalanceAndHistory() {
-        navigateTo("Accounts")
-        ui.clickText("Archive Cash")
-        ui.showText("Type · Cash")
-        ui.showText("Archived")
-        ui.clickText("View Cash history")
-        ui.showText("Cash history")
-        ui.showText("Balance  EUR 0.00")
-        ui.showText("No account activity yet")
     }
 
     @Test
@@ -319,6 +316,8 @@ class TransactionFlowTest {
     fun validatesAmountAndDateWithoutMutationAndSavesWithoutOptionalFields() {
         ui.clickText("Add expense")
         ui.showText(LocalDate.now().toString(), "transaction-form")
+        ui.clickText("Save")
+        ui.showText("Enter a positive amount and a valid date.", "transaction-form")
         ui.enterText("Amount", "0", "transaction-form")
         ui.clickText("Save")
         ui.showText("Enter a positive amount and a valid date.", "transaction-form")
@@ -563,13 +562,7 @@ class TransactionFlowTest {
     @Test
     fun recordExpenseAndReviewItOnOverview() {
         ui.clickText("Add expense")
-        ui.clickText("Save")
-        ui.showText("Enter a positive amount and a valid date.", "transaction-form")
         ui.enterText("Amount", "12.50", "transaction-form")
-        ui.enterText("Date (YYYY-MM-DD)", "2026-02-30", "transaction-form")
-        ui.clickText("Save")
-        ui.showText("Enter a positive amount and a valid date.", "transaction-form")
-        ui.enterText("Date (YYYY-MM-DD)", LocalDate.now().toString(), "transaction-form")
         ui.clickText("Save")
         ui.showText("Expense \u00b7 EUR 12.50")
         ui.show(hasText("Expenses") and hasAnySibling(hasText("12.50")))

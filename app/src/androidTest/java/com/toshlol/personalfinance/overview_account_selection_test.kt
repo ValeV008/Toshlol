@@ -55,7 +55,12 @@ class OverviewAccountSelectionTest {
             .around(UiFailureArtifactsRule(composeRule))
 
     @Test
-    fun showAndPersistEmptyAccountSelectionAndSelectAccountFromRightDrawer(): Unit {
+    fun selectAccountAndRetainMonthAcrossOverviewAndBudgetNavigation(): Unit {
+        selectCashFromInitiallyEmptyDrawer()
+        verifySelectedMonthAcrossBudgetNavigation()
+    }
+
+    private fun selectCashFromInitiallyEmptyDrawer(): Unit {
         ui.showText("EUR 0.00")
         ui.showText("No activity for this month and Account selection.")
         saveScreenshot("overview.png")
@@ -73,22 +78,7 @@ class OverviewAccountSelectionTest {
         saveScreenshot("overview-selected-account.png")
     }
 
-    @Test
-    fun retainSelectedMonthAcrossOverviewAndBudgetNavigation(): Unit {
-        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        composeRule.waitUntil(15_000L) {
-            composeRule.onAllNodesWithTag("overview-root").fetchSemanticsNodes().isNotEmpty()
-        }
-        composeRule.onNodeWithTag("overview-root").performTouchInput {
-            swipe(
-                start = center.copy(x = device.displayWidth.toFloat() - 2f),
-                end = center.copy(x = device.displayWidth * 0.45f),
-                durationMillis = 450,
-            )
-        }
-        composeRule.onNodeWithContentDescription("Cash Account selection").performClick().assertIsOn()
-        composeRule.onNodeWithText("Close").performClick()
-        composeRule.onAllNodesWithText("EUR 1002.00").assertCountEquals(2)
+    private fun verifySelectedMonthAcrossBudgetNavigation(): Unit {
         composeRule.waitUntil(15_000L) {
             composeRule.onAllNodesWithTag("previous-month").fetchSemanticsNodes().isNotEmpty()
         }

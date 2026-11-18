@@ -12,7 +12,7 @@ Issues and specs for this repo live as markdown files in `.scratch/`.
 
 ## Parent-spec coverage
 
-Before implementing a ticket, read its parent `spec.md` and add a `## Parent-spec requirements` section linking applicable user stories and decisions. Carry each requirement into an observable acceptance criterion, including effects on other screens. For each critical journey, name the test that asserts the displayed values or state. Resolve the ticket when those criteria and their tests pass.
+Before implementing a ticket, read its parent `spec.md` and add a `## Parent-spec requirements` section linking applicable user stories and decisions. Carry each requirement into an observable acceptance criterion, including effects on other screens. For each critical journey, name the test that asserts the displayed values or state. Resolve the ticket only when its acceptance criteria and the full [ticket completion checklist](../research/ai-ui-testing.md#ticket-completion) pass against the finished changes. Record the verification results in its Answer.
 
 ## When a skill says "publish to the issue tracker"
 

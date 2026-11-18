@@ -88,7 +88,7 @@ Generate code, corrections, and refactorings that comply with the basic principl
 - Test finance behaviors including amount validation, mandatory Accounts, optional and direction-specific Categories, Tag/Category compatibility, signed Account balances and opening-date boundaries, Transfers, monthly Budget calculations, and Backup import/export behavior.
 - Test Backup compatibility, validation, Merge and Overwrite atomicity, cancellation, and rollback through the public Backup interface.
 - Verify accessibility semantics, labels, actions, and important state in tests.
-- Run the relevant JVM tests and lint for changes. Android UI tests are required on Android 10 (API 29); testing newer Android versions is optional and not a project requirement.
+- During implementation, run relevant tests and lint for fast feedback. Before completing a ticket, pass the full [ticket completion checklist](docs/research/ai-ui-testing.md#ticket-completion) against the finished changes. Android UI tests run on Android 10 (API 29); testing newer versions is optional.
 - Do not impose a global coverage percentage; every agreed finance rule and critical user journey needs explicit coverage.
 
 ## Specific to Android

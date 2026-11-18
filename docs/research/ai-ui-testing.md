@@ -126,7 +126,9 @@ Requires Python 3.10+, `adb` on PATH, and the normal Android build environment. 
 
 `OverviewPersistenceHandoffTest` seeds Cash with a 1,000 opening balance and 2 Income, plus an unselected Savings Account with a 5,000 opening balance and 7 Income. The host runs each seed method separately, checks the instrumentation result, force-stops the app, verifies its process has stopped, and launches `MainActivity`. It asserts the displayed Closing balance, Income, Expenses, net, activity, and both Account switches. Selected Cash must show 1,002 and 2 Income; an explicitly empty selection must show zero totals, no matching activity, and both switches off. These are post-relaunch UI assertions, independent of the seed test process.
 
-Every run creates a new directory under `build/overview-persistence/` with Overview/activity/drawer XML and PNG evidence for both states, seed results, command output, logcat, and a success result JSON. Failures return a nonzero exit code and attempt a final screenshot and hierarchy capture. `--output-dir` selects a new evidence directory. The emulator retains the final fixture state. CI runs this check before the connected suite inside the same emulator session, so its evidence is collected even if another Android test subsequently fails, and uploads the evidence even on failure.
+Android's `am start -W` can report `Status: timeout` before a slow emulator displays its first frame. Both `ok` and `timeout` proceed to the same bounded 45-second UI readiness check; launch errors, missing UI, and incorrect persisted values still fail. Do not retry the launch or reseed the app to pass this check. Manual cloud Android verification enables KVM access before starting the emulator and disables fallback to software CPU emulation. The Linux runner must provide a readable and writable `/dev/kvm`, or the setup step fails.
+
+Every run creates a new directory under `build/overview-persistence/` with Overview/activity/drawer XML and PNG evidence for both states, seed results, command output, logcat, and a success result JSON. Failures return a nonzero exit code and attempt a final screenshot and hierarchy capture. `--output-dir` selects a new evidence directory. The emulator retains the final fixture state. The manual CI Android job runs this check before the connected suite inside the same emulator session, so its evidence is collected even if another Android test subsequently fails, and uploads the evidence even on failure.
 
 The host assertions have emulator-free regression tests:
 
@@ -142,7 +144,15 @@ The repository includes local hooks and does not require a Git hosting service. 
 .\scripts\install_git_hooks.ps1
 ```
 
-The pre-commit hook runs unit tests, lint, and ktlint. Ticket implementation owns full verification through the [completion checklist](#ticket-completion); pushing does not run another local suite. CI continues to verify independently.
+The pre-commit hook runs only `ktlintCheck` to check Kotlin formatting. It does not modify files. There is no pre-push hook. Ticket implementation owns tests and Android lint through the [completion checklist](#ticket-completion); committing and pushing do not repeat those checks.
+
+### Cloud verification
+
+The [Verification workflow](../../.github/workflows/android.yml) runs Python host-runner tests, Kotlin formatting, Android lint, and JVM tests automatically on pushes and pull requests. This independently verifies the pushed commit in a clean environment. Reports are uploaded as `verification-reports` even when a check fails.
+
+Cloud Android verification is manual. After the workflow is present on the default branch, open **Actions > Verification > Run workflow**, select the branch, and start it. The manual run first passes the automatic checks, then runs both host-driven Overview restart checks and the full connected suite on an API 29 emulator. Android reports and evidence are uploaded as `android-test-reports` even on failure. Push and pull-request events skip the Android job and do not start a cloud emulator.
+
+Use the manual cloud run when an independent Android check would resolve uncertainty. It does not replace the local ticket-completion checks or require another local run of unchanged, already-verified code. See GitHub's documentation for [manual workflow runs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) and [job conditions](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions).
 
 Sources:
 
@@ -193,7 +203,7 @@ Create one `FinanceTestFixtures(database)` per test/database. Its Account, Categ
 6. Reproduce the failure with the narrowest class or method filter before editing code.
 7. Make the smallest fix and rerun that focused test. Repeat focused runs while implementation is changing.
 8. Finish the spec and coding-standards reviews and resolve their findings before starting the [ticket completion checklist](#ticket-completion). Then pass the checklist once against the finished changes, whether handing off locally or pushing. If later implementation changes invalidate those results, repeat the affected checks, including the full Android suite for app, Android-test, or build changes.
-9. Upload reports, screenshots, diffs, and logs as CI artifacts.
+9. Record local verification evidence in the ticket or handoff. Automatic CI uploads its check reports; manually dispatched cloud Android runs also upload screenshots, UI dumps, and device logs.
 
 For this app, the high-value automated journeys are account creation, transaction entry, budget display, export, import merge, import overwrite, and the mandatory-account validation path.
 
@@ -218,7 +228,7 @@ python scripts/verify_overview_persistence.py --serial $env:ANDROID_SERIAL --ski
 
 Check each command's exit code and stop to diagnose any failure. A focused run is useful during implementation but does not satisfy this final checklist. Keep runner selection and sharding arguments out of the full-suite invocation. If the environment prevents a required check, report the limitation and leave the ticket unresolved.
 
-Record the device/API, test counts, results, and evidence paths in the ticket's Answer or handoff. Gradle reports are under `app/build/test-results/`, `app/build/reports/`, and `app/build/outputs/androidTest-results/`; the host check saves each run under `build/overview-persistence/`. Pushing requires no additional local run; CI remains an independent check.
+Record the device/API, test counts, results, and evidence paths in the ticket's Answer or handoff. Gradle reports are under `app/build/test-results/`, `app/build/reports/`, and `app/build/outputs/androidTest-results/`; the host check saves each run under `build/overview-persistence/`. Reuse passing results for the finished changes; committing or pushing is not a reason to repeat tests or Android lint. Rerun affected checks when code, test configuration, or the relevant environment changes, or when a failure leaves uncertainty. Automatic CI remains an independent check; cloud Android verification is manual.
 
 ## What still needs a human
 

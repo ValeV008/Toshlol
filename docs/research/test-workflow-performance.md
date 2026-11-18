@@ -146,7 +146,7 @@ Managed devices can provision parallel shards, using `android.experimental.andro
 
 ## Agreed scope after research
 
-The following are design decisions confirmed by the user on 2026-11-18, rather than measured research findings:
+The following are the initial design decisions confirmed by the user on 2026-11-18, rather than measured research findings. The later [hook and CI decision](#follow-up-local-hooks-and-cloud-verification) supersedes the pre-commit and CI scope below; the full local ticket-completion gate remains in place.
 
 - Every finished implementation ticket receives one full local Android 10/API 29 run. Focused tests provide feedback during implementation. CI remains a separate independent check.
 - The first implementation covers preventing duplicate local full-suite execution, both proposed UI-test merges, and removal of repeated validation/deletion steps from the expense Overview journey. Preserve all distinct behavior assertions, including empty versus zero amounts; accept reduced failure isolation within the merged journeys.
@@ -166,6 +166,18 @@ The following are design decisions confirmed by the user on 2026-11-18, rather t
 - All 15 JVM tests have passing reports and their final Gradle task was up-to-date; Android lint, Kotlin formatting, and APK assembly passed. Both selected and explicitly empty Account states passed the host-driven process-restart check. The host-runner files changed independently in the shared workspace during verification, before the restart check ran; the quick Python suite was rerun against the current files and all 11 tests passed.
 - Logs are under `build/test-workflow-performance/` (`final-preparation.log`, `host-restarts.log`, and `full-android-suite.log`). Baseline reports were preserved under `build/test-workflow-performance/20261118T111315Z/baseline/`; final Gradle reports are archived under `build/test-workflow-performance/final/`. Host UI/restart evidence is under `build/overview-persistence/20261118T111720430582Z/`.
 - The merged empty-Account journey took 10.348 seconds versus 15.732 seconds for its two original cases; the merged selection/month journey took 9.389 seconds versus 16.943 seconds. These are single-run observations, not controlled benchmarks. The primary workflow saving is removing a second complete local Android run on push.
+
+## Follow-up: local hooks and cloud verification
+
+The user subsequently chose to remove repeated JVM tests and Android lint from commit-time checks and to make cloud Android testing manual:
+
+- The pre-commit hook runs only `ktlintCheck`. The pre-push hook remains absent.
+- Run relevant tests while implementing, then pass the full [ticket completion checklist](ai-ui-testing.md#ticket-completion) once against the finished changes. Committing and pushing do not repeat tests or Android lint; rerun affected checks after changes or when needed to resolve uncertainty.
+- The `verify` CI job runs Python host-runner tests, formatting, Android lint, and JVM tests on pushes and pull requests, providing independent verification of the pushed commit.
+- The `android` CI job runs only for `workflow_dispatch`, after `verify` passes. It retains API 29, KVM setup, both host-driven restart checks, the full connected suite, and failure artifacts. Automatic pushes and pull requests do not start a cloud emulator.
+- Use **Actions > Verification > Run workflow** for an independent cloud Android check. The workflow must first be present on the default branch; the dispatch form then lets the user select a branch.
+
+Historical measurements and verification results above describe the earlier implementation and have not been rerun as benchmarks for this follow-up.
 
 ## How to evaluate a later implementation
 

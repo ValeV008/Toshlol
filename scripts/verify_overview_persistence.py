@@ -147,7 +147,9 @@ class HostRunner:
         if self.shell("pidof", package, allow_failure=True).strip():
             raise AssertionError("App process still running after force-stop")
         launch = self.shell("am", "start", "-W", "-n", f"{package}/{ACTIVITY}")
-        if "Status: ok" not in launch:
+        # Android's launch wait can expire before the first frame on a slow emulator.
+        # A timeout still needs to pass every bounded post-restart UI assertion below.
+        if not re.search(r"^Status: (?:ok|timeout)\s*$", launch, re.MULTILINE):
             raise AssertionError(f"App launch failed: {launch}")
         self.wait_for_ui(f"{state}-overview", assert_overview, selected)
         size = self.shell("wm", "size")

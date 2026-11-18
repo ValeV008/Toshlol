@@ -1,9 +1,13 @@
 """Regression checks for the host runner's pass/fail decisions; no emulator required."""
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
 from verify_overview_persistence import (
+    HostRunner,
     assert_activity,
     assert_drawer,
     assert_instrumentation_passed,
@@ -105,6 +109,59 @@ class OverviewPersistenceAssertionsTest(unittest.TestCase):
                        "INSTRUMENTATION_FAILED", "OK (1 test)\nINSTRUMENTATION_RESULT: shortMsg=Process crashed"):
             with self.subTest(output=output), self.assertRaises(AssertionError):
                 assert_instrumentation_passed(output)
+
+
+class OverviewPersistenceLaunchTest(unittest.TestCase):
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.runner = HostRunner("adb", "emulator-5554", Path(directory.name) / "evidence")
+        self.launch = "Status: ok\n"
+        self.runner.shell = Mock(side_effect=self.run_shell)
+        activity = ET.fromstring('<hierarchy><node text="Income &#183; EUR 2.00" /></hierarchy>')
+        drawer = ET.fromstring('<hierarchy><node content-desc="Cash Account selection" checked="true" />'
+                               '<node content-desc="Savings Account selection" checked="false" /></hierarchy>')
+        self.runner.read_hierarchy = Mock(side_effect=[overview(), activity, drawer])
+        self.runner.capture_screenshot = Mock()
+
+    def run_shell(self, *arguments, **options):
+        if arguments[:2] == ("am", "instrument"):
+            return "OK (1 test)\n"
+        if arguments[:2] == ("am", "start"):
+            return self.launch
+        if arguments == ("wm", "size"):
+            return "Physical size: 320x640\n"
+        return ""
+
+    def test_checks_persisted_ui_after_successful_launch(self):
+        self.runner.verify_state(True, "com.toshlol.finance", "com.toshlol.finance.test")
+        self.assertEqual([call.args[0] for call in self.runner.read_hierarchy.call_args_list],
+                         ["selected-overview", "selected-activity", "selected-drawer"])
+
+    def test_checks_persisted_ui_after_android_launch_wait_times_out(self):
+        # API 29 reported this before displaying MainActivity in the failed CI run.
+        self.launch = "Status: timeout\nLaunchState: UNKNOWN (-1)\nWaitTime: 11586\nComplete\n"
+        self.runner.verify_state(True, "com.toshlol.finance", "com.toshlol.finance.test")
+        self.assertEqual([call.args[0] for call in self.runner.read_hierarchy.call_args_list],
+                         ["selected-overview", "selected-activity", "selected-drawer"])
+
+    def test_rejects_launch_errors_before_reading_ui(self):
+        for launch in ("Error: Activity class does not exist.\n", "Status: error\n", ""):
+            with self.subTest(launch=launch), self.assertRaisesRegex(AssertionError, "App launch failed"):
+                self.launch = launch
+                self.runner.verify_state(True, "com.toshlol.finance", "com.toshlol.finance.test")
+        self.runner.read_hierarchy.assert_not_called()
+
+    def test_launch_timeout_still_fails_if_persisted_ui_is_wrong_or_unavailable(self):
+        self.launch = "Status: timeout\nLaunchState: UNKNOWN (-1)\n"
+        for root in (ET.fromstring("<hierarchy />"), overview("EUR 6009.00", "9.00", net="9.00")):
+            self.runner.read_hierarchy = Mock(return_value=root)
+            with self.subTest(xml=ET.tostring(root)), \
+                    patch("verify_overview_persistence.time.monotonic", side_effect=[0, 0, 46]), \
+                    patch("verify_overview_persistence.time.sleep"), \
+                    self.assertRaisesRegex(AssertionError, "Timed out waiting for selected-overview"):
+                self.runner.verify_state(True, "com.toshlol.finance", "com.toshlol.finance.test")
+        self.runner.capture_screenshot.assert_not_called()
 
 
 if __name__ == "__main__":

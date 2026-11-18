@@ -26,6 +26,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -73,7 +74,7 @@ data class TransactionDialogActions(
     val delete: TransactionDeleteActions,
 )
 
-data class TransferDialogActions(
+data class TransferFormActions(
     val close: () -> Unit,
     val save: () -> Unit,
     val amountChanged: (String) -> Unit,
@@ -341,75 +342,144 @@ fun TransactionDateField(
         label = { Text("Date (YYYY-MM-DD)") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
+        colors =
+            OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                cursorColor = Color(0xFFFFD23F),
+                focusedBorderColor = Color(0xFFFFD23F),
+                unfocusedBorderColor = Color(0xFFCFD1D5),
+                focusedLabelColor = Color(0xFFFFD23F),
+                unfocusedLabelColor = Color(0xFFCFD1D5),
+            ),
     )
 }
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-fun TransferDialog(
+fun TransferEntryDialogs(
     state: TransactionsUiState,
-    actions: TransferDialogActions,
+    actions: TransferFormActions,
 ): Unit {
-    if (state.isTransferFormVisible && state.pendingTransferDeleteId == null) {
-        AlertDialog(
-            onDismissRequest = actions.close,
-            title = { Text(if (state.editingTransferId == null) "New Transfer" else "Edit Transfer") },
-            text = {
-                Column(
-                    Modifier.verticalScroll(rememberScrollState()).testTag("transfer-form"),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(state.amount, actions.amountChanged, label = { Text("Amount") }, singleLine = true)
-                    TransactionDateField(state.date, actions.dateChanged)
-                    Text("From Account")
-                    state.accounts.filterNot { it.isArchived }.forEach { account ->
-                        Row(
-                            Modifier.heightIn(min = 48.dp).testTag("transfer-source-${account.id}").selectable(
-                                selected = state.transferSourceAccountId == account.id,
-                                role = Role.RadioButton,
-                                onClick = { actions.sourceChanged(account.id) },
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = state.transferSourceAccountId == account.id, onClick = null)
-                            Text(account.name)
-                        }
-                    }
-                    Text("To Account")
-                    state.accounts.filterNot { it.isArchived }.forEach { account ->
-                        Row(
-                            Modifier.heightIn(min = 48.dp).testTag("transfer-destination-${account.id}").selectable(
-                                selected = state.transferDestinationAccountId == account.id,
-                                role = Role.RadioButton,
-                                onClick = { actions.destinationChanged(account.id) },
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = state.transferDestinationAccountId == account.id, onClick = null)
-                            Text(account.name)
-                        }
-                    }
-                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                Row {
-                    state.editingTransferId?.let { id ->
-                        TextButton(onClick = { actions.delete(id) }) { Text("Delete") }
-                    }
-                    Button(onClick = actions.save) { Text("Save") }
-                }
-            },
-            dismissButton = { OutlinedButton(onClick = actions.close) { Text("Cancel") } },
-        )
-    }
+    val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
+    LaunchedEffect(state.isTransferFormVisible) { if (!state.isTransferFormVisible) keyboardController?.hide() }
+    if (state.isTransferFormVisible) TransferEntryDialog(state, actions)
     if (state.pendingTransferDeleteId != null) {
         AlertDialog(
             onDismissRequest = actions.cancelDelete,
             title = { Text("Delete Transfer?") },
             text = { Text("This Transfer will be permanently deleted.") },
-            confirmButton = { Button(onClick = actions.confirmDelete) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = actions.cancelDelete) { Text("Cancel") } },
+            confirmButton = {
+                Button(onClick = actions.confirmDelete, modifier = Modifier.testTag("confirm-transfer-delete")) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.cancelDelete, modifier = Modifier.testTag("cancel-transfer-delete")) {
+                    Text("Cancel")
+                }
+            },
         )
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun TransferEntryDialog(
+    state: TransactionsUiState,
+    actions: TransferFormActions,
+): Unit {
+    val charcoal: Color = Color(0xFF292B2F)
+    Dialog(onDismissRequest = actions.close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
+            color = charcoal,
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 10.dp)
+                        .testTag("transfer-form"),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (state.editingTransferId == null) "New Transfer" else "Edit Transfer",
+                            Modifier.weight(1f),
+                            color = Color.White,
+                        )
+                        state.editingTransferId?.let { id ->
+                            TextButton(onClick = { actions.delete(id) }, modifier = Modifier.testTag("transfer-delete")) {
+                                Text("Delete", color = Color.White)
+                            }
+                        }
+                    }
+                    Text("Amount", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${state.currency} ${state.amount.ifBlank { "0.00" }}",
+                        Modifier.fillMaxWidth().semantics { contentDescription = "Amount" }.testTag("transfer-amount"),
+                        color = Color.White,
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    TransactionDateField(state.date, actions.dateChanged)
+                    Text("Source Account", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    state.accounts.filterNot { it.isArchived }.forEach { account ->
+                        TransferAccountChoice(
+                            accountName = account.name,
+                            isSelected = state.transferSourceAccountId == account.id,
+                            testTag = "transfer-source-${account.id}",
+                            onSelected = { actions.sourceChanged(account.id) },
+                        )
+                    }
+                    Text("Destination Account", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                    state.accounts.filterNot { it.isArchived }.forEach { account ->
+                        TransferAccountChoice(
+                            accountName = account.name,
+                            isSelected = state.transferDestinationAccountId == account.id,
+                            testTag = "transfer-destination-${account.id}",
+                            onSelected = { actions.destinationChanged(account.id) },
+                        )
+                    }
+                    state.error?.let { Text(it, color = Color(0xFFFF8A80)) }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    OutlinedButton(onClick = actions.close, modifier = Modifier.weight(1f).testTag("transfer-cancel")) {
+                        Text("Cancel")
+                    }
+                    Button(onClick = actions.save, modifier = Modifier.weight(1f).testTag("transfer-save")) {
+                        Text("Save")
+                    }
+                }
+                AmountKeypad(state.amount, state.currency, actions.amountChanged)
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun TransferAccountChoice(
+    accountName: String,
+    isSelected: Boolean,
+    testTag: String,
+    onSelected: () -> Unit,
+): Unit {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onSelected)
+            .testTag(testTag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = isSelected, onClick = null)
+        Text(accountName, color = Color.White)
     }
 }

@@ -73,7 +73,7 @@ data class TransactionActions(
 data class TransferActions(
     val create: () -> Unit,
     val edit: (FinanceTransfer) -> Unit,
-    val dialog: TransferDialogActions,
+    val form: TransferFormActions,
 )
 
 data class CategoryActions(
@@ -267,7 +267,7 @@ fun PersonalFinanceApp(
                                     tagChanged = actions.navigation.tagChanged,
                                     createTransfer = actions.transfers.create,
                                     editTransfer = actions.transfers.edit,
-                                    deleteTransfer = actions.transfers.dialog.delete,
+                                    deleteTransfer = actions.transfers.form.delete,
                                 ),
                             )
                         uiState.isSetupComplete && transactionsState.selectedArea == "Expenses" ->
@@ -282,7 +282,7 @@ fun PersonalFinanceApp(
                                     actions.transactions.edit,
                                     actions.transactions.delete,
                                     actions.transfers.edit,
-                                    actions.transfers.dialog.delete,
+                                    actions.transfers.form.delete,
                                     actions.transfers.create,
                                     actions.navigation.overviewAccountToggled,
                                     actions.navigation.accountDrawerChanged,
@@ -300,7 +300,7 @@ fun PersonalFinanceApp(
                                     actions.transactions.edit,
                                     actions.transactions.delete,
                                     actions.transfers.edit,
-                                    actions.transfers.dialog.delete,
+                                    actions.transfers.form.delete,
                                     actions.transfers.create,
                                     actions.navigation.overviewAccountToggled,
                                     actions.navigation.accountDrawerChanged,
@@ -370,9 +370,9 @@ fun PersonalFinanceApp(
                                     ),
                             ),
                         )
-                        TransferDialog(
+                        TransferEntryDialogs(
                             transactionsState,
-                            actions.transfers.dialog,
+                            actions.transfers.form,
                         )
                     }
                 }

@@ -31,12 +31,17 @@ class TransferManagementTest {
                 TransferDraft(sourceAccountId = "cash", destinationAccountId = "savings", amountMinor = 0L, date = 10L)
             val sameAccountDraft: TransferDraft =
                 TransferDraft(sourceAccountId = "cash", destinationAccountId = "cash", amountMinor = 1200L, date = 10L)
+            val invalidDateDraft: TransferDraft =
+                TransferDraft(sourceAccountId = "cash", destinationAccountId = "savings", amountMinor = 1200L, date = Long.MAX_VALUE)
             assertThrows(
                 IllegalArgumentException::class.java,
             ) { kotlinx.coroutines.runBlocking { transferManagement.saveTransfer(nonPositiveDraft) } }
             assertThrows(
                 IllegalArgumentException::class.java,
             ) { kotlinx.coroutines.runBlocking { transferManagement.saveTransfer(sameAccountDraft) } }
+            assertThrows(
+                IllegalArgumentException::class.java,
+            ) { kotlinx.coroutines.runBlocking { transferManagement.saveTransfer(invalidDateDraft) } }
             assertEquals(null, repository.savedDraft)
         }
 }

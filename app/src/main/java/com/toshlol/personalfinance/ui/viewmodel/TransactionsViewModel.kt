@@ -276,9 +276,13 @@ class TransactionsViewModel(
 
     @Suppress("ktlint:standard:no-unit-return")
     fun beginEditTransfer(transfer: FinanceTransfer): Unit {
-        val fractionDigits: Int = fractionDigits(uiState.value.currency)
+        val state: TransactionsUiState = uiState.value
+        val isSourceEditable: Boolean = state.accounts.any { it.id == transfer.sourceAccountId && !it.isArchived }
+        val isDestinationEditable: Boolean = state.accounts.any { it.id == transfer.destinationAccountId && !it.isArchived }
+        if (!isSourceEditable || !isDestinationEditable) return
+        val fractionDigits: Int = fractionDigits(state.currency)
         mutableUiState.value =
-            uiState.value.copy(
+            state.copy(
                 isTransferFormVisible = true,
                 editingTransferId = transfer.id,
                 amount =

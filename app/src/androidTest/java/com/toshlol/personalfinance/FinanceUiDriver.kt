@@ -73,7 +73,7 @@ class FinanceUiDriver(
         value: String,
         containerTag: String? = null,
     ) {
-        if (label == "Amount" && containerTag == "transaction-form") {
+        if (label == "Amount" && (containerTag == "transaction-form" || containerTag == "transfer-form")) {
             rule.onNodeWithTag("amount-key-C").performClick()
             value.filter(Char::isDigit).forEach { digit ->
                 rule.onNodeWithTag("amount-key-$digit").performClick()

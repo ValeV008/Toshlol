@@ -41,7 +41,7 @@ import com.toshlol.personalfinance.ui.TransactionActions
 import com.toshlol.personalfinance.ui.TransactionDeleteActions
 import com.toshlol.personalfinance.ui.TransactionFormActions
 import com.toshlol.personalfinance.ui.TransferActions
-import com.toshlol.personalfinance.ui.TransferDialogActions
+import com.toshlol.personalfinance.ui.TransferFormActions
 import com.toshlol.personalfinance.ui.theme.ToshlolTheme
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunViewModel
@@ -189,8 +189,8 @@ class MainActivity : ComponentActivity() {
                                 TransferActions(
                                     create = transactionsViewModel::beginTransfer,
                                     edit = transactionsViewModel::beginEditTransfer,
-                                    dialog =
-                                        TransferDialogActions(
+                                    form =
+                                        TransferFormActions(
                                             close = transactionsViewModel::closeTransferForm,
                                             save = transactionsViewModel::saveTransfer,
                                             amountChanged = transactionsViewModel::updateAmount,

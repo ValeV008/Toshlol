@@ -12,7 +12,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [02: Monthly Expenses, Income, and main navigation](issues/02-monthly-expenses-income-and-main-navigation.md) | 01 | resolved |
 | [03: Full-screen Transaction entry and editing](issues/03-full-screen-transaction-entry-and-editing.md) | 01 | resolved |
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | resolved |
-| [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | ready-for-agent |
+| [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | resolved |
 | [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | ready-for-agent |
 | [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | ready-for-agent |
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | ready-for-agent |
@@ -24,10 +24,10 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 
 ## Work frontier
 
-- 01, 02, 03, and 04 are resolved.
+- 01, 02, 03, 04, and 05 are resolved.
 - 06, 08, and 09 can proceed without waiting for each other.
 - 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
-- 05 opens after both 02 and 03 resolve.
+- 05 opened after both 02 and 03 resolved and is complete with ticket-specific API 29 creation, editing, paired-list, filter, deletion, archived-counterpart, and larger-font verification.
 - 07 opens after 06 resolves.
 - 10 opens after both 02 and 07 resolve.
 - 11 opens after 04, 05, 08, 09, and 10 resolve. Its other prerequisites are included transitively.
@@ -39,6 +39,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - Issue 02 has passing API 29 ledger/navigation journeys and screenshots for Expenses, Income, shared Account selection, empty selection, the drawer, and Overview actions. Its legacy journeys now use the split ledgers. The unfiltered full connected suite passed on 2026-11-17: 58 tests, zero failures/errors/skips, including all 16 `TransactionFlowTest` journeys. JVM tests, lint, formatting, and all 11 host-runner tests also pass.
 - Issue 03 has passing focused API 29 journeys for preserved edit fields and identity, Account changes and monthly balances, amount/date validation, missing active Account, optional Category/Tag/Note, cancellation, deletion, and large-font operation. Screenshots for both transaction directions remain in `evidence/03/`.
 - Issue 04 has passing full API 29 verification: 60 connected tests, 0 failures/errors/skips, plus JVM tests, lint, and formatting. Account management/history covers typed creation, signed Opening balance edits and reopen persistence, month-end balances, rename resolution, archived read-only history including archived transfer counterparts, drawer selection, month retention, and Android 10 screenshots in `evidence/04/`.
+- Issue 05 has passing full API 29 verification: 59 connected tests, 0 failures/errors/skips, plus JVM tests, lint, formatting, and all 11 Python host-runner tests. The Transfer journey covers the full-screen amount/date form, explicit Accounts, paired rows and histories, filters/totals, cross-Account/month editing with stable identity/timestamps, deletion, archived-counterpart restrictions, and larger text. Screenshots are in `issues/evidence/05/transfer-entry-evidence/`; selected and empty Overview restart checks passed with evidence in `build/overview-persistence/20261118T133519187731Z`.
 - The legacy failure records in issues 02 and 03 are historical and superseded by issue 02's passing full-suite verification. They are no longer deferred to integration; CI retains its full connected-suite gate, and ticket implementation owns the final local [completion checklist](../../docs/research/ai-ui-testing.md#ticket-completion).
 - Saved/empty Overview selection is also checked by the reusable [host restart runner](../../scripts/verify_overview_persistence.py), including a second unselected Account, displayed totals/activity, and both drawer switches. The runner now scopes Income/Expenses labels to the financial summary to allow duplicate navigation-tab labels. Both selected and empty restart checks passed on 2026-11-17. CI runs it before the connected suite and uploads each run's evidence.
 - The first slice introduces shared month/projection behavior and visual components inside a working Overview/Account-selection journey; later slices reuse them rather than requiring a standalone broad refactor.

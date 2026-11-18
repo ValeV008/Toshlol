@@ -154,7 +154,8 @@ class AppDatabaseTest {
                             it.id == destination.id
                         }.copy(openingBalanceMinor = 300, openingBalanceDate = openingDate),
                 )
-                val repository: RoomTransferRepository = RoomTransferRepository(database, { "transfer-id" }, { 500L })
+                var transferTimestamp: Long = 500L
+                val repository: RoomTransferRepository = RoomTransferRepository(database, { "transfer-id" }, { transferTimestamp })
                 try {
                     repository.save(
                         TransferDraft(
@@ -179,6 +180,8 @@ class AppDatabaseTest {
                         ),
                     )
                 assertEquals("transfer-id", saved.single().id)
+                assertEquals(500L, saved.single().createdAt)
+                assertEquals(500L, saved.single().updatedAt)
                 assertEquals("Cash", saved.single().sourceAccountName)
                 assertEquals("Savings", saved.single().destinationAccountName)
                 val snapshot: FirstRunSnapshot = fixtures.accounts.loadSetup()
@@ -192,11 +195,13 @@ class AppDatabaseTest {
                         .single()
                 val budgets: List<CategoryBudget> = fixtures.budgets.save(BudgetDraft(category.id, YearMonth.now(), 2_000))
                 assertEquals(0L, budgets.single().spentMinor)
+                transferTimestamp = 700L
                 val edited: List<com.toshlol.personalfinance.data.FinanceTransfer> =
-                    repository.save(
-                        TransferDraft("transfer-id", source.id, destination.id, 250, transferDate),
-                    )
+                    repository.save(TransferDraft("transfer-id", source.id, destination.id, 250, transferDate))
                 assertEquals(1, edited.size)
+                assertEquals("transfer-id", edited.single().id)
+                assertEquals(500L, edited.single().createdAt)
+                assertEquals(700L, edited.single().updatedAt)
                 assertEquals(250L, edited.single().amountMinor)
                 assertEquals(
                     750L,

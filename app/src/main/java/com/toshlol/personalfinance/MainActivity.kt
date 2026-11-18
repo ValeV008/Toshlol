@@ -249,6 +249,8 @@ class MainActivity : ComponentActivity() {
                                     nameChanged = transactionsViewModel::updateBudgetName,
                                     amountChanged = transactionsViewModel::updateBudgetAmount,
                                     accountToggled = transactionsViewModel::toggleBudgetAccount,
+                                    categoryToggled = transactionsViewModel::toggleBudgetCategory,
+                                    tagToggled = transactionsViewModel::toggleBudgetTag,
                                     create = transactionsViewModel::beginBudgetCreate,
                                     edit = transactionsViewModel::beginBudgetEdit,
                                     save = transactionsViewModel::saveBudget,

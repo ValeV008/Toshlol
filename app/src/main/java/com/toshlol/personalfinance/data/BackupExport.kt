@@ -17,7 +17,7 @@ import java.io.IOException
 import java.io.OutputStream
 import java.time.LocalDate
 
-const val CURRENT_BACKUP_SCHEMA_VERSION: Int = 3
+const val CURRENT_BACKUP_SCHEMA_VERSION: Int = 4
 const val MAX_BACKUP_BYTES: Int = 5 * 1024 * 1024
 const val MAX_BACKUP_RECORDS: Int = 100_000
 private const val DEFAULT_OPENING_BALANCE_MINOR: Long = 0
@@ -116,6 +116,8 @@ data class BackupRecurringBudget(
     val accountIds: List<String>,
     val createdAt: Long,
     override val updatedAt: Long,
+    val categoryIds: List<String> = emptyList(),
+    val tagIds: List<String> = emptyList(),
 ) : BackupEntityRecord
 
 @Serializable
@@ -139,6 +141,29 @@ private data class FinanceBackupV2(
     val transactions: List<BackupTransaction>,
     val transfers: List<BackupTransfer>,
     val budgets: List<BackupBudget>,
+)
+
+@Serializable
+private data class FinanceBackupV3(
+    val schemaVersion: Int,
+    val settings: BackupSettings,
+    val accounts: List<BackupAccount>,
+    val categories: List<BackupCategory>,
+    val tags: List<BackupTag>,
+    val transactions: List<BackupTransaction>,
+    val transfers: List<BackupTransfer>,
+    val budgets: List<BackupBudget>,
+    val recurringBudgets: List<BackupRecurringBudgetV3> = emptyList(),
+)
+
+@Serializable
+private data class BackupRecurringBudgetV3(
+    val id: String,
+    val name: String,
+    val limitMinor: Long,
+    val accountIds: List<String>,
+    val createdAt: Long,
+    val updatedAt: Long,
 )
 
 @Serializable
@@ -172,6 +197,7 @@ object FinanceBackupCodec {
         return when (version) {
             1 -> normalizeV1(json.decodeFromString<FinanceBackupV1>(contents))
             2 -> normalizeV2(json.decodeFromString<FinanceBackupV2>(contents))
+            3 -> normalizeV3(json.decodeFromString<FinanceBackupV3>(contents))
             CURRENT_BACKUP_SCHEMA_VERSION -> json.decodeFromString<FinanceBackup>(contents)
             else -> throw SerializationException("Unsupported Backup schema version: $version")
         }
@@ -219,6 +245,28 @@ object FinanceBackupCodec {
             backup.budgets.map { budget -> budget.copy(accountIds = accountIds) },
         )
     }
+
+    private fun normalizeV3(backup: FinanceBackupV3): FinanceBackup =
+        FinanceBackup(
+            CURRENT_BACKUP_SCHEMA_VERSION,
+            backup.settings,
+            backup.accounts,
+            backup.categories,
+            backup.tags,
+            backup.transactions,
+            backup.transfers,
+            backup.budgets,
+            backup.recurringBudgets.map { budget ->
+                BackupRecurringBudget(
+                    budget.id,
+                    budget.name,
+                    budget.limitMinor,
+                    budget.accountIds,
+                    budget.createdAt,
+                    budget.updatedAt,
+                )
+            },
+        )
 }
 
 fun interface BackupDocumentWriter {
@@ -280,7 +328,11 @@ class RoomBackupExporter(
                 budget.toBackup(database.budgetDao().loadAccountIds(budget.id))
             },
             database.recurringBudgetDao().loadAll().map { budget: RecurringBudgetEntity ->
-                budget.toBackup(database.recurringBudgetDao().loadAccountIds(budget.id))
+                budget.toBackup(
+                    database.recurringBudgetDao().loadAccountIds(budget.id),
+                    database.recurringBudgetDao().loadCategoryIds(budget.id),
+                    database.recurringBudgetDao().loadTagIds(budget.id),
+                )
             },
         )
     }
@@ -301,6 +353,9 @@ class RoomBackupExporter(
     private fun BudgetEntity.toBackup(accountIds: List<String>): BackupBudget =
         BackupBudget(id, categoryId, month, amountMinor, createdAt, updatedAt, accountIds)
 
-    private fun RecurringBudgetEntity.toBackup(accountIds: List<String>): BackupRecurringBudget =
-        BackupRecurringBudget(id, name, limitMinor, accountIds, createdAt, updatedAt)
+    private fun RecurringBudgetEntity.toBackup(
+        accountIds: List<String>,
+        categoryIds: List<String>,
+        tagIds: List<String>,
+    ): BackupRecurringBudget = BackupRecurringBudget(id, name, limitMinor, accountIds, createdAt, updatedAt, categoryIds, tagIds)
 }

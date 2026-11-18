@@ -23,7 +23,9 @@ import com.toshlol.personalfinance.data.FinanceBackup
 import com.toshlol.personalfinance.data.FinanceBackupCodec
 import com.toshlol.personalfinance.data.LegacyBudgetAccountEntity
 import com.toshlol.personalfinance.data.RecurringBudgetAccountEntity
+import com.toshlol.personalfinance.data.RecurringBudgetCategoryEntity
 import com.toshlol.personalfinance.data.RecurringBudgetEntity
+import com.toshlol.personalfinance.data.RecurringBudgetTagEntity
 import com.toshlol.personalfinance.data.RoomBackupExporter
 import com.toshlol.personalfinance.data.TagEntity
 import com.toshlol.personalfinance.data.TransactionDirection
@@ -65,7 +67,7 @@ class BackupExportTest {
         assertThrows(SerializationException::class.java) { FinanceBackupCodec.decode("{") }
         assertThrows(SerializationException::class.java) { FinanceBackupCodec.decode(encodedBackup.dropLast(1) + ",\"unexpected\":true}") }
         assertThrows(SerializationException::class.java) {
-            FinanceBackupCodec.decode(encodedBackup.replace("\"schemaVersion\":3", "\"schemaVersion\":99"))
+            FinanceBackupCodec.decode(encodedBackup.replace("\"schemaVersion\":4", "\"schemaVersion\":99"))
         }
     }
 
@@ -76,7 +78,7 @@ class BackupExportTest {
             {"schemaVersion":1,"settings":{"currency":"EUR"},"accounts":[{"id":"account","name":"Cash","type":"CASH","createdAt":1,"updatedAt":1,"archived":false}],"categories":[],"tags":[],"transactions":[{"id":"transaction","accountId":"account","amountMinor":100,"direction":"EXPENSE","date":20,"categoryId":null,"tagIds":[],"note":null,"createdAt":1,"updatedAt":1}],"budgets":[]}
             """.trimIndent()
         val actualBackup: FinanceBackup = FinanceBackupCodec.decode(versionOneBackup)
-        assertEquals(3, actualBackup.schemaVersion)
+        assertEquals(4, actualBackup.schemaVersion)
         assertEquals(0L, actualBackup.accounts.single().openingBalanceMinor)
         assertEquals(20L, actualBackup.accounts.single().openingBalanceDate)
         assertEquals(emptyList<BackupTransfer>(), actualBackup.transfers)
@@ -126,12 +128,14 @@ class BackupExportTest {
         val recurringBudget: RecurringBudgetEntity = RecurringBudgetEntity("recurring-budget", "Household", 7_000L, 15L, 16L)
         database.recurringBudgetDao().save(recurringBudget)
         database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(recurringBudget.id, account.id))
+        database.recurringBudgetDao().saveCategory(RecurringBudgetCategoryEntity(recurringBudget.id, category.id))
+        database.recurringBudgetDao().saveTag(RecurringBudgetTagEntity(recurringBudget.id, tag.id))
         return createExpectedBackup()
     }
 
     private fun createExpectedBackup(): FinanceBackup =
         FinanceBackup(
-            schemaVersion = 3,
+            schemaVersion = 4,
             settings = BackupSettings("EUR"),
             accounts =
                 listOf(
@@ -146,7 +150,19 @@ class BackupExportTest {
                 ),
             transfers = listOf(BackupTransfer("transfer", "account", "savings", 400L, 21L, 11L, 12L)),
             budgets = listOf(BackupBudget("budget", "category", "2026-11", 5000L, 13L, 14L, listOf("account", "savings"))),
-            recurringBudgets = listOf(BackupRecurringBudget("recurring-budget", "Household", 7_000L, listOf("account"), 15L, 16L)),
+            recurringBudgets =
+                listOf(
+                    BackupRecurringBudget(
+                        "recurring-budget",
+                        "Household",
+                        7_000L,
+                        listOf("account"),
+                        15L,
+                        16L,
+                        listOf("category"),
+                        listOf("tag"),
+                    ),
+                ),
         )
 
     private val context: Context

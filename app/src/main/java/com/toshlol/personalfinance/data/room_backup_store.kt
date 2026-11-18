@@ -59,7 +59,12 @@ internal class RoomBackupStore(
                 createBackupBudget(budget, database.budgetDao().loadAccountIds(budget.id))
             },
             database.recurringBudgetDao().loadAll().map { budget ->
-                createBackupRecurringBudget(budget, database.recurringBudgetDao().loadAccountIds(budget.id))
+                createBackupRecurringBudget(
+                    budget,
+                    database.recurringBudgetDao().loadAccountIds(budget.id),
+                    database.recurringBudgetDao().loadCategoryIds(budget.id),
+                    database.recurringBudgetDao().loadTagIds(budget.id),
+                )
             },
         )
     }
@@ -119,8 +124,19 @@ internal class RoomBackupStore(
     private fun createBackupRecurringBudget(
         budget: RecurringBudgetEntity,
         accountIds: List<String>,
+        categoryIds: List<String>,
+        tagIds: List<String>,
     ): BackupRecurringBudget =
-        BackupRecurringBudget(budget.id, budget.name, budget.limitMinor, accountIds, budget.createdAt, budget.updatedAt)
+        BackupRecurringBudget(
+            budget.id,
+            budget.name,
+            budget.limitMinor,
+            accountIds,
+            budget.createdAt,
+            budget.updatedAt,
+            categoryIds,
+            tagIds,
+        )
 
     private suspend fun clearLedger(): Unit {
         database.categoryTagDao().clearAllTransactionTags()
@@ -220,8 +236,16 @@ internal class RoomBackupStore(
                 RecurringBudgetEntity(budget.id, budget.name, budget.limitMinor, budget.createdAt, budget.updatedAt),
             )
             database.recurringBudgetDao().clearAccountIds(budget.id)
+            database.recurringBudgetDao().clearCategoryIds(budget.id)
+            database.recurringBudgetDao().clearTagIds(budget.id)
             budget.accountIds.forEach { accountId ->
                 database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(budget.id, accountId))
+            }
+            budget.categoryIds.forEach { categoryId ->
+                database.recurringBudgetDao().saveCategory(RecurringBudgetCategoryEntity(budget.id, categoryId))
+            }
+            budget.tagIds.forEach { tagId ->
+                database.recurringBudgetDao().saveTag(RecurringBudgetTagEntity(budget.id, tagId))
             }
         }
     }

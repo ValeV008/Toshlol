@@ -151,10 +151,22 @@ fun OverviewScreen(
                     if (budgets.isNotEmpty() || recurringBudgets.isNotEmpty()) {
                         Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
                         recurringBudgets.forEach { budget ->
-                            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+                            BudgetProgressCard(
+                                budget.toBudgetProgressCardState(state.categories, state.tags),
+                                state.accounts,
+                                state.currency,
+                                state.categories,
+                                state.tags,
+                            )
                         }
                         budgets.forEach { budget ->
-                            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+                            BudgetProgressCard(
+                                budget.toBudgetProgressCardState(),
+                                state.accounts,
+                                state.currency,
+                                state.categories,
+                                state.tags,
+                            )
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -89,6 +89,8 @@ data class TransactionsUiState(
     val budgetName: String = "",
     val budgetAmount: String = "",
     val budgetAccountIds: Set<String> = emptySet(),
+    val budgetCategoryIds: Set<String> = emptySet(),
+    val budgetTagIds: Set<String> = emptySet(),
     val selectedMonth: String = YearMonth.now().toString(),
     val selectedOverviewAccountIds: Set<String> = emptySet(),
     val isAccountDrawerOpen: Boolean = false,
@@ -646,6 +648,8 @@ class TransactionsViewModel(
                         budgetName = "",
                         budgetAmount = "",
                         budgetAccountIds = emptySet(),
+                        budgetCategoryIds = emptySet(),
+                        budgetTagIds = emptySet(),
                         error = null,
                     )
             } catch (exception: IOException) {
@@ -698,6 +702,19 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(budgetAccountIds = updatedAccountIds, error = null)
     }
 
+    fun toggleBudgetCategory(categoryId: String) {
+        val selectedCategoryIds: Set<String> = uiState.value.budgetCategoryIds
+        val updatedCategoryIds: Set<String> =
+            if (categoryId in selectedCategoryIds) selectedCategoryIds - categoryId else selectedCategoryIds + categoryId
+        mutableUiState.value = uiState.value.copy(budgetCategoryIds = updatedCategoryIds, error = null)
+    }
+
+    fun toggleBudgetTag(tagId: String) {
+        val selectedTagIds: Set<String> = uiState.value.budgetTagIds
+        val updatedTagIds: Set<String> = if (tagId in selectedTagIds) selectedTagIds - tagId else selectedTagIds + tagId
+        mutableUiState.value = uiState.value.copy(budgetTagIds = updatedTagIds, error = null)
+    }
+
     fun beginBudgetCreate() {
         mutableUiState.value =
             uiState.value.copy(
@@ -705,6 +722,8 @@ class TransactionsViewModel(
                 budgetName = "",
                 budgetAmount = "",
                 budgetAccountIds = emptySet(),
+                budgetCategoryIds = emptySet(),
+                budgetTagIds = emptySet(),
                 error = null,
             )
     }
@@ -716,6 +735,8 @@ class TransactionsViewModel(
                 budgetName = budget.name,
                 budgetAmount = formatAmount(budget.limitMinor, uiState.value.currency),
                 budgetAccountIds = budget.accountIds,
+                budgetCategoryIds = budget.categoryIds,
+                budgetTagIds = budget.tagIds,
                 error = null,
             )
     }
@@ -737,7 +758,14 @@ class TransactionsViewModel(
             try {
                 val recurringBudgets: List<RecurringBudgetProgress> =
                     recurringBudgetRepository.save(
-                        RecurringBudgetDraft(state.editingBudgetId, state.budgetName, amountMinor, state.budgetAccountIds),
+                        RecurringBudgetDraft(
+                            state.editingBudgetId,
+                            state.budgetName,
+                            amountMinor,
+                            state.budgetAccountIds,
+                            state.budgetCategoryIds,
+                            state.budgetTagIds,
+                        ),
                         budgetMonth,
                     )
                 mutableUiState.value =
@@ -747,6 +775,8 @@ class TransactionsViewModel(
                         budgetName = "",
                         budgetAmount = "",
                         budgetAccountIds = emptySet(),
+                        budgetCategoryIds = emptySet(),
+                        budgetTagIds = emptySet(),
                         error = null,
                     )
             } catch (exception: Exception) {

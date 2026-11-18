@@ -20,9 +20,11 @@ import java.util.UUID
         LegacyBudgetAccountEntity::class,
         RecurringBudgetEntity::class,
         RecurringBudgetAccountEntity::class,
+        RecurringBudgetCategoryEntity::class,
+        RecurringBudgetTagEntity::class,
         TransferEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -152,6 +154,20 @@ abstract class AppDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_8_9: Migration =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE recurring_budget_categories (budgetId TEXT NOT NULL, categoryId TEXT NOT NULL, PRIMARY KEY(budgetId, categoryId), FOREIGN KEY(budgetId) REFERENCES recurring_budgets(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(categoryId) REFERENCES categories(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_recurring_budget_categories_categoryId ON recurring_budget_categories(categoryId)")
+                    db.execSQL(
+                        "CREATE TABLE recurring_budget_tags (budgetId TEXT NOT NULL, tagId TEXT NOT NULL, PRIMARY KEY(budgetId, tagId), FOREIGN KEY(budgetId) REFERENCES recurring_budgets(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(tagId) REFERENCES tags(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
+                    )
+                    db.execSQL("CREATE INDEX index_recurring_budget_tags_tagId ON recurring_budget_tags(tagId)")
+                }
+            }
+
         fun getInstance(context: Context): AppDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room
@@ -163,6 +179,7 @@ abstract class AppDatabase : RoomDatabase() {
                     .addMigrations(MIGRATION_5_6)
                     .addMigrations(MIGRATION_6_7)
                     .addMigrations(MIGRATION_7_8)
+                    .addMigrations(MIGRATION_8_9)
                     .build()
                     .also { instance = it }
             }

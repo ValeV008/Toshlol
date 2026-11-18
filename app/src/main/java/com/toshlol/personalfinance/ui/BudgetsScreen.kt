@@ -28,7 +28,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.CategoryBudget
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
+import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -41,6 +44,8 @@ fun BudgetsScreen(
     onNameChanged: (String) -> Unit,
     onAmountChanged: (String) -> Unit,
     onAccountToggled: (String) -> Unit,
+    onCategoryToggled: (String) -> Unit,
+    onTagToggled: (String) -> Unit,
     onCreate: () -> Unit,
     onEdit: (RecurringBudgetProgress) -> Unit,
     onSave: () -> Unit,
@@ -61,20 +66,28 @@ fun BudgetsScreen(
         Text("Monthly expense limits", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.recurringBudgets.forEach { budget ->
             BudgetProgressCard(
-                state = budget.toBudgetProgressCardState(),
+                state = budget.toBudgetProgressCardState(state.categories, state.tags),
                 accounts = state.accounts,
                 currency = state.currency,
+                categories = state.categories,
+                tags = state.tags,
                 onEdit = { onEdit(budget) },
             )
         }
         legacyBudgets.forEach { budget ->
-            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+            BudgetProgressCard(
+                budget.toBudgetProgressCardState(),
+                state.accounts,
+                state.currency,
+                state.categories,
+                state.tags,
+            )
         }
         if (state.recurringBudgets.isEmpty() && legacyBudgets.isEmpty()) Text("No Budgets for this month.")
         OutlinedButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to overview") }
         OutlinedButton(onClick = onAddTransaction, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add transaction") }
         Button(onClick = onCreate, modifier = Modifier.heightIn(min = 48.dp).testTag("budget-create")) { Text("Create Budget") }
-        BudgetEditor(state, onNameChanged, onAmountChanged, onAccountToggled, onSave)
+        BudgetEditor(state, onNameChanged, onAmountChanged, onAccountToggled, onCategoryToggled, onTagToggled, onSave)
     }
 }
 
@@ -108,6 +121,8 @@ private fun BudgetEditor(
     onNameChanged: (String) -> Unit,
     onAmountChanged: (String) -> Unit,
     onAccountToggled: (String) -> Unit,
+    onCategoryToggled: (String) -> Unit,
+    onTagToggled: (String) -> Unit,
     onSave: () -> Unit,
 ) {
     Text(
@@ -132,6 +147,14 @@ private fun BudgetEditor(
     )
     Text("Accounts", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
     state.accounts.forEach { account -> BudgetAccountChoice(account, account.id in state.budgetAccountIds, onAccountToggled) }
+    Text("Expense Categories", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+    Text("Selected: ${formatBudgetCategoryNames(state.budgetCategoryIds, state.categories)}", style = MaterialTheme.typography.bodySmall)
+    state.categories.filter { it.direction == TransactionDirection.EXPENSE }.forEach { category ->
+        BudgetCategoryChoice(category, category.id in state.budgetCategoryIds, onCategoryToggled)
+    }
+    Text("Tags", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+    Text("Selected: ${formatBudgetTagNames(state.budgetTagIds, state.tags)}", style = MaterialTheme.typography.bodySmall)
+    state.tags.forEach { tag -> BudgetTagChoice(tag, tag.id in state.budgetTagIds, onTagToggled) }
     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(
         onClick = onSave,
@@ -157,5 +180,45 @@ private fun BudgetAccountChoice(
     ) {
         Checkbox(checked = isSelected, onCheckedChange = null)
         Text(account.name + if (account.isArchived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun BudgetCategoryChoice(
+    category: FinanceCategory,
+    isSelected: Boolean,
+    onToggled: (String) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .testTag("budget-category-${category.id}")
+            .selectable(selected = isSelected, role = Role.Checkbox, onClick = { onToggled(category.id) })
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = isSelected, onCheckedChange = null)
+        Text(category.name + if (category.archived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun BudgetTagChoice(
+    tag: FinanceTag,
+    isSelected: Boolean,
+    onToggled: (String) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .testTag("budget-tag-${tag.id}")
+            .selectable(selected = isSelected, role = Role.Checkbox, onClick = { onToggled(tag.id) })
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = isSelected, onCheckedChange = null)
+        Text(tag.name + if (tag.archived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
     }
 }

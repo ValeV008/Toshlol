@@ -11,6 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.RoomBudgetRepository
+import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -32,6 +33,38 @@ class BudgetMigrationTest {
         )
 
     private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun migrateVersionEightBudgetKeepsEmptyOptionalGroupsUnrestrictedAfterReopen(): Unit =
+        runTest {
+            val databaseName: String = "budget-filter-migration-${UUID.randomUUID()}.db"
+            val month: YearMonth = YearMonth.of(2026, 8)
+            try {
+                migrationHelper.createDatabase(databaseName, 8).use { database -> seedUnrestrictedRecurringBudget(database, month) }
+                migrationHelper.runMigrationsAndValidate(databaseName, 9, true, AppDatabase.MIGRATION_8_9).close()
+                val migratedDatabase: AppDatabase = openDatabase(databaseName)
+                try {
+                    val budget = RoomRecurringBudgetRepository(migratedDatabase).load(month).single()
+                    assertEquals(setOf("cash"), budget.accountIds)
+                    assertEquals(emptySet<String>(), budget.categoryIds)
+                    assertEquals(emptySet<String>(), budget.tagIds)
+                    assertEquals(750L, budget.spentMinor)
+                } finally {
+                    migratedDatabase.close()
+                }
+                val reopenedDatabase: AppDatabase = openDatabase(databaseName)
+                try {
+                    val budget = RoomRecurringBudgetRepository(reopenedDatabase).load(month).single()
+                    assertEquals(emptySet<String>(), budget.categoryIds)
+                    assertEquals(emptySet<String>(), budget.tagIds)
+                    assertEquals(750L, budget.spentMinor)
+                } finally {
+                    reopenedDatabase.close()
+                }
+            } finally {
+                context.deleteDatabase(databaseName)
+            }
+        }
 
     @Test
     fun migrateLegacyBudgetPreservesIdentityProvenanceAndAllExistingAccountsAcrossReopen(): Unit =
@@ -99,6 +132,34 @@ class BudgetMigrationTest {
         database.execSQL("INSERT INTO budgets VALUES ('legacy-budget', 'legacy-food', '2025-12', 10000, 100, 200)")
     }
 
+    private fun seedUnrestrictedRecurringBudget(
+        database: SupportSQLiteDatabase,
+        month: YearMonth,
+    ) {
+        database.execSQL("INSERT INTO accounts VALUES ('cash', 'Cash', 'CASH', 1, 2, 0, 20450, 0)")
+        database.execSQL("INSERT INTO app_settings VALUES (1, 'EUR')")
+        database.execSQL("INSERT INTO categories VALUES ('food', 'Food', 'EXPENSE', 0, 5, 6)")
+        database.execSQL("INSERT INTO categories VALUES ('transport', 'Transport', 'EXPENSE', 0, 7, 8)")
+        database.execSQL("INSERT INTO tags VALUES ('weekend', 'Weekend', NULL, 0, 9, 10)")
+        database.execSQL(
+            "INSERT INTO transactions VALUES ('food-expense', 'cash', 300, 'EXPENSE', ${LocalDate.of(
+                month.year,
+                month.monthValue,
+                4,
+            ).toEpochDay()}, 'food', NULL, 11, 12)",
+        )
+        database.execSQL(
+            "INSERT INTO transactions VALUES ('transport-expense', 'cash', 450, 'EXPENSE', ${LocalDate.of(
+                month.year,
+                month.monthValue,
+                5,
+            ).toEpochDay()}, 'transport', NULL, 13, 14)",
+        )
+        database.execSQL("INSERT INTO transaction_tags VALUES ('food-expense', 'weekend')")
+        database.execSQL("INSERT INTO recurring_budgets VALUES ('household', 'Household', 1000, 15, 16)")
+        database.execSQL("INSERT INTO recurring_budget_accounts VALUES ('household', 'cash')")
+    }
+
     private fun openDatabase(name: String): AppDatabase =
         Room
             .databaseBuilder(context, AppDatabase::class.java, name)
@@ -109,5 +170,6 @@ class BudgetMigrationTest {
             .addMigrations(AppDatabase.MIGRATION_5_6)
             .addMigrations(AppDatabase.MIGRATION_6_7)
             .addMigrations(AppDatabase.MIGRATION_7_8)
+            .addMigrations(AppDatabase.MIGRATION_8_9)
             .build()
 }

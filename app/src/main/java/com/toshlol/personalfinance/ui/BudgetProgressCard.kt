@@ -18,6 +18,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.CategoryBudget
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
 
 internal data class BudgetProgressCardState(
@@ -29,9 +31,14 @@ internal data class BudgetProgressCardState(
     val subtitle: String? = null,
     val titleTestTag: String? = null,
     val editTestTag: String? = null,
+    val categorySummary: String? = null,
+    val tagSummary: String? = null,
 )
 
-internal fun RecurringBudgetProgress.toBudgetProgressCardState(): BudgetProgressCardState =
+internal fun RecurringBudgetProgress.toBudgetProgressCardState(
+    categories: List<FinanceCategory>,
+    tags: List<FinanceTag>,
+): BudgetProgressCardState =
     BudgetProgressCardState(
         title = name,
         accountIds = accountIds,
@@ -40,6 +47,8 @@ internal fun RecurringBudgetProgress.toBudgetProgressCardState(): BudgetProgress
         isOverBudget = isOverBudget,
         titleTestTag = "budget-card-title-$id",
         editTestTag = "budget-edit-$id",
+        categorySummary = formatBudgetCategoryNames(categoryIds, categories),
+        tagSummary = formatBudgetTagNames(tagIds, tags),
     )
 
 internal fun CategoryBudget.toBudgetProgressCardState(): BudgetProgressCardState =
@@ -50,6 +59,7 @@ internal fun CategoryBudget.toBudgetProgressCardState(): BudgetProgressCardState
         limitMinor = limitMinor,
         isOverBudget = isOverBudget,
         subtitle = "Legacy monthly Budget",
+        categorySummary = categoryName + if (isCategoryArchived) " (Archived)" else "",
     )
 
 @Composable
@@ -57,6 +67,8 @@ internal fun BudgetProgressCard(
     state: BudgetProgressCardState,
     accounts: List<Account>,
     currency: String,
+    categories: List<FinanceCategory> = emptyList(),
+    tags: List<FinanceTag> = emptyList(),
     onEdit: (() -> Unit)? = null,
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
@@ -66,6 +78,8 @@ internal fun BudgetProgressCard(
             Text(state.title, style = MaterialTheme.typography.titleMedium, modifier = titleModifier.semantics { heading() })
             state.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text("Accounts: ${formatBudgetAccountNames(state.accountIds, accounts)}", style = MaterialTheme.typography.bodyMedium)
+            state.categorySummary?.let { Text("Categories: $it", style = MaterialTheme.typography.bodyMedium) }
+            state.tagSummary?.let { Text("Tags: $it", style = MaterialTheme.typography.bodyMedium) }
             Text("Spent  $currency ${formatMoney(state.spentMinor, currency)}")
             Text("Limit  $currency ${formatMoney(state.limitMinor, currency)}")
             Text("Remaining  $currency ${formatMoney(state.limitMinor - state.spentMinor, currency)}")
@@ -88,3 +102,27 @@ private fun formatBudgetAccountNames(
         .mapNotNull { accountId -> accounts.firstOrNull { it.id == accountId } }
         .joinToString(", ") { account -> account.name + if (account.isArchived) " (Archived)" else "" }
         .ifEmpty { "No Accounts" }
+
+internal fun formatBudgetCategoryNames(
+    categoryIds: Set<String>,
+    categories: List<FinanceCategory>,
+): String =
+    categoryIds
+        .map { categoryId -> categories.firstOrNull { it.id == categoryId } }
+        .sortedBy { category -> category?.name?.lowercase().orEmpty() }
+        .map { category ->
+            category?.name?.let { name -> name + if (category.archived) " (Archived)" else "" } ?: "Unknown Category"
+        }.joinToString(", ")
+        .ifEmpty { "Any Expense Category" }
+
+internal fun formatBudgetTagNames(
+    tagIds: Set<String>,
+    tags: List<FinanceTag>,
+): String =
+    tagIds
+        .map { tagId -> tags.firstOrNull { it.id == tagId } }
+        .sortedBy { tag -> tag?.name?.lowercase().orEmpty() }
+        .map { tag ->
+            tag?.name?.let { name -> name + if (tag.archived) " (Archived)" else "" } ?: "Unknown Tag"
+        }.joinToString(", ")
+        .ifEmpty { "Any Tag" }

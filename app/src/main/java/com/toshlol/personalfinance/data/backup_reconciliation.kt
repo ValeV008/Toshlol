@@ -95,8 +95,11 @@ internal class BackupReconciler {
         existing: BackupRecurringBudget,
         incoming: BackupRecurringBudget,
     ): Boolean =
-        existing.copy(accountIds = emptyList()) == incoming.copy(accountIds = emptyList()) &&
-            hasSameAccountScope(existing.accountIds, incoming.accountIds)
+        existing.copy(accountIds = emptyList(), categoryIds = emptyList(), tagIds = emptyList()) ==
+            incoming.copy(accountIds = emptyList(), categoryIds = emptyList(), tagIds = emptyList()) &&
+            hasSameAccountScope(existing.accountIds, incoming.accountIds) &&
+            hasSameAccountScope(existing.categoryIds, incoming.categoryIds) &&
+            hasSameAccountScope(existing.tagIds, incoming.tagIds)
 
     private fun hasSameAccountScope(
         existingAccountIds: List<String>,

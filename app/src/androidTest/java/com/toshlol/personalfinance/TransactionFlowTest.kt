@@ -733,6 +733,9 @@ class TransactionFlowTest {
     @Test
     fun createBudgetAndSeeExpenseProgressOnBudgetsAndOverview() {
         createFoodCategory()
+        ui.enterText("Tag name", "Lunch", "category-tag-list")
+        composeRule.onNode(hasText("Lunch") and hasSetTextAction()).performImeAction()
+        ui.clickText("Add tag", "category-tag-list")
         ui.clickText("Back to overview")
         recordFoodExpense()
         navigateTo("Overview")
@@ -741,13 +744,31 @@ class TransactionFlowTest {
         ui.enterText("Monthly limit (EUR)", "20.00")
         composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
         composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").assertIsSelected()
+        composeRule
+            .onNodeWithTag("budget-category-${categoryId("Food")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
+        composeRule
+            .onNodeWithTag("budget-tag-${tagId("Lunch")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
         ui.clickText("Save Budget")
         ui.showText("Household")
         ui.showText("Accounts: Cash")
+        ui.showText("Categories: Food")
+        ui.showText("Tags: Lunch")
         saveBudgetEvidenceScreenshot("budget-progress.png")
         ui.clickText("Edit Budget")
         composeRule.onNodeWithTag("budget-name").assert(hasText("Household"))
         composeRule.onNodeWithTag("budget-limit").assert(hasText("20.00"))
+        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").performScrollTo().assertIsSelected()
+        composeRule
+            .onNodeWithTag("budget-tag-${tagId("Lunch")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsNotSelected()
         composeRule.onNodeWithTag("budget-limit").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("budgets-screen").performTouchInput {
             swipe(start = center.copy(y = center.y * 0.8f), end = center.copy(y = center.y * 0.2f), durationMillis = 450)
@@ -755,6 +776,9 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("budget-name").assertIsDisplayed()
         composeRule.onNodeWithTag("budget-limit").assertIsDisplayed()
         saveBudgetEvidenceScreenshot("budget-editor.png")
+        composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
+        ui.showText("Categories: Food")
+        ui.showText("Tags: Any Tag")
         verifyRemainingBudgetOnBothScreens()
         composeRule.onNodeWithTag("overview-root").performTouchInput {
             swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
@@ -763,6 +787,8 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("account-drawer-close").performClick()
         ui.showText("Household")
         ui.showText("Accounts: Cash")
+        ui.showText("Categories: Food")
+        ui.showText("Tags: Any Tag")
         ui.showText("Spent  EUR 12.50")
         ui.showText("Remaining  EUR 7.50")
         saveBudgetEvidenceScreenshot("overview-budget-progress.png")
@@ -1029,6 +1055,11 @@ class TransactionFlowTest {
         ui.enterText("Amount", "12.50", "transaction-form")
         ui.clickText("Food", "transaction-form")
         ui.showText("Food", "transaction-form").assertIsSelected()
+        composeRule
+            .onNodeWithTag("transaction-tag-${tagId("Lunch")}")
+            .performScrollTo()
+            .performClick()
+            .assertIsOn()
         ui.clickText("Save")
         assertEquals(1250L, runBlocking { transactionRepository().loadTransactions().single().amountMinor })
     }

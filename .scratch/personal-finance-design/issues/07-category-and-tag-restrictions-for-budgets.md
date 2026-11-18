@@ -1,6 +1,6 @@
 # 07: Category and Tag restrictions for Budgets
 
-Status: ready-for-agent
+Status: claimed
 Blocked by: 06
 
 **What to build:** Choose optional multiple Expense Categories and Tags in each named Budget and see precisely matched monthly spending on Budgets and Overview. Persist, edit, migrate, export, and import complete restrictions without losing overlap, recurrence, or historical recalculation.

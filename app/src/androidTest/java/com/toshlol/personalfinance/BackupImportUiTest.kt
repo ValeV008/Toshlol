@@ -132,7 +132,7 @@ class BackupImportUiTest {
         val destination = requireNotNull(context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
         val backup: FinanceBackup =
             FinanceBackup(
-                schemaVersion = 3,
+                schemaVersion = 4,
                 settings = BackupSettings("USD"),
                 accounts =
                     listOf(
@@ -174,14 +174,25 @@ class BackupImportUiTest {
                     Until.findObject(By.text("Open")),
                     DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS,
                 )
-            val pickerLabels: String =
-                device
-                    .findObjects(By.pkg("com.android.documentsui"))
-                    .mapNotNull { item: UiObject2 -> item.text ?: item.contentDescription }
-                    .filter { label: String -> label.isNotBlank() }
-                    .joinToString()
-            assertTrue("Selecting the backup did not show the Open action. Visible labels: $pickerLabels", openButton != null)
-            openButton!!.click()
+            if (openButton != null) {
+                openButton.click()
+            } else {
+                val returnedAfterSelection: Boolean =
+                    device.wait(
+                        Until.hasObject(By.pkg(FINANCE_APPLICATION_PACKAGE_NAME)),
+                        DOCUMENT_PICKER_RESULT_WAIT_TIMEOUT_MILLIS,
+                    )
+                val pickerLabels: String =
+                    device
+                        .findObjects(By.pkg("com.android.documentsui"))
+                        .mapNotNull { item: UiObject2 -> item.text ?: item.contentDescription }
+                        .filter { label: String -> label.isNotBlank() }
+                        .joinToString()
+                assertTrue(
+                    "Selecting the backup neither showed the Open action nor returned to the app. Visible labels: $pickerLabels",
+                    returnedAfterSelection,
+                )
+            }
         }
         assertTrue(
             "Choosing the backup did not return to the app",

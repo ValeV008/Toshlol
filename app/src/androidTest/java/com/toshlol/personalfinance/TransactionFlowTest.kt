@@ -749,6 +749,11 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("budget-name").assert(hasText("Household"))
         composeRule.onNodeWithTag("budget-limit").assert(hasText("20.00"))
         composeRule.onNodeWithTag("budget-limit").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("budgets-screen").performTouchInput {
+            swipe(start = center.copy(y = center.y * 0.8f), end = center.copy(y = center.y * 0.2f), durationMillis = 450)
+        }
+        composeRule.onNodeWithTag("budget-name").assertIsDisplayed()
+        composeRule.onNodeWithTag("budget-limit").assertIsDisplayed()
         saveBudgetEvidenceScreenshot("budget-editor.png")
         verifyRemainingBudgetOnBothScreens()
         composeRule.onNodeWithTag("overview-root").performTouchInput {

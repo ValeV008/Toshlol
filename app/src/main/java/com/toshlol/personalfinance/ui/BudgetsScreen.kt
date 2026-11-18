@@ -12,8 +12,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,104 +49,95 @@ fun BudgetsScreen(
     val selectedMonth: YearMonth? = runCatching { YearMonth.parse(state.budgetMonth) }.getOrNull()
     val legacyBudgets: List<CategoryBudget> = state.budgets.filter { it.month.toString() == state.budgetMonth }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier
+            .fillMaxSize()
+            .testTag("budgets-screen")
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Budgets", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            OutlinedButton(
-                onClick = { selectedMonth?.minusMonths(1)?.let { onMonthChanged(it.toString()) } },
-                enabled = selectedMonth != null,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("budget-previous-month"),
-            ) { Text("Previous month") }
-            Text(
-                selectedMonth?.format(DateTimeFormatter.ofPattern("MMMM yyyy")).orEmpty(),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
-            )
-            OutlinedButton(
-                onClick = { selectedMonth?.plusMonths(1)?.let { onMonthChanged(it.toString()) } },
-                enabled = selectedMonth != null,
-                modifier = Modifier.heightIn(min = 48.dp).testTag("budget-next-month"),
-            ) { Text("Next month") }
-        }
+        BudgetMonthNavigation(selectedMonth, onMonthChanged)
         Text("Monthly expense limits", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-        state.recurringBudgets.forEach { budget -> RecurringBudgetCard(budget, state.accounts, state.currency, onEdit) }
-        legacyBudgets.forEach { budget -> LegacyBudgetCard(budget, state.accounts, state.currency) }
+        state.recurringBudgets.forEach { budget ->
+            BudgetProgressCard(
+                state = budget.toBudgetProgressCardState(),
+                accounts = state.accounts,
+                currency = state.currency,
+                onEdit = { onEdit(budget) },
+            )
+        }
+        legacyBudgets.forEach { budget ->
+            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+        }
         if (state.recurringBudgets.isEmpty() && legacyBudgets.isEmpty()) Text("No Budgets for this month.")
         OutlinedButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to overview") }
         OutlinedButton(onClick = onAddTransaction, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add transaction") }
         Button(onClick = onCreate, modifier = Modifier.heightIn(min = 48.dp).testTag("budget-create")) { Text("Create Budget") }
+        BudgetEditor(state, onNameChanged, onAmountChanged, onAccountToggled, onSave)
+    }
+}
+
+@Composable
+private fun BudgetMonthNavigation(
+    selectedMonth: YearMonth?,
+    onMonthChanged: (String) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        OutlinedButton(
+            onClick = { selectedMonth?.minusMonths(1)?.let { onMonthChanged(it.toString()) } },
+            enabled = selectedMonth != null,
+            modifier = Modifier.heightIn(min = 48.dp).testTag("budget-previous-month"),
+        ) { Text("Previous month") }
         Text(
-            if (state.editingBudgetId == null) "New recurring Budget" else "Edit recurring Budget",
+            selectedMonth?.format(DateTimeFormatter.ofPattern("MMMM yyyy")).orEmpty(),
             style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() }.testTag("budget-editor"),
+            modifier = Modifier.semantics { heading() },
         )
-        OutlinedTextField(
-            value = state.budgetName,
-            onValueChange = onNameChanged,
-            label = { Text("Budget name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().testTag("budget-name"),
-        )
-        OutlinedTextField(
-            value = state.budgetAmount,
-            onValueChange = onAmountChanged,
-            label = { Text("Monthly limit (${state.currency})") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().testTag("budget-limit"),
-        )
-        Text("Accounts", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-        state.accounts.forEach { account -> BudgetAccountChoice(account, account.id in state.budgetAccountIds, onAccountToggled) }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(
-            onClick = onSave,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget-save"),
-        ) { Text(if (state.editingBudgetId == null) "Save Budget" else "Save changes") }
-        Text("Budgets repeat each month. Only Expenses in selected Accounts count.", style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(
+            onClick = { selectedMonth?.plusMonths(1)?.let { onMonthChanged(it.toString()) } },
+            enabled = selectedMonth != null,
+            modifier = Modifier.heightIn(min = 48.dp).testTag("budget-next-month"),
+        ) { Text("Next month") }
     }
 }
 
 @Composable
-private fun RecurringBudgetCard(
-    budget: RecurringBudgetProgress,
-    accounts: List<Account>,
-    currency: String,
-    onEdit: (RecurringBudgetProgress) -> Unit,
+private fun BudgetEditor(
+    state: TransactionsUiState,
+    onNameChanged: (String) -> Unit,
+    onAmountChanged: (String) -> Unit,
+    onAccountToggled: (String) -> Unit,
+    onSave: () -> Unit,
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(budget.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("budget-card-title-${budget.id}"))
-            Text("Accounts: ${formatAccountNames(budget.accountIds, accounts)}", style = MaterialTheme.typography.bodyMedium)
-            Text("Spent  $currency ${formatMoney(budget.spentMinor, currency)}")
-            Text("Limit  $currency ${formatMoney(budget.limitMinor, currency)}")
-            Text("Remaining  $currency ${formatMoney(budget.remainingMinor, currency)}")
-            if (budget.isOverBudget) Text("Over budget", color = MaterialTheme.colorScheme.error)
-            OutlinedButton(onClick = { onEdit(budget) }, modifier = Modifier.heightIn(min = 48.dp).testTag("budget-edit-${budget.id}")) {
-                Text("Edit Budget")
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegacyBudgetCard(
-    budget: CategoryBudget,
-    accounts: List<Account>,
-    currency: String,
-) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(budget.categoryName, style = MaterialTheme.typography.titleMedium)
-            Text("Legacy monthly Budget", style = MaterialTheme.typography.bodySmall)
-            Text("Accounts: ${formatAccountNames(budget.accountIds, accounts)}")
-            Text("Spent  $currency ${formatMoney(budget.spentMinor, currency)}")
-            Text("Limit  $currency ${formatMoney(budget.limitMinor, currency)}")
-            Text("Remaining  $currency ${formatMoney(budget.remainingMinor, currency)}")
-            if (budget.isOverBudget) Text("Over budget", color = MaterialTheme.colorScheme.error)
-        }
-    }
+    Text(
+        if (state.editingBudgetId == null) "New recurring Budget" else "Edit recurring Budget",
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.semantics { heading() }.testTag("budget-editor"),
+    )
+    OutlinedTextField(
+        value = state.budgetName,
+        onValueChange = onNameChanged,
+        label = { Text("Budget name") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag("budget-name"),
+    )
+    OutlinedTextField(
+        value = state.budgetAmount,
+        onValueChange = onAmountChanged,
+        label = { Text("Monthly limit (${state.currency})") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth().testTag("budget-limit"),
+    )
+    Text("Accounts", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+    state.accounts.forEach { account -> BudgetAccountChoice(account, account.id in state.budgetAccountIds, onAccountToggled) }
+    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    Button(
+        onClick = onSave,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget-save"),
+    ) { Text(if (state.editingBudgetId == null) "Save Budget" else "Save changes") }
+    Text("Budgets repeat each month. Only Expenses in selected Accounts count.", style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
@@ -170,13 +159,3 @@ private fun BudgetAccountChoice(
         Text(account.name + if (account.isArchived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
     }
 }
-
-private fun formatAccountNames(
-    accountIds: Set<String>,
-    accounts: List<Account>,
-): String =
-    accountIds
-        .sorted()
-        .mapNotNull { accountId -> accounts.firstOrNull { it.id == accountId } }
-        .joinToString(", ") { account -> account.name + if (account.isArchived) " (Archived)" else "" }
-        .ifEmpty { "No Accounts" }

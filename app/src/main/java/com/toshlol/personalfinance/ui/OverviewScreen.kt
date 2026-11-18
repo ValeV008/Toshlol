@@ -150,8 +150,12 @@ fun OverviewScreen(
                     }
                     if (budgets.isNotEmpty() || recurringBudgets.isNotEmpty()) {
                         Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                        recurringBudgets.forEach { budget -> OverviewRecurringBudgetCard(budget, state.accounts, state.currency) }
-                        budgets.forEach { budget -> BudgetCard(budget, state.accounts, state.currency) }
+                        recurringBudgets.forEach { budget ->
+                            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+                        }
+                        budgets.forEach { budget ->
+                            BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+                        }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
@@ -250,53 +254,6 @@ private fun AccountCard(
         }
     }
 }
-
-@Composable
-private fun BudgetCard(
-    budget: CategoryBudget,
-    accounts: List<Account>,
-    currency: String,
-) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(budget.categoryName, style = MaterialTheme.typography.titleMedium)
-            Text("Legacy monthly Budget", style = MaterialTheme.typography.bodySmall)
-            Text("Accounts: ${formatBudgetAccountNames(budget.accountIds, accounts)}")
-            Text("Spent  $currency ${formatMoney(budget.spentMinor, currency)}")
-            Text("Limit  $currency ${formatMoney(budget.limitMinor, currency)}")
-            Text("Remaining  $currency ${formatMoney(budget.remainingMinor, currency)}")
-            if (budget.isOverBudget) Text("Over budget", color = ExpenseRed)
-        }
-    }
-}
-
-@Composable
-private fun OverviewRecurringBudgetCard(
-    budget: RecurringBudgetProgress,
-    accounts: List<Account>,
-    currency: String,
-) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(budget.name, style = MaterialTheme.typography.titleMedium)
-            Text("Accounts: ${formatBudgetAccountNames(budget.accountIds, accounts)}")
-            Text("Spent  $currency ${formatMoney(budget.spentMinor, currency)}")
-            Text("Limit  $currency ${formatMoney(budget.limitMinor, currency)}")
-            Text("Remaining  $currency ${formatMoney(budget.remainingMinor, currency)}")
-            if (budget.isOverBudget) Text("Over budget", color = ExpenseRed)
-        }
-    }
-}
-
-private fun formatBudgetAccountNames(
-    accountIds: Set<String>,
-    accounts: List<Account>,
-): String =
-    accountIds
-        .sorted()
-        .mapNotNull { accountId -> accounts.firstOrNull { it.id == accountId } }
-        .joinToString(", ") { account -> account.name + if (account.isArchived) " (Archived)" else "" }
-        .ifEmpty { "No Accounts" }
 
 @Composable
 private fun AccountSelectionDrawer(

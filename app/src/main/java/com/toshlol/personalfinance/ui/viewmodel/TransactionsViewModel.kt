@@ -729,16 +729,8 @@ class TransactionsViewModel(
                     fractionDigits(state.currency),
                 )?.longValueExactOrNull()
         val budgetMonth: YearMonth? = runCatching { YearMonth.parse(state.budgetMonth) }.getOrNull()
-        if (state.budgetName.isBlank()) {
-            mutableUiState.value = state.copy(error = "Enter a Budget name.")
-            return
-        }
-        if (amountMinor == null || amountMinor <= 0 || budgetMonth == null) {
+        if (amountMinor == null || budgetMonth == null) {
             mutableUiState.value = state.copy(error = "Enter a positive limit and select a valid month.")
-            return
-        }
-        if (state.budgetAccountIds.isEmpty()) {
-            mutableUiState.value = state.copy(error = "Choose at least one Account.")
             return
         }
         viewModelScope.launch {

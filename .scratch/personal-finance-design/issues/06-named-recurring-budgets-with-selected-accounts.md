@@ -54,5 +54,5 @@ Verification on 2026-11-18:
 - API 29 emulator `xperia_xz2_compact(AVD) - 10`: full unfiltered connected Android suite passed, 68 tests with 0 failures, errors, or skips.
 - `:app:testDebugUnitTest`, `:app:lintDebug`, `:app:ktlintCheck`, `:app:assembleDebug`, and `:app:assembleDebugAndroidTest` passed; JVM suite: 15 tests.
 - Python host-runner suite passed: 11 tests.
-- `verify_overview_persistence.py` passed both selected and empty Account checks after host-driven process restarts. Evidence: `build/overview-persistence/20261118T161249985208Z`.
+- `verify_overview_persistence.py` passed both selected and empty Account checks after host-driven process restarts. Evidence: `build/overview-persistence/20261118T171254057905Z`.
 - Screenshots: [Budget progress](evidence/06/budget-progress.png), [Budget editor](evidence/06/budget-editor.png), [independent Overview progress](evidence/06/overview-budget-progress.png).

@@ -206,9 +206,9 @@ class RecurringBudgetRepositoryTest {
                 val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "budget-1" }, { 500L })
                 val month: YearMonth = YearMonth.of(2026, 1)
                 repository.save(RecurringBudgetDraft(null, "Household", 1_000L, setOf(account.id)), month)
-                assertRejectedDraft(repository, RecurringBudgetDraft("budget-1", "Household", 0L, setOf(account.id)), month)
-                assertRejectedDraft(repository, RecurringBudgetDraft("budget-1", "Household", 1_000L, emptySet()), month)
-                assertRejectedDraft(repository, RecurringBudgetDraft("budget-1", " ", 1_000L, setOf(account.id)), month)
+                assertRejectedDraft(repository, { RecurringBudgetDraft("budget-1", "Household", 0L, setOf(account.id)) }, month)
+                assertRejectedDraft(repository, { RecurringBudgetDraft("budget-1", "Household", 1_000L, emptySet()) }, month)
+                assertRejectedDraft(repository, { RecurringBudgetDraft("budget-1", " ", 1_000L, setOf(account.id)) }, month)
                 val actualBudgets: List<RecurringBudgetProgress> = repository.load(month)
                 assertEquals(1, actualBudgets.size)
                 assertEquals("Household", actualBudgets.single().name)
@@ -221,11 +221,11 @@ class RecurringBudgetRepositoryTest {
 
     private suspend fun assertRejectedDraft(
         repository: RoomRecurringBudgetRepository,
-        draft: RecurringBudgetDraft,
+        createDraft: () -> RecurringBudgetDraft,
         month: YearMonth,
     ) {
         try {
-            repository.save(draft, month)
+            repository.save(createDraft(), month)
             fail("Expected invalid Budget draft to be rejected")
         } catch (expectedException: IllegalArgumentException) {
             assertTrue(expectedException.message.orEmpty().isNotBlank())

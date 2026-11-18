@@ -75,7 +75,13 @@ data class RecurringBudgetDraft(
     val name: String,
     val limitMinor: Long,
     val accountIds: Set<String>,
-)
+) {
+    init {
+        require(name.isNotBlank()) { "Enter a Budget name." }
+        require(limitMinor > 0) { "Enter a positive Budget limit." }
+        require(accountIds.isNotEmpty()) { "Choose at least one Account." }
+    }
+}
 
 data class RecurringBudgetProgress(
     val id: String,
@@ -113,11 +119,8 @@ class RoomRecurringBudgetRepository(
     override suspend fun save(
         draft: RecurringBudgetDraft,
         month: YearMonth,
-    ): List<RecurringBudgetProgress> {
-        require(draft.name.isNotBlank()) { "Enter a Budget name." }
-        require(draft.limitMinor > 0) { "Enter a positive Budget limit." }
-        require(draft.accountIds.isNotEmpty()) { "Choose at least one Account." }
-        return executeStorageOperation {
+    ): List<RecurringBudgetProgress> =
+        executeStorageOperation {
             database.withTransaction {
                 val accountIds: List<String> = database.accountDao().loadAccounts().map(AccountEntity::id)
                 require(accountIds.containsAll(draft.accountIds)) { "Choose Accounts that still exist." }
@@ -141,7 +144,6 @@ class RoomRecurringBudgetRepository(
                 loadInsideTransaction(month)
             }
         }
-    }
 
     private suspend fun loadInsideTransaction(month: YearMonth): List<RecurringBudgetProgress> {
         val accountIdsByBudget: Map<String, Set<String>> =

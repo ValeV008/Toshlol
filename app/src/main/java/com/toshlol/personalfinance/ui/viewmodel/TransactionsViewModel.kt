@@ -16,6 +16,7 @@ import com.toshlol.personalfinance.data.MonthlyOverview
 import com.toshlol.personalfinance.data.RecurringBudgetDraft
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.RecurringBudgetRepository
+import com.toshlol.personalfinance.data.RecurringBudgetRestrictions
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.data.TransactionDraft
@@ -34,6 +35,11 @@ import java.io.IOException
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Currency
+
+data class BudgetEditorScope(
+    val accountIds: Set<String> = emptySet(),
+    val restrictions: RecurringBudgetRestrictions = RecurringBudgetRestrictions(),
+)
 
 data class TransactionsUiState(
     val isLoaded: Boolean = false,
@@ -88,9 +94,7 @@ data class TransactionsUiState(
     val editingBudgetId: String? = null,
     val budgetName: String = "",
     val budgetAmount: String = "",
-    val budgetAccountIds: Set<String> = emptySet(),
-    val budgetCategoryIds: Set<String> = emptySet(),
-    val budgetTagIds: Set<String> = emptySet(),
+    val budgetScope: BudgetEditorScope = BudgetEditorScope(),
     val selectedMonth: String = YearMonth.now().toString(),
     val selectedOverviewAccountIds: Set<String> = emptySet(),
     val isAccountDrawerOpen: Boolean = false,
@@ -647,9 +651,7 @@ class TransactionsViewModel(
                         editingBudgetId = null,
                         budgetName = "",
                         budgetAmount = "",
-                        budgetAccountIds = emptySet(),
-                        budgetCategoryIds = emptySet(),
-                        budgetTagIds = emptySet(),
+                        budgetScope = BudgetEditorScope(),
                         error = null,
                     )
             } catch (exception: IOException) {
@@ -695,55 +697,65 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(budgetAmount = value, error = null)
     }
 
-    fun toggleBudgetAccount(accountId: String) {
-        val selectedAccountIds: Set<String> = uiState.value.budgetAccountIds
+    @Suppress("ktlint:standard:no-unit-return")
+    fun toggleBudgetAccount(accountId: String): Unit {
+        val budgetScope: BudgetEditorScope = uiState.value.budgetScope
+        val selectedAccountIds: Set<String> = budgetScope.accountIds
         val updatedAccountIds: Set<String> =
             if (accountId in selectedAccountIds) selectedAccountIds - accountId else selectedAccountIds + accountId
-        mutableUiState.value = uiState.value.copy(budgetAccountIds = updatedAccountIds, error = null)
+        mutableUiState.value = uiState.value.copy(budgetScope = budgetScope.copy(accountIds = updatedAccountIds), error = null)
     }
 
     @Suppress("ktlint:standard:no-unit-return")
     fun toggleBudgetCategory(categoryId: String): Unit {
-        val selectedCategoryIds: Set<String> = uiState.value.budgetCategoryIds
+        val budgetScope: BudgetEditorScope = uiState.value.budgetScope
+        val restrictions: RecurringBudgetRestrictions = budgetScope.restrictions
+        val selectedCategoryIds: Set<String> = restrictions.categoryIds
         val updatedCategoryIds: Set<String> =
             if (categoryId in selectedCategoryIds) selectedCategoryIds - categoryId else selectedCategoryIds + categoryId
-        mutableUiState.value = uiState.value.copy(budgetCategoryIds = updatedCategoryIds, error = null)
+        mutableUiState.value =
+            uiState.value.copy(
+                budgetScope = budgetScope.copy(restrictions = restrictions.copy(categoryIds = updatedCategoryIds)),
+                error = null,
+            )
     }
 
     @Suppress("ktlint:standard:no-unit-return")
     fun toggleBudgetTag(tagId: String): Unit {
-        val selectedTagIds: Set<String> = uiState.value.budgetTagIds
+        val budgetScope: BudgetEditorScope = uiState.value.budgetScope
+        val restrictions: RecurringBudgetRestrictions = budgetScope.restrictions
+        val selectedTagIds: Set<String> = restrictions.tagIds
         val updatedTagIds: Set<String> = if (tagId in selectedTagIds) selectedTagIds - tagId else selectedTagIds + tagId
-        mutableUiState.value = uiState.value.copy(budgetTagIds = updatedTagIds, error = null)
+        mutableUiState.value =
+            uiState.value.copy(budgetScope = budgetScope.copy(restrictions = restrictions.copy(tagIds = updatedTagIds)), error = null)
     }
 
-    fun beginBudgetCreate() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun beginBudgetCreate(): Unit {
         mutableUiState.value =
             uiState.value.copy(
                 editingBudgetId = null,
                 budgetName = "",
                 budgetAmount = "",
-                budgetAccountIds = emptySet(),
-                budgetCategoryIds = emptySet(),
-                budgetTagIds = emptySet(),
+                budgetScope = BudgetEditorScope(),
                 error = null,
             )
     }
 
-    fun beginBudgetEdit(budget: RecurringBudgetProgress) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun beginBudgetEdit(budget: RecurringBudgetProgress): Unit {
         mutableUiState.value =
             uiState.value.copy(
                 editingBudgetId = budget.id,
                 budgetName = budget.name,
-                budgetAmount = formatAmount(budget.limitMinor, uiState.value.currency),
-                budgetAccountIds = budget.accountIds,
-                budgetCategoryIds = budget.categoryIds,
-                budgetTagIds = budget.tagIds,
+                budgetAmount = formatAmount(budget.totals.limitMinor, uiState.value.currency),
+                budgetScope = BudgetEditorScope(budget.accountIds, budget.restrictions),
                 error = null,
             )
     }
 
-    fun saveBudget() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun saveBudget(): Unit {
         val state: TransactionsUiState = uiState.value
         val amountMinor: Long? =
             state.budgetAmount
@@ -764,9 +776,9 @@ class TransactionsViewModel(
                             state.editingBudgetId,
                             state.budgetName,
                             amountMinor,
-                            state.budgetAccountIds,
-                            state.budgetCategoryIds,
-                            state.budgetTagIds,
+                            state.budgetScope.accountIds,
+                            state.budgetScope.restrictions.categoryIds,
+                            state.budgetScope.restrictions.tagIds,
                         ),
                         budgetMonth,
                     )
@@ -776,9 +788,7 @@ class TransactionsViewModel(
                         editingBudgetId = null,
                         budgetName = "",
                         budgetAmount = "",
-                        budgetAccountIds = emptySet(),
-                        budgetCategoryIds = emptySet(),
-                        budgetTagIds = emptySet(),
+                        budgetScope = BudgetEditorScope(),
                         error = null,
                     )
             } catch (exception: Exception) {

@@ -118,15 +118,19 @@ data class OrganizerActions(
     val accounts: AccountEditorActions,
 )
 
+data class BudgetScopeActions(
+    val accountToggled: (String) -> Unit,
+    val categoryToggled: (String) -> Unit,
+    val tagToggled: (String) -> Unit,
+)
+
 data class BudgetActions(
     val open: () -> Unit,
     val close: () -> Unit,
     val monthChanged: (String) -> Unit,
     val nameChanged: (String) -> Unit,
     val amountChanged: (String) -> Unit,
-    val accountToggled: (String) -> Unit,
-    val categoryToggled: (String) -> Unit,
-    val tagToggled: (String) -> Unit,
+    val scope: BudgetScopeActions,
     val create: () -> Unit,
     val edit: (RecurringBudgetProgress) -> Unit,
     val save: () -> Unit,

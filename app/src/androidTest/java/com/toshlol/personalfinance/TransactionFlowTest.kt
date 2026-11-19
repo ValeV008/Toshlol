@@ -739,19 +739,40 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun createBudgetAndSeeExpenseProgressOnBudgetsAndOverview() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun createBudgetAndSeeExpenseProgressOnBudgetsAndOverview(): Unit {
+        createBudgetTestCategoryAndTag()
+        recordFoodExpense()
+        navigateTo("Overview")
+        createMonthFilterBudgetWithFoodAndLunch()
+        assertFoodBudgetScopeAndCapture()
+        verifyBudgetTagCanBeRemoved()
+        verifyBudgetScopeAfterDrawerChange()
+        verifyBudgetCanBecomeOverBudget()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createBudgetTestCategoryAndTag(): Unit {
         createFoodCategory()
         ui.enterText("Tag name", "Lunch", "category-tag-list")
         composeRule.onNode(hasText("Lunch") and hasSetTextAction()).performImeAction()
         ui.clickText("Add tag", "category-tag-list")
         ui.clickText("Back to overview")
-        recordFoodExpense()
-        navigateTo("Overview")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createMonthFilterBudgetWithFoodAndLunch(): Unit {
         composeRule.onNodeWithTag("open-budgets").performClick()
         ui.enterText("Budget name", "Household")
         ui.enterText("Monthly limit (EUR)", "20.00")
         composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
         composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").assertIsSelected()
+        selectBudgetCategoryAndTag()
+        ui.clickText("Save Budget")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun selectBudgetCategoryAndTag(): Unit {
         composeRule
             .onNodeWithTag("budget-category-${categoryId("Food")}")
             .performScrollTo()
@@ -762,12 +783,19 @@ class TransactionFlowTest {
             .performScrollTo()
             .performClick()
             .assertIsSelected()
-        ui.clickText("Save Budget")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertFoodBudgetScopeAndCapture(): Unit {
         ui.showText("Household")
         ui.showText("Accounts: Cash")
         ui.showText("Categories: Food")
         ui.showText("Tags: Lunch")
         saveBudgetEvidenceScreenshot("budget-progress.png")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyBudgetTagCanBeRemoved(): Unit {
         ui.clickText("Edit Budget")
         composeRule.onNodeWithTag("budget-name").assert(hasText("Household"))
         composeRule.onNodeWithTag("budget-limit").assert(hasText("20.00"))
@@ -777,17 +805,26 @@ class TransactionFlowTest {
             .performScrollTo()
             .performClick()
             .assertIsNotSelected()
+        swipeBudgetEditorToTheTop()
+        saveBudgetEvidenceScreenshot("budget-editor.png")
+        composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
+        ui.showText("Categories: Food")
+        ui.showText("Tags: No Tag Restriction")
+        verifyRemainingBudgetOnBothScreens()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun swipeBudgetEditorToTheTop(): Unit {
         composeRule.onNodeWithTag("budget-limit").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("budgets-screen").performTouchInput {
             swipe(start = center.copy(y = center.y * 0.8f), end = center.copy(y = center.y * 0.2f), durationMillis = 450)
         }
         composeRule.onNodeWithTag("budget-name").assertIsDisplayed()
         composeRule.onNodeWithTag("budget-limit").assertIsDisplayed()
-        saveBudgetEvidenceScreenshot("budget-editor.png")
-        composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
-        ui.showText("Categories: Food")
-        ui.showText("Tags: No Tag Restriction")
-        verifyRemainingBudgetOnBothScreens()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyBudgetScopeAfterDrawerChange(): Unit {
         composeRule.onNodeWithTag("overview-root").performTouchInput {
             swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
         }
@@ -800,8 +837,12 @@ class TransactionFlowTest {
         ui.showText("Spent  EUR 12.50")
         ui.showText("Remaining  EUR 7.50")
         saveBudgetEvidenceScreenshot("overview-budget-progress.png")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyBudgetCanBecomeOverBudget(): Unit {
         ui.selectOverviewAccount("Cash")
-        ui.clickText("Expense \u00b7 EUR 12.50")
+        ui.clickText("Expense · EUR 12.50")
         ui.enterText("Amount", "25.00", "transaction-form")
         ui.clickText("Save")
         ui.showText("Remaining  EUR -5.00")
@@ -817,6 +858,14 @@ class TransactionFlowTest {
         createBudgetRestrictionDefinitions()
         saveBudgetRestrictionExpenses(currentMonth)
         assertEquals(6, runBlocking { transactionRepository().loadTransactions().size })
+        createFoodBudgetWithLunchRestriction()
+        editBudgetToDiningAndWeekendRestrictions()
+        verifyBudgetFilterMonths()
+        verifyBudgetFilterMonthsOnOverview()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createFoodBudgetWithLunchRestriction(): Unit {
         composeRule.onNodeWithTag("open-budgets").performClick()
         ui.enterText("Budget name", "Household")
         ui.enterText("Monthly limit (EUR)", "100.00")
@@ -825,6 +874,10 @@ class TransactionFlowTest {
         composeRule.onNodeWithTag("budget-tag-${tagId("Lunch")}").performScrollTo().performClick()
         ui.clickText("Save Budget")
         ui.showText("Spent  EUR 12.50")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun editBudgetToDiningAndWeekendRestrictions(): Unit {
         ui.clickText("Edit Budget")
         composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").performScrollTo().performClick()
         composeRule.onNodeWithTag("budget-category-${categoryId("Dining")}").performScrollTo().performClick()
@@ -833,8 +886,6 @@ class TransactionFlowTest {
         ui.clickText("Save changes")
         ui.showText("Categories: Dining")
         ui.showText("Tags: Weekend")
-        verifyBudgetFilterMonths()
-        verifyBudgetFilterMonthsOnOverview()
     }
 
     @Test

@@ -13,6 +13,8 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.RecurringBudgetDraft
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
+import com.toshlol.personalfinance.data.RecurringBudgetRestrictions
+import com.toshlol.personalfinance.data.RecurringBudgetTotals
 import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import com.toshlol.personalfinance.data.RoomTransferRepository
 import com.toshlol.personalfinance.data.TagDraft
@@ -35,186 +37,74 @@ class RecurringBudgetRepositoryTest {
     private var currentTime: Long = 500L
 
     @Test
-    fun matchBudgetAcrossAccountCategoryAndTagSelections(): Unit =
-        runTest {
-            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-            try {
-                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
-                val selectedAccount: Account = fixtures.createFirstAccount("Cash")
-                val otherAccount: Account = fixtures.createAdditionalAccount("Savings")
-                val groceryCategory: FinanceCategory =
-                    fixtures.organization
-                        .saveCategory(
-                            CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
-                        ).categories
-                        .single { it.name == "Groceries" }
-                val diningCategory: FinanceCategory =
-                    fixtures.organization
-                        .saveCategory(CategoryDraft(name = "Dining", direction = TransactionDirection.EXPENSE))
-                        .categories
-                        .single { it.name == "Dining" }
-                val otherCategory: FinanceCategory =
-                    fixtures.organization
-                        .saveCategory(
-                            CategoryDraft(name = "Transport", direction = TransactionDirection.EXPENSE),
-                        ).categories
-                        .single { it.name == "Transport" }
-                val weekendTag: FinanceTag =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "weekend"))
-                        .tags
-                        .single { it.name == "weekend" }
-                val holidayTag: FinanceTag =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "holiday"))
-                        .tags
-                        .single { it.name == "holiday" }
-                saveExpense(fixtures, selectedAccount, 20L, LocalDate.of(2026, 5, 2), groceryCategory.id, setOf(weekendTag.id))
-                saveExpense(fixtures, selectedAccount, 30L, LocalDate.of(2026, 5, 3), diningCategory.id, setOf(holidayTag.id))
-                saveExpense(
-                    fixtures,
-                    selectedAccount,
-                    10L,
-                    LocalDate.of(2026, 5, 4),
-                    groceryCategory.id,
-                    setOf(weekendTag.id, holidayTag.id),
-                )
-                saveExpense(fixtures, selectedAccount, 15L, LocalDate.of(2026, 5, 5), groceryCategory.id)
-                saveExpense(fixtures, selectedAccount, 17L, LocalDate.of(2026, 5, 6), otherCategory.id, setOf(weekendTag.id))
-                saveExpense(fixtures, otherAccount, 99L, LocalDate.of(2026, 5, 7), groceryCategory.id, setOf(weekendTag.id))
-                saveExpense(fixtures, selectedAccount, 101L, LocalDate.of(2026, 6, 1), groceryCategory.id, setOf(weekendTag.id))
-                fixtures.transactions.save(
-                    TransactionDraft(
-                        accountId = selectedAccount.id,
-                        amountMinor = 200L,
-                        direction = TransactionDirection.INCOME,
-                        date = LocalDate.of(2026, 5, 8).toEpochDay(),
-                        note = null,
-                        categoryId = null,
-                        tagIds = setOf(weekendTag.id),
-                    ),
-                )
-                RoomTransferRepository(database).save(
-                    TransferDraft(
-                        sourceAccountId = selectedAccount.id,
-                        destinationAccountId = otherAccount.id,
-                        amountMinor = 300L,
-                        date = LocalDate.of(2026, 5, 9).toEpochDay(),
-                    ),
-                )
-                val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "filtered-budget" }, { 500L })
-                val actual: RecurringBudgetProgress =
-                    repository
-                        .save(
-                            RecurringBudgetDraft(
-                                null,
-                                "Food weekends",
-                                50L,
-                                setOf(selectedAccount.id),
-                                setOf(groceryCategory.id, diningCategory.id),
-                                setOf(weekendTag.id, holidayTag.id),
-                            ),
-                            YearMonth.of(2026, 5),
-                        ).single()
-                assertEquals(60L, actual.spentMinor)
-                assertEquals(-10L, actual.remainingMinor)
-                assertTrue(actual.isOverBudget)
-                assertEquals(setOf(groceryCategory.id, diningCategory.id), actual.categoryIds)
-                assertEquals(setOf(weekendTag.id, holidayTag.id), actual.tagIds)
-            } finally {
-                database.close()
-            }
-        }
-
-    @Test
-    fun supportUnrestrictedBudgetGroups(): Unit =
-        runTest {
-            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-            try {
-                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
-                val account: Account = fixtures.createFirstAccount("Cash")
-                val category: FinanceCategory =
-                    fixtures.organization
-                        .saveCategory(
-                            CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
-                        ).categories
-                        .single { it.name == "Groceries" }
-                val tag: FinanceTag =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "weekend"))
-                        .tags
-                        .single { it.name == "weekend" }
-                saveExpense(fixtures, account, 100L, LocalDate.of(2026, 7, 1), category.id)
-                saveExpense(fixtures, account, 200L, LocalDate.of(2026, 7, 2), category.id, setOf(tag.id))
-                saveExpense(fixtures, account, 300L, LocalDate.of(2026, 7, 3), tagIds = setOf(tag.id))
-                saveExpense(fixtures, account, 400L, LocalDate.of(2026, 7, 4))
-                var budgetNumber: Int = 0
-                val repository: RoomRecurringBudgetRepository =
-                    RoomRecurringBudgetRepository(database, { "unrestricted-${++budgetNumber}" }, { 500L })
-                repository.save(
-                    RecurringBudgetDraft(null, "Category only", 1_000L, setOf(account.id), setOf(category.id)),
-                    YearMonth.of(2026, 7),
-                )
-                repository.save(
-                    RecurringBudgetDraft(null, "Tag only", 1_000L, setOf(account.id), tagIds = setOf(tag.id)),
-                    YearMonth.of(2026, 7),
-                )
-                repository.save(RecurringBudgetDraft(null, "Unrestricted", 1_000L, setOf(account.id)), YearMonth.of(2026, 7))
-                val actualByName: Map<String, Long> = repository.load(YearMonth.of(2026, 7)).associate { it.name to it.spentMinor }
-                assertEquals(300L, actualByName.getValue("Category only"))
-                assertEquals(500L, actualByName.getValue("Tag only"))
-                assertEquals(1_000L, actualByName.getValue("Unrestricted"))
-                assertRejectedDraft(
-                    repository,
-                    { RecurringBudgetDraft(null, "Missing account", 1_000L, emptySet()) },
-                    YearMonth.of(2026, 7),
-                )
-            } finally {
-                database.close()
-            }
-        }
-
-    @Test
     fun preserveFiltersThroughRenamesAndArchives(): Unit =
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
             try {
-                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
-                val account: Account = fixtures.createFirstAccount("Cash")
-                val category: com.toshlol.personalfinance.data.FinanceCategory =
-                    fixtures.organization
-                        .saveCategory(
-                            CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
-                        ).categories
-                        .single()
-                val tag: com.toshlol.personalfinance.data.FinanceTag =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "Weekend"))
-                        .tags
-                        .single()
-                saveExpense(fixtures, account, 250L, LocalDate.of(2026, 9, 2), category.id, setOf(tag.id))
-                val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "archive-budget" }, { 500L })
-                repository.save(
-                    RecurringBudgetDraft(null, "Food", 200L, setOf(account.id), setOf(category.id), setOf(tag.id)),
-                    YearMonth.of(2026, 9),
-                )
-                fixtures.organization.archiveCategory(category.id)
-                fixtures.organization.archiveTag(tag.id)
-                fixtures.organization.saveCategory(CategoryDraft(category.id, "Pantry", TransactionDirection.EXPENSE))
-                fixtures.organization.saveTag(TagDraft(tag.id, "Occasion", null))
-                val actual: RecurringBudgetProgress = repository.load(YearMonth.of(2026, 9)).single()
-                val currentOrganization: CategoryTagSnapshot = fixtures.organization.load()
-                assertEquals(setOf(category.id), actual.categoryIds)
-                assertEquals(setOf(tag.id), actual.tagIds)
-                assertEquals("Pantry", currentOrganization.categories.single { it.id == category.id }.name)
-                assertTrue(currentOrganization.categories.single { it.id == category.id }.archived)
-                assertEquals("Occasion", currentOrganization.tags.single { it.id == tag.id }.name)
-                assertTrue(currentOrganization.tags.single { it.id == tag.id }.archived)
-                assertEquals(250L, actual.spentMinor)
+                assertArchivedBudgetPreserved(createArchivedBudgetResult(database))
             } finally {
                 database.close()
             }
         }
+
+    private data class ArchivedBudgetResult(
+        val categoryId: String,
+        val tagId: String,
+        val progress: RecurringBudgetProgress,
+        val organization: CategoryTagSnapshot,
+    )
+
+    private suspend fun createArchivedBudgetResult(database: AppDatabase): ArchivedBudgetResult {
+        val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+        val account: Account = fixtures.createFirstAccount("Cash")
+        val category: FinanceCategory = saveExpenseCategory(fixtures, "Groceries")
+        val tag: FinanceTag = saveBudgetTag(fixtures, "Weekend")
+        saveExpense(fixtures, BudgetTestExpense(account, 250L, LocalDate.of(2026, 9, 2), category.id, setOf(tag.id)))
+        val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "archive-budget" }, { 500L })
+        repository.save(
+            RecurringBudgetDraft(null, "Food", 200L, setOf(account.id), setOf(category.id), setOf(tag.id)),
+            YearMonth.of(2026, 9),
+        )
+        fixtures.organization.archiveCategory(category.id)
+        fixtures.organization.archiveTag(tag.id)
+        fixtures.organization.saveCategory(CategoryDraft(category.id, "Pantry", TransactionDirection.EXPENSE))
+        fixtures.organization.saveTag(TagDraft(tag.id, "Occasion", null))
+        return ArchivedBudgetResult(
+            category.id,
+            tag.id,
+            repository.load(YearMonth.of(2026, 9)).single(),
+            fixtures.organization.load(),
+        )
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertArchivedBudgetPreserved(result: ArchivedBudgetResult): Unit {
+        assertEquals(setOf(result.categoryId), result.progress.restrictions.categoryIds)
+        assertEquals(setOf(result.tagId), result.progress.restrictions.tagIds)
+        assertEquals(
+            "Pantry",
+            result.organization.categories
+                .single { it.id == result.categoryId }
+                .name,
+        )
+        assertTrue(
+            result.organization.categories
+                .single { it.id == result.categoryId }
+                .archived,
+        )
+        assertEquals(
+            "Occasion",
+            result.organization.tags
+                .single { it.id == result.tagId }
+                .name,
+        )
+        assertTrue(
+            result.organization.tags
+                .single { it.id == result.tagId }
+                .archived,
+        )
+        assertEquals(250L, result.progress.totals.spentMinor)
+    }
 
     @Test
     fun editCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonths(): Unit =
@@ -222,78 +112,156 @@ class RecurringBudgetRepositoryTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
             try {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
-                val account: Account = fixtures.createFirstAccount("Cash")
-                val groceryCategoryId: String =
-                    fixtures.organization
-                        .saveCategory(CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE))
-                        .categories
-                        .single { it.name == "Groceries" }
-                        .id
-                val diningCategoryId: String =
-                    fixtures.organization
-                        .saveCategory(CategoryDraft(name = "Dining", direction = TransactionDirection.EXPENSE))
-                        .categories
-                        .single { it.name == "Dining" }
-                        .id
-                val weekendTagId: String =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "Weekend"))
-                        .tags
-                        .single { it.name == "Weekend" }
-                        .id
-                val holidayTagId: String =
-                    fixtures.organization
-                        .saveTag(TagDraft(name = "Holiday"))
-                        .tags
-                        .single { it.name == "Holiday" }
-                        .id
-                val pastMonth: YearMonth = YearMonth.now().minusMonths(1)
-                val currentMonth: YearMonth = YearMonth.now()
-                val futureMonth: YearMonth = YearMonth.now().plusMonths(1)
-                saveExpense(fixtures, account, 100L, pastMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
-                saveExpense(fixtures, account, 200L, currentMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
-                saveExpense(fixtures, account, 300L, futureMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
-                saveExpense(fixtures, account, 400L, pastMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
-                saveExpense(fixtures, account, 500L, currentMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
-                saveExpense(fixtures, account, 600L, futureMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
-                val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "edited-budget" }, { 500L })
-                val original: RecurringBudgetProgress =
-                    repository
-                        .save(
-                            RecurringBudgetDraft(
-                                null,
-                                "Household",
-                                1_000L,
-                                setOf(account.id),
-                                setOf(groceryCategoryId),
-                                setOf(weekendTagId),
-                            ),
-                            currentMonth,
-                        ).single()
-                val updated: RecurringBudgetProgress =
-                    repository
-                        .save(
-                            RecurringBudgetDraft(
-                                original.id,
-                                original.name,
-                                original.limitMinor,
-                                original.accountIds,
-                                setOf(diningCategoryId),
-                                setOf(holidayTagId),
-                            ),
-                            currentMonth,
-                        ).single()
-                assertEquals(original.id, updated.id)
-                assertEquals(500L, updated.spentMinor)
-                assertEquals(400L, repository.load(pastMonth).single().spentMinor)
-                assertEquals(500L, repository.load(currentMonth).single().spentMinor)
-                assertEquals(600L, repository.load(futureMonth).single().spentMinor)
-                assertEquals(setOf(diningCategoryId), repository.load(pastMonth).single().categoryIds)
-                assertEquals(setOf(holidayTagId), repository.load(futureMonth).single().tagIds)
+                val setup: BudgetMonthFilterSetup = createBudgetMonthFilterSetup(database, fixtures)
+                saveBudgetMonthFilterTransactions(setup, fixtures)
+                val edit: BudgetMonthFilterEdit = saveEditedBudgetMonthFilter(setup)
+                assertBudgetMonthFilterProgress(setup, edit)
             } finally {
                 database.close()
             }
         }
+
+    private data class BudgetMonthFilterSetup(
+        val repository: RoomRecurringBudgetRepository,
+        val account: Account,
+        val groceryCategoryId: String,
+        val diningCategoryId: String,
+        val weekendTagId: String,
+        val holidayTagId: String,
+        val pastMonth: YearMonth,
+        val currentMonth: YearMonth,
+        val futureMonth: YearMonth,
+    )
+
+    private data class BudgetMonthFilterEdit(
+        val original: RecurringBudgetProgress,
+        val updated: RecurringBudgetProgress,
+    )
+
+    private data class BudgetMonthFilterExpense(
+        val setup: BudgetMonthFilterSetup,
+        val amountMinor: Long,
+        val month: YearMonth,
+        val categoryId: String,
+        val tagId: String,
+    )
+
+    private suspend fun createBudgetMonthFilterSetup(
+        database: AppDatabase,
+        fixtures: FinanceTestFixtures,
+    ): BudgetMonthFilterSetup {
+        val account: Account = fixtures.createFirstAccount("Cash")
+        val groceryCategoryId: String = saveExpenseCategory(fixtures, "Groceries").id
+        val diningCategoryId: String = saveExpenseCategory(fixtures, "Dining").id
+        val weekendTagId: String = saveBudgetTag(fixtures, "Weekend").id
+        val holidayTagId: String = saveBudgetTag(fixtures, "Holiday").id
+        val currentMonth: YearMonth = YearMonth.now()
+        return BudgetMonthFilterSetup(
+            RoomRecurringBudgetRepository(database, { "edited-budget" }, { 500L }),
+            account,
+            groceryCategoryId,
+            diningCategoryId,
+            weekendTagId,
+            holidayTagId,
+            currentMonth.minusMonths(1),
+            currentMonth,
+            currentMonth.plusMonths(1),
+        )
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun saveBudgetMonthFilterTransactions(
+        setup: BudgetMonthFilterSetup,
+        fixtures: FinanceTestFixtures,
+    ): Unit {
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 100L, setup.pastMonth, setup.groceryCategoryId, setup.weekendTagId),
+        )
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 200L, setup.currentMonth, setup.groceryCategoryId, setup.weekendTagId),
+        )
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 300L, setup.futureMonth, setup.groceryCategoryId, setup.weekendTagId),
+        )
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 400L, setup.pastMonth, setup.diningCategoryId, setup.holidayTagId),
+        )
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 500L, setup.currentMonth, setup.diningCategoryId, setup.holidayTagId),
+        )
+        saveMonthlyCategoryTagExpense(
+            fixtures,
+            BudgetMonthFilterExpense(setup, 600L, setup.futureMonth, setup.diningCategoryId, setup.holidayTagId),
+        )
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun saveMonthlyCategoryTagExpense(
+        fixtures: FinanceTestFixtures,
+        expense: BudgetMonthFilterExpense,
+    ): Unit =
+        saveExpense(
+            fixtures,
+            BudgetTestExpense(
+                expense.setup.account,
+                expense.amountMinor,
+                expense.month.atDay(2),
+                expense.categoryId,
+                setOf(expense.tagId),
+            ),
+        )
+
+    private suspend fun saveEditedBudgetMonthFilter(setup: BudgetMonthFilterSetup): BudgetMonthFilterEdit {
+        val original: RecurringBudgetProgress =
+            setup.repository
+                .save(
+                    RecurringBudgetDraft(
+                        null,
+                        "Household",
+                        1_000L,
+                        setOf(setup.account.id),
+                        setOf(setup.groceryCategoryId),
+                        setOf(setup.weekendTagId),
+                    ),
+                    setup.currentMonth,
+                ).single()
+        val updated: RecurringBudgetProgress =
+            setup.repository
+                .save(
+                    RecurringBudgetDraft(
+                        original.id,
+                        original.name,
+                        original.totals.limitMinor,
+                        original.accountIds,
+                        setOf(setup.diningCategoryId),
+                        setOf(setup.holidayTagId),
+                    ),
+                    setup.currentMonth,
+                ).single()
+        return BudgetMonthFilterEdit(original, updated)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun assertBudgetMonthFilterProgress(
+        setup: BudgetMonthFilterSetup,
+        edit: BudgetMonthFilterEdit,
+    ): Unit {
+        val pastBudget: RecurringBudgetProgress = setup.repository.load(setup.pastMonth).single()
+        val currentBudget: RecurringBudgetProgress = setup.repository.load(setup.currentMonth).single()
+        val futureBudget: RecurringBudgetProgress = setup.repository.load(setup.futureMonth).single()
+        assertEquals(edit.original.id, edit.updated.id)
+        assertEquals(500L, edit.updated.totals.spentMinor)
+        assertEquals(400L, pastBudget.totals.spentMinor)
+        assertEquals(500L, currentBudget.totals.spentMinor)
+        assertEquals(600L, futureBudget.totals.spentMinor)
+        assertEquals(setOf(setup.diningCategoryId), pastBudget.restrictions.categoryIds)
+        assertEquals(setOf(setup.holidayTagId), futureBudget.restrictions.tagIds)
+    }
 
     @Test
     fun rejectMissingOrIncomeCategoryFiltersWithoutReplacingSavedBudget(): Unit =
@@ -349,8 +317,8 @@ class RecurringBudgetRepositoryTest {
                     month,
                 )
                 val unchanged: RecurringBudgetProgress = repository.load(month).single()
-                assertEquals(setOf(expenseCategory.id), unchanged.categoryIds)
-                assertEquals(setOf(tag.id), unchanged.tagIds)
+                assertEquals(setOf(expenseCategory.id), unchanged.restrictions.categoryIds)
+                assertEquals(setOf(tag.id), unchanged.restrictions.tagIds)
             } finally {
                 database.close()
             }
@@ -398,8 +366,7 @@ class RecurringBudgetRepositoryTest {
                         "Household",
                         YearMonth.of(2026, 1),
                         setOf(selectedAccount.id),
-                        1_000L,
-                        250L,
+                        RecurringBudgetTotals(1_000L, 250L),
                         500L,
                         500L,
                     )
@@ -411,7 +378,7 @@ class RecurringBudgetRepositoryTest {
         }
 
     @Test
-    fun savedNamedBudgetAndAccountScopeSurviveDatabaseReopen(): Unit =
+    fun preserveNamedBudgetRestrictionsAcrossDatabaseReopen(): Unit =
         runTest {
             val databaseName: String = "recurring-budget-persistence-${System.nanoTime()}.db"
             context.deleteDatabase(databaseName)
@@ -431,9 +398,9 @@ class RecurringBudgetRepositoryTest {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val firstAccount: Account = fixtures.createFirstAccount("Cash")
                 val secondAccount: Account = fixtures.createAdditionalAccount("Savings")
-                saveExpense(fixtures, firstAccount, 600L, LocalDate.of(2026, 1, 4))
-                saveExpense(fixtures, secondAccount, 500L, LocalDate.of(2026, 1, 5))
-                saveExpense(fixtures, firstAccount, 300L, LocalDate.of(2026, 2, 2))
+                saveExpense(fixtures, BudgetTestExpense(firstAccount, 600L, LocalDate.of(2026, 1, 4)))
+                saveExpense(fixtures, BudgetTestExpense(secondAccount, 500L, LocalDate.of(2026, 1, 5)))
+                saveExpense(fixtures, BudgetTestExpense(firstAccount, 300L, LocalDate.of(2026, 2, 2)))
                 currentTime = 500L
                 val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "budget-1" }, { currentTime })
                 repository.save(RecurringBudgetDraft(null, "Household", 1_000L, setOf(firstAccount.id)), YearMonth.of(2026, 1))
@@ -448,15 +415,20 @@ class RecurringBudgetRepositoryTest {
                 assertEquals("budget-1", actualJanuary.id)
                 assertEquals("Weekend spending", actualJanuary.name)
                 assertEquals(setOf(secondAccount.id), actualJanuary.accountIds)
-                assertEquals(700L, actualJanuary.limitMinor)
-                assertEquals(500L, actualJanuary.spentMinor)
-                assertEquals(200L, actualJanuary.remainingMinor)
-                assertFalse(actualJanuary.isOverBudget)
+                assertEquals(700L, actualJanuary.totals.limitMinor)
+                assertEquals(500L, actualJanuary.totals.spentMinor)
+                assertEquals(200L, actualJanuary.totals.remainingMinor)
+                assertFalse(actualJanuary.totals.isOverBudget)
                 assertEquals(500L, actualJanuary.createdAt)
                 assertEquals(900L, actualJanuary.updatedAt)
-                assertEquals(0L, actualFebruary.spentMinor)
+                assertEquals(0L, actualFebruary.totals.spentMinor)
                 assertEquals(setOf(secondAccount.id), actualFebruary.accountIds)
-                assertTrue(repository.load(YearMonth.of(2027, 1)).single().spentMinor == 0L)
+                assertTrue(
+                    repository
+                        .load(YearMonth.of(2027, 1))
+                        .single()
+                        .totals.spentMinor == 0L,
+                )
             } finally {
                 database.close()
             }
@@ -470,7 +442,7 @@ class RecurringBudgetRepositoryTest {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val firstAccount: Account = fixtures.createFirstAccount("Cash")
                 val secondAccount: Account = fixtures.createAdditionalAccount("Savings")
-                saveExpense(fixtures, firstAccount, 300L, LocalDate.of(2026, 3, 4))
+                saveExpense(fixtures, BudgetTestExpense(firstAccount, 300L, LocalDate.of(2026, 3, 4)))
                 fixtures.transactions.save(
                     TransactionDraft(
                         id = null,
@@ -482,7 +454,7 @@ class RecurringBudgetRepositoryTest {
                         categoryId = null,
                     ),
                 )
-                saveExpense(fixtures, secondAccount, 500L, LocalDate.of(2026, 3, 6))
+                saveExpense(fixtures, BudgetTestExpense(secondAccount, 500L, LocalDate.of(2026, 3, 6)))
                 RoomTransferRepository(database).save(
                     TransferDraft(
                         sourceAccountId = firstAccount.id,
@@ -503,15 +475,15 @@ class RecurringBudgetRepositoryTest {
                     YearMonth.of(2026, 3),
                 )
                 val newAccount: Account = fixtures.createAdditionalAccount("New account")
-                saveExpense(fixtures, newAccount, 1_000L, LocalDate.of(2026, 3, 8))
+                saveExpense(fixtures, BudgetTestExpense(newAccount, 1_000L, LocalDate.of(2026, 3, 8)))
                 val actualBudgets: List<RecurringBudgetProgress> = repository.load(YearMonth.of(2026, 3))
                 val actualCashBudget: RecurringBudgetProgress = actualBudgets.single { it.id == "budget-1" }
                 val actualAllSpendingBudget: RecurringBudgetProgress = actualBudgets.single { it.id == "budget-2" }
-                assertEquals(300L, actualCashBudget.spentMinor)
-                assertTrue(actualCashBudget.isOverBudget)
-                assertEquals(800L, actualAllSpendingBudget.spentMinor)
+                assertEquals(300L, actualCashBudget.totals.spentMinor)
+                assertTrue(actualCashBudget.totals.isOverBudget)
+                assertEquals(800L, actualAllSpendingBudget.totals.spentMinor)
                 assertEquals(setOf(firstAccount.id, secondAccount.id), actualAllSpendingBudget.accountIds)
-                assertEquals(1_200L, actualAllSpendingBudget.remainingMinor)
+                assertEquals(1_200L, actualAllSpendingBudget.totals.remainingMinor)
             } finally {
                 database.close()
             }
@@ -524,13 +496,25 @@ class RecurringBudgetRepositoryTest {
             try {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val account: Account = fixtures.createFirstAccount("Cash")
-                saveExpense(fixtures, account, 250L, LocalDate.of(2026, 4, 4))
+                saveExpense(fixtures, BudgetTestExpense(account, 250L, LocalDate.of(2026, 4, 4)))
                 val transaction: FinanceTransaction = fixtures.transactions.loadTransactions().single()
                 val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "budget-1" }, { 500L })
                 repository.save(RecurringBudgetDraft(null, "Household", 1_000L, setOf(account.id)), YearMonth.of(2026, 4))
-                assertEquals(250L, repository.load(YearMonth.of(2026, 4)).single().spentMinor)
+                assertEquals(
+                    250L,
+                    repository
+                        .load(YearMonth.of(2026, 4))
+                        .single()
+                        .totals.spentMinor,
+                )
                 fixtures.transactions.delete(transaction.id)
-                assertEquals(0L, repository.load(YearMonth.of(2026, 4)).single().spentMinor)
+                assertEquals(
+                    0L,
+                    repository
+                        .load(YearMonth.of(2026, 4))
+                        .single()
+                        .totals.spentMinor,
+                )
             } finally {
                 database.close()
             }
@@ -552,7 +536,7 @@ class RecurringBudgetRepositoryTest {
                 val actualBudgets: List<RecurringBudgetProgress> = repository.load(month)
                 assertEquals(1, actualBudgets.size)
                 assertEquals("Household", actualBudgets.single().name)
-                assertEquals(1_000L, actualBudgets.single().limitMinor)
+                assertEquals(1_000L, actualBudgets.single().totals.limitMinor)
                 assertEquals(setOf(account.id), actualBudgets.single().accountIds)
             } finally {
                 database.close()
@@ -580,24 +564,33 @@ class RecurringBudgetRepositoryTest {
             val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
             val selectedAccount: Account = fixtures.createFirstAccount("Cash")
             val excludedAccount: Account = fixtures.createAdditionalAccount("Savings")
-            saveExpense(fixtures, selectedAccount, 250L, LocalDate.of(2026, 1, 4))
-            saveExpense(fixtures, excludedAccount, 400L, LocalDate.of(2026, 1, 5))
+            val category: FinanceCategory = saveExpenseCategory(fixtures, "Groceries")
+            val tag: FinanceTag = saveBudgetTag(fixtures, "weekend")
+            saveExpense(fixtures, BudgetTestExpense(selectedAccount, 250L, LocalDate.of(2026, 1, 4), category.id, setOf(tag.id)))
+            saveExpense(fixtures, BudgetTestExpense(excludedAccount, 400L, LocalDate.of(2026, 1, 5)))
             val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "persistent-budget" }, { 500L })
             val expectedBudget: RecurringBudgetProgress =
                 RecurringBudgetProgress(
-                    "persistent-budget",
-                    "Household",
-                    YearMonth.of(2026, 1),
-                    setOf(selectedAccount.id),
-                    1_000L,
-                    250L,
-                    500L,
-                    500L,
+                    id = "persistent-budget",
+                    name = "Household",
+                    month = YearMonth.of(2026, 1),
+                    accountIds = setOf(selectedAccount.id),
+                    totals = RecurringBudgetTotals(1_000L, 250L),
+                    createdAt = 500L,
+                    updatedAt = 500L,
+                    restrictions = RecurringBudgetRestrictions(setOf(category.id), setOf(tag.id)),
                 )
             assertEquals(
                 listOf(expectedBudget),
                 repository.save(
-                    RecurringBudgetDraft(null, "Household", 1_000L, setOf(selectedAccount.id)),
+                    RecurringBudgetDraft(
+                        null,
+                        "Household",
+                        1_000L,
+                        setOf(selectedAccount.id),
+                        categoryIds = setOf(category.id),
+                        tagIds = setOf(tag.id),
+                    ),
                     YearMonth.of(2026, 1),
                 ),
             )
@@ -620,27 +613,5 @@ class RecurringBudgetRepositoryTest {
         } finally {
             reopenedDatabase.close()
         }
-    }
-
-    private suspend fun saveExpense(
-        fixtures: FinanceTestFixtures,
-        account: Account,
-        amountMinor: Long,
-        date: LocalDate,
-        categoryId: String? = null,
-        tagIds: Set<String> = emptySet(),
-    ) {
-        fixtures.transactions.save(
-            TransactionDraft(
-                id = null,
-                accountId = account.id,
-                amountMinor = amountMinor,
-                direction = TransactionDirection.EXPENSE,
-                date = date.toEpochDay(),
-                note = null,
-                categoryId = categoryId,
-                tagIds = tagIds,
-            ),
-        )
     }
 }

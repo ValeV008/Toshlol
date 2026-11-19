@@ -30,6 +30,7 @@ import com.toshlol.personalfinance.ui.AccountEditorActions
 import com.toshlol.personalfinance.ui.AccountHistoryActions
 import com.toshlol.personalfinance.ui.AccountHistoryScreenActions
 import com.toshlol.personalfinance.ui.BudgetActions
+import com.toshlol.personalfinance.ui.BudgetScopeActions
 import com.toshlol.personalfinance.ui.CategoryActions
 import com.toshlol.personalfinance.ui.LedgerNavigationActions
 import com.toshlol.personalfinance.ui.OrganizerActions
@@ -248,9 +249,12 @@ class MainActivity : ComponentActivity() {
                                     monthChanged = transactionsViewModel::updateBudgetMonth,
                                     nameChanged = transactionsViewModel::updateBudgetName,
                                     amountChanged = transactionsViewModel::updateBudgetAmount,
-                                    accountToggled = transactionsViewModel::toggleBudgetAccount,
-                                    categoryToggled = transactionsViewModel::toggleBudgetCategory,
-                                    tagToggled = transactionsViewModel::toggleBudgetTag,
+                                    scope =
+                                        BudgetScopeActions(
+                                            accountToggled = transactionsViewModel::toggleBudgetAccount,
+                                            categoryToggled = transactionsViewModel::toggleBudgetCategory,
+                                            tagToggled = transactionsViewModel::toggleBudgetTag,
+                                        ),
                                     create = transactionsViewModel::beginBudgetCreate,
                                     edit = transactionsViewModel::beginBudgetEdit,
                                     save = transactionsViewModel::saveBudget,

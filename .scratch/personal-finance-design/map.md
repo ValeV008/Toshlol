@@ -14,7 +14,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [04: Account management and monthly history](issues/04-account-management-and-monthly-history.md) | 01 | resolved |
 | [05: Redesigned Transfer entry and editing](issues/05-redesigned-transfer-entry-and-editing.md) | 02, 03 | resolved |
 | [06: Named recurring Budgets with selected Accounts](issues/06-named-recurring-budgets-with-selected-accounts.md) | 01 | resolved |
-| [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | ready-for-agent |
+| [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | resolved |
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | ready-for-agent |
 | [09: Redesigned first-run setup](issues/09-redesigned-first-run-setup.md) | 01 | ready-for-agent |
 | [10: Redesigned Settings and Backup journeys](issues/10-redesigned-settings-and-backup-journeys.md) | 02, 07 | ready-for-agent |
@@ -25,10 +25,10 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 ## Work frontier
 
 - 01, 02, 03, 04, and 05 are resolved.
-- 07, 08, and 09 can proceed without waiting for each other.
+- 07, 08, and 09 could proceed independently; 07 is now resolved.
 - 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
 - 05 opened after both 02 and 03 resolved and is complete with ticket-specific API 29 creation, editing, paired-list, filter, deletion, archived-counterpart, and larger-font verification.
-- 07 opens after 06 resolves.
+- 07 opened after 06 resolved and is now complete. Its completion opens issue 10 alongside its existing issue 02 prerequisite.
 - 10 opens after both 02 and 07 resolve.
 - 11 opens after 04, 05, 08, 09, and 10 resolve. Its other prerequisites are included transitively.
 
@@ -46,6 +46,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - Budget tickets 06-07 include their own schema, migration, validation, and complete-record Backup paths. Ticket 10 delivers the styled document-management journey over those working contracts.
 - Issue 06 resolved the legacy Budget Account-scope choice by mapping each old monthly record to every Account present at upgrade, preserving prior totals and keeping later Accounts outside the saved scope. Version 1 and 2 Backups use the same mapping.
 - Issue 06 is complete with named recurring Budgets, explicit Account scopes, migration and versioned Backup compatibility, passing API 29/JVM/host-runner checks, and screenshots in `issues/evidence/06/`.
+- Issue 07 is complete with optional Category and Tag filters, shared matching across Budgets and Overview, migration/reopen and complete-record Backup compatibility, and accessible large-font journeys. On 2026-11-19, host-runner tests passed 15/15, JVM tests passed 15/15, the API 29 Overview restart checks passed for selected and empty states, and the unfiltered connected suite passed 79/79. Screenshots and run details are recorded in issue 07 under `issues/evidence/07/` and `build/overview-persistence/20261119T111721533634Z/`.
 - Preserve older supported Backups, stable identities, renamed/archived references, and the existing atomic-import ADR throughout the staged implementation.
 - Keep source specifications and earlier resolved issues intact. On future completion, add the ticket's Answer and verification evidence, mark it resolved, and update this map only when its criteria and required checks pass.
 

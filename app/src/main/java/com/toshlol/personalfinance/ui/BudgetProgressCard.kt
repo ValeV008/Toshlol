@@ -22,6 +22,11 @@ import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
 
+internal data class BudgetScopeSummary(
+    val categories: String? = null,
+    val tags: String? = null,
+)
+
 internal data class BudgetProgressCardState(
     val title: String,
     val accountIds: Set<String>,
@@ -31,8 +36,7 @@ internal data class BudgetProgressCardState(
     val subtitle: String? = null,
     val titleTestTag: String? = null,
     val editTestTag: String? = null,
-    val categorySummary: String? = null,
-    val tagSummary: String? = null,
+    val scopeSummary: BudgetScopeSummary? = null,
 )
 
 internal fun RecurringBudgetProgress.toBudgetProgressCardState(
@@ -42,13 +46,16 @@ internal fun RecurringBudgetProgress.toBudgetProgressCardState(
     BudgetProgressCardState(
         title = name,
         accountIds = accountIds,
-        spentMinor = spentMinor,
-        limitMinor = limitMinor,
-        isOverBudget = isOverBudget,
+        spentMinor = totals.spentMinor,
+        limitMinor = totals.limitMinor,
+        isOverBudget = totals.isOverBudget,
         titleTestTag = "budget-card-title-$id",
         editTestTag = "budget-edit-$id",
-        categorySummary = formatBudgetCategoryNames(categoryIds, categories),
-        tagSummary = formatBudgetTagNames(tagIds, tags),
+        scopeSummary =
+            BudgetScopeSummary(
+                categories = formatBudgetCategoryNames(restrictions.categoryIds, categories),
+                tags = formatBudgetTagNames(restrictions.tagIds, tags),
+            ),
     )
 
 internal fun CategoryBudget.toBudgetProgressCardState(): BudgetProgressCardState =
@@ -59,7 +66,7 @@ internal fun CategoryBudget.toBudgetProgressCardState(): BudgetProgressCardState
         limitMinor = limitMinor,
         isOverBudget = isOverBudget,
         subtitle = "Legacy monthly Budget",
-        categorySummary = categoryName + if (isCategoryArchived) " (Archived)" else "",
+        scopeSummary = BudgetScopeSummary(categories = categoryName + if (isCategoryArchived) " (Archived)" else ""),
     )
 
 @Composable
@@ -77,8 +84,8 @@ internal fun BudgetProgressCard(
             Text(state.title, style = MaterialTheme.typography.titleMedium, modifier = titleModifier.semantics { heading() })
             state.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             Text("Accounts: ${formatBudgetAccountNames(state.accountIds, accounts)}", style = MaterialTheme.typography.bodyMedium)
-            state.categorySummary?.let { Text("Categories: $it", style = MaterialTheme.typography.bodyMedium) }
-            state.tagSummary?.let { Text("Tags: $it", style = MaterialTheme.typography.bodyMedium) }
+            state.scopeSummary?.categories?.let { Text("Categories: $it", style = MaterialTheme.typography.bodyMedium) }
+            state.scopeSummary?.tags?.let { Text("Tags: $it", style = MaterialTheme.typography.bodyMedium) }
             Text("Spent  $currency ${formatMoney(state.spentMinor, currency)}")
             Text("Limit  $currency ${formatMoney(state.limitMinor, currency)}")
             Text("Remaining  $currency ${formatMoney(state.limitMinor - state.spentMinor, currency)}")

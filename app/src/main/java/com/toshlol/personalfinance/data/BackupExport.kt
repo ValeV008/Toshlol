@@ -337,8 +337,8 @@ class RoomBackupExporter(
                 budget.toBackup(
                     RecurringBudgetBackupScope(
                         accountIds = database.recurringBudgetDao().loadAccountIds(budget.id),
-                        categoryIds = database.recurringBudgetDao().loadCategoryIds(budget.id),
-                        tagIds = database.recurringBudgetDao().loadTagIds(budget.id),
+                        categoryIds = database.recurringBudgetRestrictionDao().loadCategoryIds(budget.id),
+                        tagIds = database.recurringBudgetRestrictionDao().loadTagIds(budget.id),
                     ),
                 )
             },

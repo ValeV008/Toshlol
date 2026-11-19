@@ -128,8 +128,8 @@ class BackupExportTest {
         val recurringBudget: RecurringBudgetEntity = RecurringBudgetEntity("recurring-budget", "Household", 7_000L, 15L, 16L)
         database.recurringBudgetDao().save(recurringBudget)
         database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(recurringBudget.id, account.id))
-        database.recurringBudgetDao().saveCategory(RecurringBudgetCategoryEntity(recurringBudget.id, category.id))
-        database.recurringBudgetDao().saveTag(RecurringBudgetTagEntity(recurringBudget.id, tag.id))
+        database.recurringBudgetRestrictionDao().saveCategory(RecurringBudgetCategoryEntity(recurringBudget.id, category.id))
+        database.recurringBudgetRestrictionDao().saveTag(RecurringBudgetTagEntity(recurringBudget.id, tag.id))
         return createExpectedBackup()
     }
 

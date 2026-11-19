@@ -37,7 +37,7 @@ internal object BackupValidator {
         validateTransactions(backup.transactions, references)
         validateTransfers(backup.transfers, references.accounts)
         validateBudgets(backup.budgets, references.categories, references.accounts)
-        validateRecurringBudgets(backup.recurringBudgets, references.accounts, references.categories, references.tags)
+        validateRecurringBudgets(backup.recurringBudgets, references)
     }
 
     private fun collectIdentifiers(backup: FinanceBackup): List<String> =
@@ -145,9 +145,7 @@ internal object BackupValidator {
 
     private fun validateRecurringBudgets(
         budgets: List<BackupRecurringBudget>,
-        accounts: Map<String, BackupAccount>,
-        categories: Map<String, BackupCategory>,
-        tags: Map<String, BackupTag>,
+        references: BackupReferences,
     ): Unit {
         budgets.forEach { budget ->
             require(
@@ -157,11 +155,13 @@ internal object BackupValidator {
                     budget.updatedAt >= budget.createdAt &&
                     budget.accountIds.isNotEmpty() &&
                     budget.accountIds.distinct().size == budget.accountIds.size &&
-                    budget.accountIds.all { it in accounts } &&
+                    budget.accountIds.all { it in references.accounts } &&
                     budget.categoryIds.distinct().size == budget.categoryIds.size &&
-                    budget.categoryIds.all { categoryId -> categories[categoryId]?.direction == TransactionDirection.EXPENSE.name } &&
+                    budget.categoryIds.all { categoryId ->
+                        references.categories[categoryId]?.direction == TransactionDirection.EXPENSE.name
+                    } &&
                     budget.tagIds.distinct().size == budget.tagIds.size &&
-                    budget.tagIds.all { tagId -> tagId in tags },
+                    budget.tagIds.all { tagId -> tagId in references.tags },
             ) { "Backup contains an invalid Budget." }
         }
     }

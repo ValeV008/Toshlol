@@ -139,36 +139,39 @@ private fun BudgetEditor(
             BudgetChoiceState(
                 account.id,
                 account.name + if (account.isArchived) " · Archived" else "",
-                account.id in state.budgetAccountIds,
+                account.id in state.budgetScope.accountIds,
                 "budget-account-${account.id}",
             ),
-            actions.accountToggled,
+            actions.scope.accountToggled,
         )
     }
     Text("Expense Categories", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-    Text("Selected: ${formatBudgetCategoryNames(state.budgetCategoryIds, state.categories)}", style = MaterialTheme.typography.bodySmall)
+    Text(
+        "Selected: ${formatBudgetCategoryNames(state.budgetScope.restrictions.categoryIds, state.categories)}",
+        style = MaterialTheme.typography.bodySmall,
+    )
     state.categories.filter { it.direction == TransactionDirection.EXPENSE }.forEach { category ->
         BudgetChoiceRow(
             BudgetChoiceState(
                 category.id,
                 category.name + if (category.archived) " · Archived" else "",
-                category.id in state.budgetCategoryIds,
+                category.id in state.budgetScope.restrictions.categoryIds,
                 "budget-category-${category.id}",
             ),
-            actions.categoryToggled,
+            actions.scope.categoryToggled,
         )
     }
     Text("Tags", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-    Text("Selected: ${formatBudgetTagNames(state.budgetTagIds, state.tags)}", style = MaterialTheme.typography.bodySmall)
+    Text("Selected: ${formatBudgetTagNames(state.budgetScope.restrictions.tagIds, state.tags)}", style = MaterialTheme.typography.bodySmall)
     state.tags.forEach { tag ->
         BudgetChoiceRow(
             BudgetChoiceState(
                 tag.id,
                 tag.name + if (tag.archived) " · Archived" else "",
-                tag.id in state.budgetTagIds,
+                tag.id in state.budgetScope.restrictions.tagIds,
                 "budget-tag-${tag.id}",
             ),
-            actions.tagToggled,
+            actions.scope.tagToggled,
         )
     }
     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

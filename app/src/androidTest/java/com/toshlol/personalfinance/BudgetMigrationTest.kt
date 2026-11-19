@@ -47,18 +47,18 @@ class BudgetMigrationTest {
                 try {
                     val budget: RecurringBudgetProgress = RoomRecurringBudgetRepository(migratedDatabase).load(month).single()
                     assertEquals(setOf("cash"), budget.accountIds)
-                    assertEquals(emptySet<String>(), budget.categoryIds)
-                    assertEquals(emptySet<String>(), budget.tagIds)
-                    assertEquals(750L, budget.spentMinor)
+                    assertEquals(emptySet<String>(), budget.restrictions.categoryIds)
+                    assertEquals(emptySet<String>(), budget.restrictions.tagIds)
+                    assertEquals(750L, budget.totals.spentMinor)
                 } finally {
                     migratedDatabase.close()
                 }
                 val reopenedDatabase: AppDatabase = openDatabase(databaseName)
                 try {
                     val budget: RecurringBudgetProgress = RoomRecurringBudgetRepository(reopenedDatabase).load(month).single()
-                    assertEquals(emptySet<String>(), budget.categoryIds)
-                    assertEquals(emptySet<String>(), budget.tagIds)
-                    assertEquals(750L, budget.spentMinor)
+                    assertEquals(emptySet<String>(), budget.restrictions.categoryIds)
+                    assertEquals(emptySet<String>(), budget.restrictions.tagIds)
+                    assertEquals(750L, budget.totals.spentMinor)
                 } finally {
                     reopenedDatabase.close()
                 }

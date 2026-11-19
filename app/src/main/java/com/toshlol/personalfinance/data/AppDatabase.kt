@@ -42,6 +42,8 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun recurringBudgetDao(): RecurringBudgetDao
 
+    abstract fun recurringBudgetRestrictionDao(): RecurringBudgetRestrictionDao
+
     companion object {
         @Volatile
         private var instance: AppDatabase? = null

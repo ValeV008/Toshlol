@@ -105,12 +105,6 @@ interface RecurringBudgetDao {
     @Query("SELECT accountId FROM recurring_budget_accounts WHERE budgetId = :budgetId ORDER BY accountId")
     suspend fun loadAccountIds(budgetId: String): List<String>
 
-    @Query("SELECT categoryId FROM recurring_budget_categories WHERE budgetId = :budgetId ORDER BY categoryId")
-    suspend fun loadCategoryIds(budgetId: String): List<String>
-
-    @Query("SELECT tagId FROM recurring_budget_tags WHERE budgetId = :budgetId ORDER BY tagId")
-    suspend fun loadTagIds(budgetId: String): List<String>
-
     @Upsert
     suspend fun save(budget: RecurringBudgetEntity)
 
@@ -120,20 +114,33 @@ interface RecurringBudgetDao {
     @Upsert
     suspend fun saveAccount(account: RecurringBudgetAccountEntity)
 
-    @Query("DELETE FROM recurring_budget_categories WHERE budgetId = :budgetId")
-    suspend fun clearCategoryIds(budgetId: String)
-
-    @Upsert
-    suspend fun saveCategory(category: RecurringBudgetCategoryEntity)
-
-    @Query("DELETE FROM recurring_budget_tags WHERE budgetId = :budgetId")
-    suspend fun clearTagIds(budgetId: String)
-
-    @Upsert
-    suspend fun saveTag(tag: RecurringBudgetTagEntity)
-
     @Query("DELETE FROM recurring_budgets")
     suspend fun clear()
+}
+
+@Dao
+interface RecurringBudgetRestrictionDao {
+    @Query("SELECT categoryId FROM recurring_budget_categories WHERE budgetId = :budgetId ORDER BY categoryId")
+    suspend fun loadCategoryIds(budgetId: String): List<String>
+
+    @Query("SELECT tagId FROM recurring_budget_tags WHERE budgetId = :budgetId ORDER BY tagId")
+    suspend fun loadTagIds(budgetId: String): List<String>
+
+    @Query("DELETE FROM recurring_budget_categories WHERE budgetId = :budgetId")
+    @Suppress("ktlint:standard:no-unit-return")
+    suspend fun clearCategoryIds(budgetId: String): Unit
+
+    @Upsert
+    @Suppress("ktlint:standard:no-unit-return")
+    suspend fun saveCategory(category: RecurringBudgetCategoryEntity): Unit
+
+    @Query("DELETE FROM recurring_budget_tags WHERE budgetId = :budgetId")
+    @Suppress("ktlint:standard:no-unit-return")
+    suspend fun clearTagIds(budgetId: String): Unit
+
+    @Upsert
+    @Suppress("ktlint:standard:no-unit-return")
+    suspend fun saveTag(tag: RecurringBudgetTagEntity): Unit
 }
 
 data class RecurringBudgetDraft(
@@ -151,21 +158,29 @@ data class RecurringBudgetDraft(
     }
 }
 
+data class RecurringBudgetRestrictions(
+    val categoryIds: Set<String> = emptySet(),
+    val tagIds: Set<String> = emptySet(),
+)
+
+data class RecurringBudgetTotals(
+    val limitMinor: Long,
+    val spentMinor: Long,
+) {
+    val remainingMinor: Long get() = limitMinor - spentMinor
+    val isOverBudget: Boolean get() = spentMinor > limitMinor
+}
+
 data class RecurringBudgetProgress(
     val id: String,
     val name: String,
     val month: YearMonth,
     val accountIds: Set<String>,
-    val limitMinor: Long,
-    val spentMinor: Long,
+    val totals: RecurringBudgetTotals,
     val createdAt: Long,
     val updatedAt: Long,
-    val categoryIds: Set<String> = emptySet(),
-    val tagIds: Set<String> = emptySet(),
-) {
-    val remainingMinor: Long get() = limitMinor - spentMinor
-    val isOverBudget: Boolean get() = spentMinor > limitMinor
-}
+    val restrictions: RecurringBudgetRestrictions = RecurringBudgetRestrictions(),
+)
 
 interface RecurringBudgetRepository {
     suspend fun load(month: YearMonth): List<RecurringBudgetProgress>
@@ -217,13 +232,13 @@ class RoomRecurringBudgetRepository(
                 draft.accountIds.sorted().forEach { accountId ->
                     database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(identifier, accountId))
                 }
-                database.recurringBudgetDao().clearCategoryIds(identifier)
+                database.recurringBudgetRestrictionDao().clearCategoryIds(identifier)
                 draft.categoryIds.sorted().forEach { categoryId ->
-                    database.recurringBudgetDao().saveCategory(RecurringBudgetCategoryEntity(identifier, categoryId))
+                    database.recurringBudgetRestrictionDao().saveCategory(RecurringBudgetCategoryEntity(identifier, categoryId))
                 }
-                database.recurringBudgetDao().clearTagIds(identifier)
+                database.recurringBudgetRestrictionDao().clearTagIds(identifier)
                 draft.tagIds.sorted().forEach { tagId ->
-                    database.recurringBudgetDao().saveTag(RecurringBudgetTagEntity(identifier, tagId))
+                    database.recurringBudgetRestrictionDao().saveTag(RecurringBudgetTagEntity(identifier, tagId))
                 }
                 loadInsideTransaction(month)
             }
@@ -237,11 +252,11 @@ class RoomRecurringBudgetRepository(
             }
         val categoryIdsByBudget: Map<String, Set<String>> =
             budgets.associate { budget ->
-                budget.id to database.recurringBudgetDao().loadCategoryIds(budget.id).toSet()
+                budget.id to database.recurringBudgetRestrictionDao().loadCategoryIds(budget.id).toSet()
             }
         val tagIdsByBudget: Map<String, Set<String>> =
             budgets.associate { budget ->
-                budget.id to database.recurringBudgetDao().loadTagIds(budget.id).toSet()
+                budget.id to database.recurringBudgetRestrictionDao().loadTagIds(budget.id).toSet()
             }
         val tagIdsByTransaction: Map<String, Set<String>> =
             database.transactionDao().loadAllTransactionTags().groupBy(TransactionTagCrossRef::transactionId).mapValues { entry ->
@@ -268,12 +283,10 @@ class RoomRecurringBudgetRepository(
                 name = budget.name,
                 month = month,
                 accountIds = accountIds,
-                limitMinor = budget.limitMinor,
-                spentMinor = spentMinor,
+                totals = RecurringBudgetTotals(budget.limitMinor, spentMinor),
                 createdAt = budget.createdAt,
                 updatedAt = budget.updatedAt,
-                categoryIds = categoryIds,
-                tagIds = tagIds,
+                restrictions = RecurringBudgetRestrictions(categoryIds, tagIds),
             )
         }
     }

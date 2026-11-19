@@ -63,8 +63,8 @@ internal class RoomBackupStore(
                     budget,
                     RecurringBudgetBackupScope(
                         accountIds = database.recurringBudgetDao().loadAccountIds(budget.id),
-                        categoryIds = database.recurringBudgetDao().loadCategoryIds(budget.id),
-                        tagIds = database.recurringBudgetDao().loadTagIds(budget.id),
+                        categoryIds = database.recurringBudgetRestrictionDao().loadCategoryIds(budget.id),
+                        tagIds = database.recurringBudgetRestrictionDao().loadTagIds(budget.id),
                     ),
                 )
             },
@@ -236,16 +236,16 @@ internal class RoomBackupStore(
                 RecurringBudgetEntity(budget.id, budget.name, budget.limitMinor, budget.createdAt, budget.updatedAt),
             )
             database.recurringBudgetDao().clearAccountIds(budget.id)
-            database.recurringBudgetDao().clearCategoryIds(budget.id)
-            database.recurringBudgetDao().clearTagIds(budget.id)
+            database.recurringBudgetRestrictionDao().clearCategoryIds(budget.id)
+            database.recurringBudgetRestrictionDao().clearTagIds(budget.id)
             budget.accountIds.forEach { accountId ->
                 database.recurringBudgetDao().saveAccount(RecurringBudgetAccountEntity(budget.id, accountId))
             }
             budget.categoryIds.forEach { categoryId ->
-                database.recurringBudgetDao().saveCategory(RecurringBudgetCategoryEntity(budget.id, categoryId))
+                database.recurringBudgetRestrictionDao().saveCategory(RecurringBudgetCategoryEntity(budget.id, categoryId))
             }
             budget.tagIds.forEach { tagId ->
-                database.recurringBudgetDao().saveTag(RecurringBudgetTagEntity(budget.id, tagId))
+                database.recurringBudgetRestrictionDao().saveTag(RecurringBudgetTagEntity(budget.id, tagId))
             }
         }
     }

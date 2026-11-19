@@ -45,7 +45,9 @@ import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
+import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.RecurringBudgetDraft
+import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import com.toshlol.personalfinance.data.RoomTransactionRepository
 import com.toshlol.personalfinance.data.RoomTransferRepository
@@ -88,6 +90,33 @@ class TransactionFlowTest {
         val month: YearMonth,
         val categoryId: String,
         val tagId: String,
+    )
+
+    private data class DirectionScopedCategories(
+        val expense: FinanceCategory,
+        val income: FinanceCategory,
+    )
+
+    private data class TagManagementFixture(
+        val category: FinanceCategory,
+        val independentTag: FinanceTag,
+        val associatedTag: FinanceTag,
+    )
+
+    private data class ClassificationJourneyFixture(
+        val month: YearMonth,
+        val monthLabel: String,
+        val category: FinanceCategory,
+        val tag: FinanceTag,
+        val originalTransaction: FinanceTransaction,
+        val budgetRepository: RoomRecurringBudgetRepository,
+        val budgetName: String,
+    )
+
+    private data class ClassificationRefreshFixture(
+        val monthLabel: String,
+        val category: FinanceCategory,
+        val tag: FinanceTag,
     )
 
     @get:Rule
@@ -719,6 +748,39 @@ class TransactionFlowTest {
     fun manageTextOnlyDirectionScopedCategories() {
         openOrganizer()
         composeRule.onNodeWithText("Choose Category icon").assertDoesNotExist()
+        val categories: DirectionScopedCategories = createDirectionScopedCategories()
+        assertDuplicateCategoryRejected()
+        renameExpenseCategory(categories.expense)
+        assertCategoryDirectionsPreserved(categories)
+    }
+
+    @Test
+    fun manageIndependentAndAssociatedTags() {
+        val fixture: TagManagementFixture = createTagManagementFixture()
+        val renamedTags: TagManagementFixture = renameTagAssociations(fixture)
+        assertTagsAssignedOnTransaction(renamedTags)
+    }
+
+    @Test
+    fun renameAndArchiveClassificationsWithoutChangingTransactions() {
+        val fixture: ClassificationJourneyFixture = createClassificationJourneyFixture()
+        showPreviousMonthBudget(fixture)
+        renameJourneyClassifications(fixture)
+        assertRenamedJourneyHistory(fixture)
+        archiveJourneyClassifications(fixture)
+        assertArchivedJourneyReferences(fixture)
+        assertArchivedClassificationsUnavailableForNewEntries()
+    }
+
+    @Test
+    fun refreshClassificationChoicesWithoutResettingMonth() {
+        val fixture: ClassificationRefreshFixture = createClassificationRefreshFixture()
+        selectPreviousMonthInExpenses(fixture.monthLabel)
+        renameRefreshClassifications(fixture)
+        assertRefreshFiltersAndEntryChoices(fixture)
+    }
+
+    private fun createDirectionScopedCategories(): DirectionScopedCategories {
         ui.enterText("Category name", "Utilities", "category-tag-list")
         composeRule.onNodeWithTag("category-direction-EXPENSE").assertIsSelected()
         ui.clickText("Add category", "category-tag-list")
@@ -732,6 +794,10 @@ class TransactionFlowTest {
         ui.clickText("Add category", "category-tag-list")
         val incomeCategory: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
         assertTrue(expenseCategory.id != incomeCategory.id)
+        return DirectionScopedCategories(expenseCategory, incomeCategory)
+    }
+
+    private fun assertDuplicateCategoryRejected() {
         composeRule
             .onNodeWithTag("category-direction-EXPENSE")
             .performScrollTo()
@@ -740,89 +806,127 @@ class TransactionFlowTest {
         ui.enterText("Category name", " utilities ", "category-tag-list")
         ui.clickText("Add category", "category-tag-list")
         ui.showText("An active category with this name already exists.")
-        ui.showText("Utilities · expense", "category-tag-list")
+        ui.showText("Utilities \u00b7 expense", "category-tag-list")
+    }
+
+    private fun renameExpenseCategory(expenseCategory: FinanceCategory) {
         editCategory(expenseCategory.id)
         composeRule.onNodeWithTag("category-direction-EXPENSE").performScrollTo().assertIsNotEnabled()
         ui.enterText("Category name", "Household", "category-tag-list")
         ui.clickText("Save category", "category-tag-list")
-        val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
-        val preservedIncome: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
-        assertEquals(expenseCategory.id, renamedExpense.id)
-        assertEquals(incomeCategory.id, preservedIncome.id)
-        ui.showText("Household · expense", "category-tag-list")
-        ui.showText("Utilities · income", "category-tag-list")
+        ui.showText("Household \u00b7 expense", "category-tag-list")
     }
 
-    @Test
-    fun manageIndependentAndAssociatedTags() {
+    private fun assertCategoryDirectionsPreserved(categories: DirectionScopedCategories) {
+        val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
+        val preservedIncome: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
+        assertEquals(categories.expense.id, renamedExpense.id)
+        assertEquals(categories.income.id, preservedIncome.id)
+        ui.showText("Utilities \u00b7 income", "category-tag-list")
+    }
+
+    private fun createTagManagementFixture(): TagManagementFixture {
         createFoodCategory()
         val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
         ui.enterText("Tag name", "Everywhere", "category-tag-list")
         composeRule.onNodeWithTag("tag-association-independent").assertIsSelected()
         ui.clickText("Add tag", "category-tag-list")
         val independentTag: FinanceTag = tag("Everywhere")
-        ui.showText("Everywhere", "category-tag-list")
         ui.show(hasTestTag("tag-category-${foodCategory.id}"), "category-tag-list").performClick().assertIsSelected()
         ui.enterText("Tag name", "Lunch", "category-tag-list")
         ui.clickText("Add tag", "category-tag-list")
         val associatedTag: FinanceTag = tag("Lunch")
         assertTrue(independentTag.id != associatedTag.id)
-        ui.showText("Lunch", "category-tag-list")
-        editTag(independentTag.id)
+        return TagManagementFixture(foodCategory, independentTag, associatedTag)
+    }
+
+    private fun renameTagAssociations(fixture: TagManagementFixture): TagManagementFixture {
+        ui.showText("Everywhere", "category-tag-list")
+        editTag(fixture.independentTag.id)
         ui.enterText("Tag name", "Any meal", "category-tag-list")
-        ui.show(hasTestTag("tag-category-${foodCategory.id}"), "category-tag-list").performClick()
+        ui.show(hasTestTag("tag-category-${fixture.category.id}"), "category-tag-list").performClick()
         ui.clickText("Save tag", "category-tag-list")
         val renamedAssociatedTag: FinanceTag = tag("Any meal")
-        assertEquals(independentTag.id, renamedAssociatedTag.id)
-        assertEquals(foodCategory.id, renamedAssociatedTag.categoryId)
+        assertEquals(fixture.independentTag.id, renamedAssociatedTag.id)
+        assertEquals(fixture.category.id, renamedAssociatedTag.categoryId)
         ui.showText("Any meal", "category-tag-list")
-        editTag(associatedTag.id)
+        editTag(fixture.associatedTag.id)
         ui.enterText("Tag name", "Flexible lunch", "category-tag-list")
         ui.show(hasTestTag("tag-association-independent"), "category-tag-list").performClick()
         ui.clickText("Save tag", "category-tag-list")
         val renamedIndependentTag: FinanceTag = tag("Flexible lunch")
-        assertEquals(associatedTag.id, renamedIndependentTag.id)
+        assertEquals(fixture.associatedTag.id, renamedIndependentTag.id)
         assertNull(renamedIndependentTag.categoryId)
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        return TagManagementFixture(fixture.category, renamedIndependentTag, renamedAssociatedTag)
+    }
+
+    private fun assertTagsAssignedOnTransaction(fixture: TagManagementFixture) {
+        ui.show(hasTestTag("classification-back")).performClick()
         ui.clickText("Add expense")
         ui.enterText("Amount", "2.00", "transaction-form")
-        composeRule.onNodeWithTag("transaction-tag-${renamedAssociatedTag.id}").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithTag("transaction-tag-${fixture.associatedTag.id}").performScrollTo().assertIsNotEnabled()
         ui.clickText("Food", "transaction-form")
         composeRule
-            .onNodeWithTag("transaction-tag-${renamedAssociatedTag.id}")
-            .performScrollTo()
+            .onNodeWithTag(
+                "transaction-tag-${fixture.associatedTag.id}",
+            ).performScrollTo()
             .assertIsEnabled()
             .performClick()
             .assertIsOn()
         composeRule
-            .onNodeWithTag("transaction-tag-${renamedIndependentTag.id}")
-            .performScrollTo()
+            .onNodeWithTag(
+                "transaction-tag-${fixture.independentTag.id}",
+            ).performScrollTo()
             .assertIsEnabled()
             .performClick()
             .assertIsOn()
         ui.clickText("Save")
-        val transaction: com.toshlol.personalfinance.data.FinanceTransaction =
-            runBlocking { transactionRepository().loadTransactions().single() }
-        assertEquals(setOf(renamedAssociatedTag.id, renamedIndependentTag.id), transaction.tagIds.toSet())
+        val transaction: FinanceTransaction = runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(setOf(fixture.associatedTag.id, fixture.independentTag.id), transaction.tagIds.toSet())
     }
 
-    @Test
-    fun renameAndArchiveClassificationsWithoutChangingTransactions() {
+    private fun createClassificationJourneyFixture(): ClassificationJourneyFixture {
         val previousMonth: YearMonth = YearMonth.now().minusMonths(1)
         createFoodCategory()
         val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
         val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.show(hasTestTag("classification-back")).performClick()
+        val originalTransaction: FinanceTransaction = recordClassificationJourneyExpense(previousMonth, lunchTag.id)
+        val budgetRepository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(AppDatabase.getInstance(appContext()))
+        val budgetName: String = "Food limit"
+        saveClassificationJourneyBudget(budgetRepository, budgetName, foodCategory.id, lunchTag.id, previousMonth)
+        val monthLabel: String = previousMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+        return ClassificationJourneyFixture(
+            previousMonth,
+            monthLabel,
+            foodCategory,
+            lunchTag,
+            originalTransaction,
+            budgetRepository,
+            budgetName,
+        )
+    }
+
+    private fun recordClassificationJourneyExpense(
+        month: YearMonth,
+        tagId: String,
+    ): FinanceTransaction {
         ui.clickText("Add expense")
         ui.enterText("Amount", "12.50", "transaction-form")
         ui.clickText("Food", "transaction-form")
-        composeRule.onNodeWithTag("transaction-tag-${lunchTag.id}").performScrollTo().performClick()
-        ui.enterText("Date (YYYY-MM-DD)", previousMonth.atDay(15).toString(), "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-$tagId").performScrollTo().performClick()
+        ui.enterText("Date (YYYY-MM-DD)", month.atDay(15).toString(), "transaction-form")
         ui.clickText("Save")
-        val originalTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
-            runBlocking { transactionRepository().loadTransactions().single() }
-        val budgetRepository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(AppDatabase.getInstance(appContext()))
-        val budgetName: String = "Food limit"
+        return runBlocking { transactionRepository().loadTransactions().single() }
+    }
+
+    private fun saveClassificationJourneyBudget(
+        budgetRepository: RoomRecurringBudgetRepository,
+        budgetName: String,
+        categoryId: String,
+        tagId: String,
+        month: YearMonth,
+    ) {
         runBlocking {
             budgetRepository.save(
                 RecurringBudgetDraft(
@@ -830,107 +934,143 @@ class TransactionFlowTest {
                     budgetName,
                     20_000L,
                     setOf(accountId("Cash")),
-                    setOf(foodCategory.id),
-                    setOf(lunchTag.id),
+                    setOf(categoryId),
+                    setOf(tagId),
                 ),
-                previousMonth,
+                month,
             )
         }
+    }
+
+    private fun showPreviousMonthBudget(fixture: ClassificationJourneyFixture) {
         navigateTo("Overview")
         composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
         composeRule.onNodeWithTag("open-budgets").performScrollTo().performClick()
-        ui.showText(budgetName)
+        ui.showText(fixture.budgetName)
         navigateTo("Expenses")
-        val expectedMonthLabel: String = previousMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
-        ui.showText(expectedMonthLabel)
+        ui.showText(fixture.monthLabel)
+    }
+
+    private fun renameJourneyClassifications(fixture: ClassificationJourneyFixture) {
         openOrganizerFromCurrentArea()
-        ui.showText("Food · expense", "category-tag-list")
-        editCategory(foodCategory.id)
+        ui.showText("Food \u00b7 expense", "category-tag-list")
+        editCategory(fixture.category.id)
         ui.enterText("Category name", "Groceries", "category-tag-list")
         ui.clickText("Save category", "category-tag-list")
-        ui.showText("Groceries · expense", "category-tag-list")
-        val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
-        ui.showText("Groceries · expense", "category-tag-list")
+        ui.showText("Groceries \u00b7 expense", "category-tag-list")
         ui.showText("Lunch", "category-tag-list")
-        editTag(lunchTag.id)
+        editTag(fixture.tag.id)
         ui.enterText("Tag name", "Dinner", "category-tag-list")
         ui.clickText("Save tag", "category-tag-list")
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
-        ui.showText(expectedMonthLabel)
-        ui.showText("Cash · Groceries · Dinner")
-        val renamedTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
-            runBlocking { transactionRepository().loadTransactions().single() }
-        assertEquals(originalTransaction.id, renamedTransaction.id)
-        assertEquals(originalTransaction.amountMinor, renamedTransaction.amountMinor)
-        assertEquals(originalTransaction.categoryId, renamedTransaction.categoryId)
-        assertEquals(originalTransaction.tagIds, renamedTransaction.tagIds)
+        ui.show(hasTestTag("classification-back")).performClick()
+        ui.showText(fixture.monthLabel)
+    }
+
+    private fun assertRenamedJourneyHistory(fixture: ClassificationJourneyFixture) {
+        ui.showText("Cash \u00b7 Groceries \u00b7 Dinner")
+        val renamedTransaction: FinanceTransaction = runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(fixture.originalTransaction.id, renamedTransaction.id)
+        assertEquals(fixture.originalTransaction.amountMinor, renamedTransaction.amountMinor)
+        assertEquals(fixture.originalTransaction.categoryId, renamedTransaction.categoryId)
+        assertEquals(fixture.originalTransaction.tagIds, renamedTransaction.tagIds)
         val expectedActivityDay: String =
-            LocalDate.ofEpochDay(originalTransaction.date).format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()))
+            LocalDate
+                .ofEpochDay(
+                    fixture.originalTransaction.date,
+                ).format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()))
         ui.showText(expectedActivityDay)
-        ui.showText("Cash · Groceries · Dinner")
+        ui.showText("Cash \u00b7 Groceries \u00b7 Dinner")
         navigateTo("Budgets")
-        ui.showText("$budgetName")
+        ui.showText(fixture.budgetName)
         ui.showText("Categories: Groceries")
         ui.showText("Tags: Dinner")
+    }
+
+    private fun archiveJourneyClassifications(fixture: ClassificationJourneyFixture) {
         openOrganizerFromCurrentArea()
+        val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
         ui.show(hasTestTag("archive-category-${renamedCategory.id}"), "category-tag-list").performClick()
-        ui.showText("Groceries · expense · Archived", "category-tag-list")
-        ui.show(hasTestTag("archive-tag-${lunchTag.id}"), "category-tag-list").performClick()
+        ui.showText("Groceries \u00b7 expense \u00b7 Archived", "category-tag-list")
+        ui.show(hasTestTag("archive-tag-${fixture.tag.id}"), "category-tag-list").performClick()
         ui.showText("Dinner", "category-tag-list")
-        ui.showText("Groceries Category (Archived) · Archived", "category-tag-list")
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.showText("Groceries Category (Archived) \u00b7 Archived", "category-tag-list")
+        ui.show(hasTestTag("classification-back")).performClick()
         ui.showText("Monthly expense limits")
         ui.showText("Categories: Groceries (Archived)")
         ui.showText("Tags: Dinner (Archived)")
-        val preservedBudget: com.toshlol.personalfinance.data.RecurringBudgetProgress =
-            runBlocking {
-                budgetRepository.load(previousMonth).single()
-            }
-        assertEquals(setOf(foodCategory.id), preservedBudget.restrictions.categoryIds)
-        assertEquals(setOf(lunchTag.id), preservedBudget.restrictions.tagIds)
+    }
+
+    private fun assertArchivedJourneyReferences(fixture: ClassificationJourneyFixture) {
+        val preservedBudget: RecurringBudgetProgress = runBlocking { fixture.budgetRepository.load(fixture.month).single() }
+        assertEquals(setOf(fixture.category.id), preservedBudget.restrictions.categoryIds)
+        assertEquals(setOf(fixture.tag.id), preservedBudget.restrictions.tagIds)
         assertEquals(1_250L, preservedBudget.totals.spentMinor)
-        val archivedTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
-            runBlocking { transactionRepository().loadTransactions().single() }
-        assertEquals(originalTransaction.id, archivedTransaction.id)
-        assertEquals(originalTransaction.amountMinor, archivedTransaction.amountMinor)
-        assertEquals(originalTransaction.categoryId, archivedTransaction.categoryId)
-        assertEquals(originalTransaction.tagIds, archivedTransaction.tagIds)
+        val archivedTransaction: FinanceTransaction = runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(fixture.originalTransaction.id, archivedTransaction.id)
+        assertEquals(fixture.originalTransaction.amountMinor, archivedTransaction.amountMinor)
+        assertEquals(fixture.originalTransaction.categoryId, archivedTransaction.categoryId)
+        assertEquals(fixture.originalTransaction.tagIds, archivedTransaction.tagIds)
         navigateTo("Accounts")
         ui.clickText("View Cash history")
         ui.showText("Groceries (Archived)", substring = true)
         ui.showText("Dinner (Archived)", substring = true)
         ui.clickText("Back")
+    }
+
+    private fun assertArchivedClassificationsUnavailableForNewEntries() {
         navigateTo("Expenses")
         ui.clickText("Add expense")
-        composeRule
-            .onNode(hasText("Groceries (Archived)") and hasAnyAncestor(hasTestTag("transaction-form")))
-            .assertDoesNotExist()
-        composeRule
-            .onNode(hasText("Dinner (Archived)") and hasAnyAncestor(hasTestTag("transaction-form")))
-            .assertDoesNotExist()
+        composeRule.onNode(hasText("Groceries (Archived)") and hasAnyAncestor(hasTestTag("transaction-form"))).assertDoesNotExist()
+        composeRule.onNode(hasText("Dinner (Archived)") and hasAnyAncestor(hasTestTag("transaction-form"))).assertDoesNotExist()
         ui.clickText("Cancel")
     }
 
-    @Test
-    fun refreshClassificationChoicesWithoutResettingMonth() {
+    private fun createClassificationRefreshFixture(): ClassificationRefreshFixture {
         createFoodCategory()
         val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
+        ui.show(hasTestTag("classification-back")).performClick()
+        val monthLabel: String = YearMonth.now().minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+        return ClassificationRefreshFixture(monthLabel, foodCategory, lunchTag)
+    }
+
+    private fun selectPreviousMonthInExpenses(monthLabel: String) {
         navigateTo("Overview")
         composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
         navigateTo("Expenses")
-        val expectedMonthLabel: String =
-            YearMonth.now().minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
-        ui.showText(expectedMonthLabel)
+        ui.showText(monthLabel)
+    }
+
+    private fun renameRefreshClassifications(fixture: ClassificationRefreshFixture) {
         openOrganizerFromCurrentArea()
-        ui.showText("Food · expense", "category-tag-list")
-        editCategory(foodCategory.id)
+        ui.showText("Food \u00b7 expense", "category-tag-list")
+        editCategory(fixture.category.id)
         ui.enterText("Category name", "Household", "category-tag-list")
         ui.clickText("Save category", "category-tag-list")
-        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
-        ui.showText(expectedMonthLabel)
+        editTag(fixture.tag.id)
+        ui.enterText("Tag name", "Meals", "category-tag-list")
+        ui.clickText("Save tag", "category-tag-list")
+        val renamedTag: FinanceTag = tag("Meals")
+        assertEquals(fixture.tag.id, renamedTag.id)
+        ui.show(hasTestTag("classification-back")).performClick()
+        ui.showText(fixture.monthLabel)
+    }
+
+    private fun assertRefreshFiltersAndEntryChoices(fixture: ClassificationRefreshFixture) {
+        ui.clickText("Category: All Category")
+        ui.clickText("Household")
+        ui.showText("Category: Household")
+        ui.clickText("Tag: All Tag")
+        ui.clickText("Meals")
+        ui.showText("Tag: Meals")
         ui.clickText("Add expense")
         ui.showText("Household", "transaction-form")
+        ui.clickText("Household", "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-${fixture.tag.id}").performScrollTo().assertIsEnabled()
+        composeRule
+            .onNode(hasText("Meals", substring = true) and hasAnyAncestor(hasTestTag("transaction-form")))
+            .performScrollTo()
+            .assertIsDisplayed()
         ui.clickText("Cancel")
     }
 

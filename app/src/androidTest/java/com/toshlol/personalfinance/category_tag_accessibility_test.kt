@@ -1,5 +1,8 @@
+@file:Suppress("ktlint:standard:filename", "ktlint:standard:no-unit-return")
+
 package com.toshlol.personalfinance
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
@@ -8,6 +11,7 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -36,13 +40,13 @@ import java.io.OutputStream
 
 @RunWith(AndroidJUnit4::class)
 class CategoryTagAccessibilityTest {
-    private val composeRule = createComposeRule()
+    private val composeRule: ComposeContentTestRule = createComposeRule()
 
     @get:Rule
     val rules: RuleChain = RuleChain.outerRule(composeRule).around(UiFailureArtifactsRule(composeRule))
 
     @Test
-    fun operateClassificationManagementAtLargeFont() {
+    fun operateClassificationManagementAtLargeFont(): Unit {
         composeRule.setContent {
             val currentDensity: Density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(currentDensity.density, 2f)) {
@@ -68,8 +72,8 @@ class CategoryTagAccessibilityTest {
         composeRule.onNodeWithTag("category-row-retired").assertIsDisplayed()
         composeRule.onNodeWithTag("edit-category-retired").assertHasClickAction()
         composeRule.onNodeWithTag("archive-category-retired").assertDoesNotExist()
-        composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Old label"))
-        composeRule.onNodeWithTag("tag-association-independent").performScrollTo().assertIsSelected()
+        composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Independent"))
+        composeRule.onNodeWithTag("tag-association-independent").assertIsSelected()
         composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Old label"))
         composeRule.onNodeWithTag("tag-row-old-tag").assertIsDisplayed()
         composeRule.onNodeWithTag("edit-tag-old-tag").assertHasClickAction()
@@ -134,8 +138,8 @@ class CategoryTagAccessibilityTest {
                 ),
         )
 
-    private fun saveScreenEvidence(fileName: String) {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private fun saveScreenEvidence(fileName: String): Unit {
+        val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
         val outputRoot: File =
             InstrumentationRegistry
                 .getArguments()

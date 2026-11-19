@@ -636,7 +636,8 @@ class TransactionsViewModel(
         }
     }
 
-    private suspend fun refreshClassificationReferences(snapshot: CategoryTagSnapshot) {
+    @Suppress("ktlint:standard:no-unit-return")
+    private suspend fun refreshClassificationReferences(snapshot: CategoryTagSnapshot): Unit {
         mutableUiState.value = uiState.value.copy(categories = snapshot.categories, tags = snapshot.tags)
         try {
             val transactions: List<FinanceTransaction> = repository.loadTransactions()
@@ -857,19 +858,8 @@ class TransactionsViewModel(
         }
     }
 
-    fun archiveCategory(id: String) {
-        mutableUiState.value = uiState.value.copy(isSaving = true, error = null)
-        viewModelScope.launch {
-            try {
-                val result: CategoryTagSnapshot = categoryTagRepository.archiveCategory(id)
-                refreshClassificationReferences(result)
-            } catch (exception: IllegalArgumentException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive category.")
-            } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive category.")
-            }
-        }
-    }
+    fun archiveCategory(id: String): Unit =
+        archiveClassification("Could not archive category.") { categoryTagRepository.archiveCategory(id) }
 
     fun updateTagName(value: String) {
         mutableUiState.value = uiState.value.copy(tagName = value, error = null)
@@ -906,18 +896,28 @@ class TransactionsViewModel(
         }
     }
 
-    fun archiveTag(id: String) {
+    fun archiveTag(id: String): Unit = archiveClassification("Could not archive tag.") { categoryTagRepository.archiveTag(id) }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun archiveClassification(
+        errorMessage: String,
+        archive: suspend () -> CategoryTagSnapshot,
+    ): Unit {
         mutableUiState.value = uiState.value.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val result: CategoryTagSnapshot = categoryTagRepository.archiveTag(id)
+                val result: CategoryTagSnapshot = archive()
                 refreshClassificationReferences(result)
             } catch (exception: IllegalArgumentException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive tag.")
+                showArchiveError(errorMessage)
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive tag.")
+                showArchiveError(errorMessage)
             }
         }
+    }
+
+    private fun showArchiveError(message: String) {
+        mutableUiState.value = uiState.value.copy(isSaving = false, error = message)
     }
 
     fun updateDirection(value: TransactionDirection) {

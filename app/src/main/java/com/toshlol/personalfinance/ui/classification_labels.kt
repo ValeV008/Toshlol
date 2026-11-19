@@ -1,8 +1,15 @@
+@file:Suppress("ktlint:standard:filename")
+
 package com.toshlol.personalfinance.ui
 
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
+
+internal data class ClassificationReferences(
+    val categories: List<FinanceCategory>,
+    val tags: List<FinanceTag>,
+)
 
 internal fun formatTransactionCategory(
     transaction: FinanceTransaction,

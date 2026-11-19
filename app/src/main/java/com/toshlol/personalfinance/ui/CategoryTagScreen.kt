@@ -108,7 +108,7 @@ fun CategoryTagScreen(
                 renderTagRow(tag, state.categories, actions.tags, isEnabled = !state.isSaving)
             }
         }
-        state.error?.let { error ->
+        state.error?.let { error: String ->
             Text(
                 error,
                 Modifier
@@ -345,7 +345,7 @@ private fun renderCategoryEditorCard(
             )
             Text("Direction", style = MaterialTheme.typography.titleMedium)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(classificationStandardSpacing)) {
-                TransactionDirection.entries.forEach { direction ->
+                TransactionDirection.entries.forEach { direction: TransactionDirection ->
                     renderClassificationRadioChoice(
                         label = direction.name.lowercase().replaceFirstChar(Char::uppercase),
                         isSelected = state.categoryDirection == direction,
@@ -433,7 +433,7 @@ private fun renderTagEditorCard(
     val keyboardController: SoftwareKeyboardController? = LocalSoftwareKeyboardController.current
     val isEditing: Boolean = state.editingTagId != null
     val availableCategories: List<FinanceCategory> =
-        state.categories.filter { category -> !category.archived || category.id == state.tagCategoryId }
+        state.categories.filter { category: FinanceCategory -> !category.archived || category.id == state.tagCategoryId }
     Card(
         Modifier.fillMaxWidth().testTag("tag-editor"),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -466,7 +466,7 @@ private fun renderTagEditorCard(
                 onSelected = { actions.categoryChanged(null) },
                 modifier = Modifier.testTag("tag-association-independent"),
             )
-            availableCategories.forEach { category ->
+            availableCategories.forEach { category: FinanceCategory ->
                 renderClassificationRadioChoice(
                     label = "${category.name} Category${if (category.archived) " (Archived)" else ""}",
                     isSelected = state.tagCategoryId == category.id,
@@ -506,9 +506,9 @@ private fun renderTagRow(
     actions: TagActions,
     isEnabled: Boolean,
 ): Unit {
-    val category: FinanceCategory? = categories.firstOrNull { category -> category.id == tag.categoryId }
+    val category: FinanceCategory? = categories.firstOrNull { candidate: FinanceCategory -> candidate.id == tag.categoryId }
     val association: String =
-        category?.let { parent ->
+        category?.let { parent: FinanceCategory ->
             "${parent.name} Category${if (parent.archived) " (Archived)" else ""}"
         } ?: if (tag.categoryId == null) "Independent" else "${tag.categoryName ?: "Unknown"} Category"
     Card(

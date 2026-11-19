@@ -45,21 +45,26 @@ C:\Users\Valentin\Desktop\Toshlol>"C:\Program Files\Java\jdk-17/bin/java.exe" "-
 > Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:processDebugResources UP-TO-DATE
+> Task :app:bundleDebugClassesToRuntimeJar UP-TO-DATE
 > Task :app:bundleDebugClassesToCompileJar UP-TO-DATE
-> Task :app:kspDebugUnitTestKotlin
+> Task :app:kspDebugUnitTestKotlin UP-TO-DATE
 > Task :app:preDebugUnitTestBuild UP-TO-DATE
+> Task :app:compileDebugUnitTestKotlin UP-TO-DATE
 > Task :app:javaPreCompileDebugUnitTest UP-TO-DATE
-> Task :app:processDebugJavaRes UP-TO-DATE
-> Task :app:preDebugAndroidTestBuild SKIPPED
-> Task :app:generateDebugAndroidTestLintModel
-> Task :app:extractProguardFiles UP-TO-DATE
-> Task :app:compileDebugUnitTestKotlin
-> Task :app:generateDebugLintReportModel
 > Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes UP-TO-DATE
 > Task :app:processDebugUnitTestJavaRes UP-TO-DATE
-> Task :app:generateDebugUnitTestLintModel
-> Task :app:bundleDebugClassesToRuntimeJar
-> Task :app:testDebugUnitTest
+> Task :app:testDebugUnitTest UP-TO-DATE
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestLintModel UP-TO-DATE
+> Task :app:extractProguardFiles UP-TO-DATE
+> Task :app:generateDebugLintReportModel UP-TO-DATE
+> Task :app:generateDebugUnitTestLintModel UP-TO-DATE
+> Task :app:lintAnalyzeDebug UP-TO-DATE
+> Task :app:lintAnalyzeDebugAndroidTest UP-TO-DATE
+> Task :app:lintAnalyzeDebugUnitTest UP-TO-DATE
+> Task :app:lintReportDebug UP-TO-DATE
+> Task :app:lintDebug
 > Task :app:loadKtlintReporters UP-TO-DATE
 > Task :app:runKtlintCheckOverAndroidTestDebugSourceSet NO-SOURCE
 > Task :app:ktlintAndroidTestDebugSourceSetCheck SKIPPED
@@ -144,14 +149,9 @@ C:\Users\Valentin\Desktop\Toshlol>"C:\Program Files\Java\jdk-17/bin/java.exe" "-
 > Task :app:packageDebugAndroidTest UP-TO-DATE
 > Task :app:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
 > Task :app:assembleDebugAndroidTest UP-TO-DATE
-> Task :app:lintAnalyzeDebugUnitTest
-> Task :app:lintAnalyzeDebug
-> Task :app:lintAnalyzeDebugAndroidTest
-> Task :app:lintReportDebug UP-TO-DATE
-> Task :app:lintDebug
 
-BUILD SUCCESSFUL in 1m 36s
-92 actionable tasks: 11 executed, 81 up-to-date
+BUILD SUCCESSFUL in 8s
+92 actionable tasks: 1 executed, 91 up-to-date
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html
 
 C:\Users\Valentin\Desktop\Toshlol>if 0 EQU 0 goto mainEnd

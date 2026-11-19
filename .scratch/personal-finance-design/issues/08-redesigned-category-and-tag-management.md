@@ -42,10 +42,10 @@ Each slice must remain independently demoable and keep existing callers and rele
 
 ## Answer
 
-Implemented the accessible text-only Categories & Tags manager, including direction-scoped category creation and renaming, independent and category-associated tags, validation, archiving, stable-reference history, archived Budget restrictions, and refreshed entry/filter choices. Returning from management now waits for related references to refresh, preventing stale category and tag options.
+Implemented the accessible text-only Categories & Tags manager, including direction-scoped category creation and renaming, independent and category-associated tags, validation, archiving, stable-reference history, archived Budget restrictions, and refreshed entry/filter choices. Returning from management now waits for related references to refresh, preventing stale category and tag options. When editing a transaction with an archived Category, existing associated Tags remain selected and removable while unassigned Tags under that Category are disabled.
 
 Verification passed on Android 10/API 29: all 85 connected tests passed with no failures or skips. Host-runner tests passed 15/15. `:app:testDebugUnitTest`, `:app:lintDebug`, `:app:ktlintCheck`, `:app:assembleDebug`, and `:app:assembleDebugAndroidTest` passed. The selected and empty Overview process-restart checks passed.
 
 Screenshots: [validation](evidence/08/classification-validation.png), [independent and associated tags](evidence/08/classification-independent-and-associated-tags.png), [renamed history](evidence/08/classification-renamed-history.png), [archived Budget restrictions](evidence/08/classification-archived-budget.png), and [large-font management](evidence/08/large-font-management.png).
 
-Run logs: [connected Android tests](evidence/08/connected-android-test.log), [Gradle checks](evidence/08/gradle-checks.log), [host-runner tests](evidence/08/host-tests.log), and [Overview persistence](evidence/08/overview-persistence.log). Overview restart evidence is under `build/overview-persistence/20261119T174310562546Z/`.
+Run logs: [connected Android tests](evidence/08/connected-android-test.log), [archived Category edit regression](evidence/08/focused-archived-category-regression.log), [Gradle checks](evidence/08/gradle-checks.log), [host-runner tests](evidence/08/host-tests.log), and [Overview persistence](evidence/08/overview-persistence.log). Overview restart evidence is under `build/overview-persistence/20261119T174310562546Z/`.

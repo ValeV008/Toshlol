@@ -1012,16 +1012,38 @@ class TransactionFlowTest {
     private fun archiveJourneyClassifications(fixture: ClassificationJourneyFixture): Unit {
         openOrganizerFromCurrentArea()
         val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
+        createAssociatedTag("Side dish", renamedCategory.id)
         ui.show(hasTestTag("archive-category-${renamedCategory.id}"), "category-tag-list").performClick()
         ui.showText("Groceries \u00b7 expense \u00b7 Archived", "category-tag-list")
+        closeClassificationManagement()
+        assertArchivedCategoryDoesNotOfferNewAssociatedTags(fixture)
+        openOrganizerFromCurrentArea()
         ui.show(hasTestTag("archive-tag-${fixture.tag.id}"), "category-tag-list").performClick()
         ui.showText("Dinner", "category-tag-list")
         ui.showText("Groceries Category (Archived) \u00b7 Archived", "category-tag-list")
         closeClassificationManagement()
+        navigateTo("Budgets")
         ui.showText("Monthly expense limits")
         ui.showText("Categories: Groceries (Archived)")
         ui.showText("Tags: Dinner (Archived)")
         saveEvidenceScreenshot("classification-evidence", "classification-archived-budget.png")
+    }
+
+    private fun assertArchivedCategoryDoesNotOfferNewAssociatedTags(fixture: ClassificationJourneyFixture): Unit {
+        navigateTo("Expenses")
+        ui.showText(fixture.monthLabel)
+        ui.clickText("-EUR 12.50")
+        composeRule
+            .onNodeWithTag("transaction-tag-${fixture.tag.id}")
+            .performScrollTo()
+            .assertIsOn()
+            .assertIsEnabled()
+        composeRule
+            .onNodeWithTag("transaction-tag-${tagId("Side dish")}")
+            .performScrollTo()
+            .assertIsOff()
+            .assertIsNotEnabled()
+        ui.clickText("Cancel")
     }
 
     private fun assertArchivedJourneyReferences(fixture: ClassificationJourneyFixture): Unit {
@@ -1686,7 +1708,7 @@ class TransactionFlowTest {
                 .organization
                 .load()
                 .categories
-                .single { category -> category.name == name && category.direction == direction }
+                .single { category: FinanceCategory -> category.name == name && category.direction == direction }
         }
 
     private fun tag(name: String): FinanceTag =
@@ -1695,7 +1717,7 @@ class TransactionFlowTest {
                 .organization
                 .load()
                 .tags
-                .single { tag -> tag.name == name }
+                .single { tag: FinanceTag -> tag.name == name }
         }
 
     private fun appContext(): Context = ApplicationProvider.getApplicationContext()

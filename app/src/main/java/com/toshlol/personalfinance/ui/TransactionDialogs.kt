@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
@@ -198,18 +200,23 @@ private fun TransactionEntryDialog(
                     Text("Category (optional)", color = Color.White, style = MaterialTheme.typography.titleSmall)
                     CategoryChoice("Uncategorized", state.categoryId == null) { actions.categoryChanged(null) }
                     state.categories
-                        .filter { (!it.archived || it.id == state.categoryId) && it.direction == state.direction }
-                        .forEach { category ->
+                        .filter { category: FinanceCategory ->
+                            (!category.archived || category.id == state.categoryId) && category.direction == state.direction
+                        }.forEach { category: FinanceCategory ->
                             CategoryChoice(category.name + if (category.archived) " (archived)" else "", state.categoryId == category.id) {
                                 actions.categoryChanged(category.id)
                             }
                         }
                     Text("Tags (optional)", color = Color.White, style = MaterialTheme.typography.titleSmall)
-                    state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag ->
-                        val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
-                        val isCategoryArchived: Boolean = state.categories.firstOrNull { it.id == tag.categoryId }?.archived == true
+                    state.tags.filter { tag: FinanceTag -> !tag.archived || tag.id in state.tagIds }.forEach { tag: FinanceTag ->
+                        val isCategoryArchived: Boolean =
+                            state.categories.firstOrNull { category: FinanceCategory -> category.id == tag.categoryId }?.archived == true
+                        val canAssignTag: Boolean =
+                            (tag.categoryId == null || tag.categoryId == state.categoryId) &&
+                                (!isCategoryArchived || tag.id in state.tagIds)
                         val categoryLabel: String =
-                            tag.categoryName?.let { " · $it" }.orEmpty() + if (isCategoryArchived) " (archived Category)" else ""
+                            tag.categoryName?.let { categoryName: String -> " · $categoryName" }.orEmpty() +
+                                if (isCategoryArchived) " (archived Category)" else ""
                         Row(
                             Modifier
                                 .fillMaxWidth()

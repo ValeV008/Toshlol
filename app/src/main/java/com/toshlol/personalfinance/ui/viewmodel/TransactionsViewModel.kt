@@ -861,7 +861,8 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(editingCategoryId = null, categoryName = "", error = null)
     }
 
-    fun saveCategory() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun saveCategory(): Unit {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
@@ -898,7 +899,8 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(editingTagId = null, tagName = "", tagCategoryId = null, error = null)
     }
 
-    fun saveTag() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun saveTag(): Unit {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {

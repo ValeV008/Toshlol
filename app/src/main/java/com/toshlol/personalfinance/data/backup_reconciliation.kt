@@ -89,7 +89,7 @@ internal class BackupReconciler {
         incoming: BackupBudget,
     ): Boolean =
         existing.copy(accountIds = emptyList()) == incoming.copy(accountIds = emptyList()) &&
-            hasSameAccountScope(existing.accountIds, incoming.accountIds)
+            hasSameIds(existing.accountIds, incoming.accountIds)
 
     private fun hasSameContent(
         existing: BackupRecurringBudget,
@@ -97,14 +97,14 @@ internal class BackupReconciler {
     ): Boolean =
         existing.copy(accountIds = emptyList(), categoryIds = emptyList(), tagIds = emptyList()) ==
             incoming.copy(accountIds = emptyList(), categoryIds = emptyList(), tagIds = emptyList()) &&
-            hasSameAccountScope(existing.accountIds, incoming.accountIds) &&
-            hasSameAccountScope(existing.categoryIds, incoming.categoryIds) &&
-            hasSameAccountScope(existing.tagIds, incoming.tagIds)
+            hasSameIds(existing.accountIds, incoming.accountIds) &&
+            hasSameIds(existing.categoryIds, incoming.categoryIds) &&
+            hasSameIds(existing.tagIds, incoming.tagIds)
 
-    private fun hasSameAccountScope(
-        existingAccountIds: List<String>,
-        incomingAccountIds: List<String>,
-    ): Boolean = existingAccountIds.sorted() == incomingAccountIds.sorted()
+    private fun hasSameIds(
+        existingIds: List<String>,
+        incomingIds: List<String>,
+    ): Boolean = existingIds.sorted() == incomingIds.sorted()
 
     private fun <T : BackupEntityRecord> countImported(
         local: List<T>,

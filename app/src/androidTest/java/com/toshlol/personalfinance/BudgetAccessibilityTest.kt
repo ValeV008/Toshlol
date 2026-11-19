@@ -166,7 +166,7 @@ class BudgetAccessibilityTest {
             .performScrollTo()
             .performClick()
             .assertIsNotSelected()
-        composeRule.onNodeWithText("Selected: Any Tag").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Selected: No Tag Restriction").performScrollTo().assertIsDisplayed()
         saveScreenEvidence("large-font-category-only.png")
         composeRule.onNodeWithTag("budget-tag-weekend").performClick().assertIsSelected()
         composeRule

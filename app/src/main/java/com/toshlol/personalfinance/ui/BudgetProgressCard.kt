@@ -125,4 +125,4 @@ internal fun formatBudgetTagNames(
         .map { tag ->
             tag?.name?.let { name -> name + if (tag.archived) " (Archived)" else "" } ?: "Unknown Tag"
         }.joinToString(", ")
-        .ifEmpty { "Any Tag" }
+        .ifEmpty { "No Tag Restriction" }

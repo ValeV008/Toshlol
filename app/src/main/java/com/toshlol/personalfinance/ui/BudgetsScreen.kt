@@ -26,15 +26,19 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.CategoryBudget
-import com.toshlol.personalfinance.data.FinanceCategory
-import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+
+private data class BudgetChoiceState(
+    val id: String,
+    val label: String,
+    val isSelected: Boolean,
+    val testTag: String,
+)
 
 @Composable
 fun BudgetsScreen(
@@ -146,15 +150,43 @@ private fun BudgetEditor(
         modifier = Modifier.fillMaxWidth().testTag("budget-limit"),
     )
     Text("Accounts", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-    state.accounts.forEach { account -> BudgetAccountChoice(account, account.id in state.budgetAccountIds, onAccountToggled) }
+    state.accounts.forEach { account ->
+        BudgetChoiceRow(
+            BudgetChoiceState(
+                account.id,
+                account.name + if (account.isArchived) " · Archived" else "",
+                account.id in state.budgetAccountIds,
+                "budget-account-${account.id}",
+            ),
+            onAccountToggled,
+        )
+    }
     Text("Expense Categories", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
     Text("Selected: ${formatBudgetCategoryNames(state.budgetCategoryIds, state.categories)}", style = MaterialTheme.typography.bodySmall)
     state.categories.filter { it.direction == TransactionDirection.EXPENSE }.forEach { category ->
-        BudgetCategoryChoice(category, category.id in state.budgetCategoryIds, onCategoryToggled)
+        BudgetChoiceRow(
+            BudgetChoiceState(
+                category.id,
+                category.name + if (category.archived) " · Archived" else "",
+                category.id in state.budgetCategoryIds,
+                "budget-category-${category.id}",
+            ),
+            onCategoryToggled,
+        )
     }
     Text("Tags", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
     Text("Selected: ${formatBudgetTagNames(state.budgetTagIds, state.tags)}", style = MaterialTheme.typography.bodySmall)
-    state.tags.forEach { tag -> BudgetTagChoice(tag, tag.id in state.budgetTagIds, onTagToggled) }
+    state.tags.forEach { tag ->
+        BudgetChoiceRow(
+            BudgetChoiceState(
+                tag.id,
+                tag.name + if (tag.archived) " · Archived" else "",
+                tag.id in state.budgetTagIds,
+                "budget-tag-${tag.id}",
+            ),
+            onTagToggled,
+        )
+    }
     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(
         onClick = onSave,
@@ -164,61 +196,20 @@ private fun BudgetEditor(
 }
 
 @Composable
-private fun BudgetAccountChoice(
-    account: Account,
-    isSelected: Boolean,
+private fun BudgetChoiceRow(
+    choice: BudgetChoiceState,
     onToggled: (String) -> Unit,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .testTag("budget-account-${account.id}")
-            .selectable(selected = isSelected, role = Role.Checkbox, onClick = { onToggled(account.id) })
+            .testTag(choice.testTag)
+            .selectable(selected = choice.isSelected, role = Role.Checkbox, onClick = { onToggled(choice.id) })
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Checkbox(checked = isSelected, onCheckedChange = null)
-        Text(account.name + if (account.isArchived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
-@Composable
-private fun BudgetCategoryChoice(
-    category: FinanceCategory,
-    isSelected: Boolean,
-    onToggled: (String) -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .testTag("budget-category-${category.id}")
-            .selectable(selected = isSelected, role = Role.Checkbox, onClick = { onToggled(category.id) })
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = isSelected, onCheckedChange = null)
-        Text(category.name + if (category.archived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
-    }
-}
-
-@Composable
-private fun BudgetTagChoice(
-    tag: FinanceTag,
-    isSelected: Boolean,
-    onToggled: (String) -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .testTag("budget-tag-${tag.id}")
-            .selectable(selected = isSelected, role = Role.Checkbox, onClick = { onToggled(tag.id) })
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(checked = isSelected, onCheckedChange = null)
-        Text(tag.name + if (tag.archived) " · Archived" else "", modifier = Modifier.padding(start = 8.dp))
+        Checkbox(checked = choice.isSelected, onCheckedChange = null)
+        Text(choice.label, modifier = Modifier.padding(start = 8.dp))
     }
 }

@@ -61,9 +61,11 @@ internal class RoomBackupStore(
             database.recurringBudgetDao().loadAll().map { budget ->
                 createBackupRecurringBudget(
                     budget,
-                    database.recurringBudgetDao().loadAccountIds(budget.id),
-                    database.recurringBudgetDao().loadCategoryIds(budget.id),
-                    database.recurringBudgetDao().loadTagIds(budget.id),
+                    RecurringBudgetBackupScope(
+                        accountIds = database.recurringBudgetDao().loadAccountIds(budget.id),
+                        categoryIds = database.recurringBudgetDao().loadCategoryIds(budget.id),
+                        tagIds = database.recurringBudgetDao().loadTagIds(budget.id),
+                    ),
                 )
             },
         )
@@ -123,19 +125,17 @@ internal class RoomBackupStore(
 
     private fun createBackupRecurringBudget(
         budget: RecurringBudgetEntity,
-        accountIds: List<String>,
-        categoryIds: List<String>,
-        tagIds: List<String>,
+        scope: RecurringBudgetBackupScope,
     ): BackupRecurringBudget =
         BackupRecurringBudget(
             budget.id,
             budget.name,
             budget.limitMinor,
-            accountIds,
+            scope.accountIds,
             budget.createdAt,
             budget.updatedAt,
-            categoryIds,
-            tagIds,
+            scope.categoryIds,
+            scope.tagIds,
         )
 
     private suspend fun clearLedger(): Unit {

@@ -120,6 +120,12 @@ data class BackupRecurringBudget(
     val tagIds: List<String> = emptyList(),
 ) : BackupEntityRecord
 
+internal data class RecurringBudgetBackupScope(
+    val accountIds: List<String>,
+    val categoryIds: List<String>,
+    val tagIds: List<String>,
+)
+
 @Serializable
 private data class FinanceBackupV1(
     val schemaVersion: Int,
@@ -329,9 +335,11 @@ class RoomBackupExporter(
             },
             database.recurringBudgetDao().loadAll().map { budget: RecurringBudgetEntity ->
                 budget.toBackup(
-                    database.recurringBudgetDao().loadAccountIds(budget.id),
-                    database.recurringBudgetDao().loadCategoryIds(budget.id),
-                    database.recurringBudgetDao().loadTagIds(budget.id),
+                    RecurringBudgetBackupScope(
+                        accountIds = database.recurringBudgetDao().loadAccountIds(budget.id),
+                        categoryIds = database.recurringBudgetDao().loadCategoryIds(budget.id),
+                        tagIds = database.recurringBudgetDao().loadTagIds(budget.id),
+                    ),
                 )
             },
         )
@@ -353,9 +361,15 @@ class RoomBackupExporter(
     private fun BudgetEntity.toBackup(accountIds: List<String>): BackupBudget =
         BackupBudget(id, categoryId, month, amountMinor, createdAt, updatedAt, accountIds)
 
-    private fun RecurringBudgetEntity.toBackup(
-        accountIds: List<String>,
-        categoryIds: List<String>,
-        tagIds: List<String>,
-    ): BackupRecurringBudget = BackupRecurringBudget(id, name, limitMinor, accountIds, createdAt, updatedAt, categoryIds, tagIds)
+    private fun RecurringBudgetEntity.toBackup(scope: RecurringBudgetBackupScope): BackupRecurringBudget =
+        BackupRecurringBudget(
+            id,
+            name,
+            limitMinor,
+            scope.accountIds,
+            createdAt,
+            updatedAt,
+            scope.categoryIds,
+            scope.tagIds,
+        )
 }

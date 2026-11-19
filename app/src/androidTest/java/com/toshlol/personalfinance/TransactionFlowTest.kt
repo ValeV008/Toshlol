@@ -45,6 +45,7 @@ import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetDraft
 import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
+import com.toshlol.personalfinance.data.RoomTransactionRepository
 import com.toshlol.personalfinance.data.RoomTransferRepository
 import com.toshlol.personalfinance.data.TagDraft
 import com.toshlol.personalfinance.data.TransactionDirection
@@ -79,6 +80,13 @@ private const val ACCOUNT_SELECTION_SWIPE_DURATION_MILLIS: Long = 450L
 class TransactionFlowTest {
     private val composeRule: AndroidComposeTestRule<ActivityScenarioRule<MainActivity>, MainActivity> = createAndroidComposeRule()
     private val ui: FinanceUiDriver = FinanceUiDriver(composeRule)
+
+    private data class BudgetRestrictionExpense(
+        val amountMinor: Long,
+        val month: YearMonth,
+        val categoryId: String,
+        val tagId: String,
+    )
 
     @get:Rule
     val rules: RuleChain =
@@ -778,7 +786,7 @@ class TransactionFlowTest {
         saveBudgetEvidenceScreenshot("budget-editor.png")
         composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
         ui.showText("Categories: Food")
-        ui.showText("Tags: Any Tag")
+        ui.showText("Tags: No Tag Restriction")
         verifyRemainingBudgetOnBothScreens()
         composeRule.onNodeWithTag("overview-root").performTouchInput {
             swipe(start = center.copy(x = center.x * 2f - 1f), end = center.copy(x = center.x * 0.8f), durationMillis = 450)
@@ -788,7 +796,7 @@ class TransactionFlowTest {
         ui.showText("Household")
         ui.showText("Accounts: Cash")
         ui.showText("Categories: Food")
-        ui.showText("Tags: Any Tag")
+        ui.showText("Tags: No Tag Restriction")
         ui.showText("Spent  EUR 12.50")
         ui.showText("Remaining  EUR 7.50")
         saveBudgetEvidenceScreenshot("overview-budget-progress.png")
@@ -800,6 +808,32 @@ class TransactionFlowTest {
         ui.showText("Over budget")
         navigateTo("Budgets")
         verifyOverBudgetOnBothScreens()
+    }
+
+    @Test
+    fun editBudgetCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonthsOnBothScreens() {
+        val currentMonth: YearMonth = YearMonth.now()
+        createBudgetRestrictionDefinitions()
+        saveBudgetRestrictionExpenses(currentMonth)
+        assertEquals(6, runBlocking { transactionRepository().loadTransactions().size })
+        composeRule.onNodeWithTag("open-budgets").performClick()
+        ui.enterText("Budget name", "Household")
+        ui.enterText("Monthly limit (EUR)", "100.00")
+        composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-tag-${tagId("Lunch")}").performScrollTo().performClick()
+        ui.clickText("Save Budget")
+        ui.showText("Spent  EUR 12.50")
+        ui.clickText("Edit Budget")
+        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-category-${categoryId("Dining")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-tag-${tagId("Lunch")}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("budget-tag-${tagId("Weekend")}").performScrollTo().performClick()
+        ui.clickText("Save changes")
+        ui.showText("Categories: Dining")
+        ui.showText("Tags: Weekend")
+        verifyBudgetFilterMonths()
+        verifyBudgetFilterMonthsOnOverview()
     }
 
     @Test
@@ -1062,6 +1096,75 @@ class TransactionFlowTest {
             .assertIsOn()
         ui.clickText("Save")
         assertEquals(1250L, runBlocking { transactionRepository().loadTransactions().single().amountMinor })
+    }
+
+    private fun createBudgetRestrictionDefinitions() {
+        createFoodCategory()
+        ui.enterText("Category name", "Dining", "category-tag-list")
+        ui.clickText("Add category", "category-tag-list")
+        ui.enterText("Tag name", "Lunch", "category-tag-list")
+        ui.clickText("Add tag", "category-tag-list")
+        ui.enterText("Tag name", "Weekend", "category-tag-list")
+        ui.clickText("Add tag", "category-tag-list")
+        ui.clickText("Back to overview")
+    }
+
+    private fun saveBudgetRestrictionExpenses(currentMonth: YearMonth) {
+        val repository: RoomTransactionRepository = transactionRepository()
+        val foodCategoryId: String = categoryId("Food")
+        val diningCategoryId: String = categoryId("Dining")
+        val lunchTagId: String = tagId("Lunch")
+        val weekendTagId: String = tagId("Weekend")
+        listOf(
+            BudgetRestrictionExpense(200L, currentMonth.minusMonths(1), foodCategoryId, lunchTagId),
+            BudgetRestrictionExpense(1_250L, currentMonth, foodCategoryId, lunchTagId),
+            BudgetRestrictionExpense(300L, currentMonth.plusMonths(1), foodCategoryId, lunchTagId),
+            BudgetRestrictionExpense(400L, currentMonth.minusMonths(1), diningCategoryId, weekendTagId),
+            BudgetRestrictionExpense(500L, currentMonth, diningCategoryId, weekendTagId),
+            BudgetRestrictionExpense(600L, currentMonth.plusMonths(1), diningCategoryId, weekendTagId),
+        ).forEach { expense -> saveBudgetRestrictionExpense(expense, repository) }
+    }
+
+    private fun saveBudgetRestrictionExpense(
+        expense: BudgetRestrictionExpense,
+        repository: RoomTransactionRepository,
+    ) {
+        runBlocking {
+            repository.save(
+                TransactionDraft(
+                    id = null,
+                    accountId = accountId("Cash"),
+                    amountMinor = expense.amountMinor,
+                    direction = TransactionDirection.EXPENSE,
+                    date = expense.month.atDay(6).toEpochDay(),
+                    note = null,
+                    categoryId = expense.categoryId,
+                    tagIds = setOf(expense.tagId),
+                ),
+            )
+        }
+    }
+
+    private fun verifyBudgetFilterMonths() {
+        composeRule.onNodeWithTag("budget-previous-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 4.00")
+        composeRule.onNodeWithTag("budget-next-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 5.00")
+        composeRule.onNodeWithTag("budget-next-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 6.00")
+    }
+
+    private fun verifyBudgetFilterMonthsOnOverview() {
+        ui.clickText("Back to overview")
+        ui.showText("Spent  EUR 6.00")
+        composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 5.00")
+        composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 4.00")
+        composeRule.onNodeWithTag("next-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 5.00")
+        composeRule.onNodeWithTag("next-month").performScrollTo().performClick()
+        ui.showText("Spent  EUR 6.00")
     }
 
     private fun verifyRemainingBudgetOnBothScreens() {

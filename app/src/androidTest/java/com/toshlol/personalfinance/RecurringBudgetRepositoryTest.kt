@@ -214,6 +214,85 @@ class RecurringBudgetRepositoryTest {
         }
 
     @Test
+    fun editCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonths(): Unit =
+        runTest {
+            val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+            try {
+                val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
+                val account: Account = fixtures.createFirstAccount("Cash")
+                val groceryCategoryId: String =
+                    fixtures.organization
+                        .saveCategory(CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE))
+                        .categories
+                        .single { it.name == "Groceries" }
+                        .id
+                val diningCategoryId: String =
+                    fixtures.organization
+                        .saveCategory(CategoryDraft(name = "Dining", direction = TransactionDirection.EXPENSE))
+                        .categories
+                        .single { it.name == "Dining" }
+                        .id
+                val weekendTagId: String =
+                    fixtures.organization
+                        .saveTag(TagDraft(name = "Weekend"))
+                        .tags
+                        .single { it.name == "Weekend" }
+                        .id
+                val holidayTagId: String =
+                    fixtures.organization
+                        .saveTag(TagDraft(name = "Holiday"))
+                        .tags
+                        .single { it.name == "Holiday" }
+                        .id
+                val pastMonth: YearMonth = YearMonth.now().minusMonths(1)
+                val currentMonth: YearMonth = YearMonth.now()
+                val futureMonth: YearMonth = YearMonth.now().plusMonths(1)
+                saveExpense(fixtures, account, 100L, pastMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
+                saveExpense(fixtures, account, 200L, currentMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
+                saveExpense(fixtures, account, 300L, futureMonth.atDay(2), groceryCategoryId, setOf(weekendTagId))
+                saveExpense(fixtures, account, 400L, pastMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
+                saveExpense(fixtures, account, 500L, currentMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
+                saveExpense(fixtures, account, 600L, futureMonth.atDay(3), diningCategoryId, setOf(holidayTagId))
+                val repository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(database, { "edited-budget" }, { 500L })
+                val original: RecurringBudgetProgress =
+                    repository
+                        .save(
+                            RecurringBudgetDraft(
+                                null,
+                                "Household",
+                                1_000L,
+                                setOf(account.id),
+                                setOf(groceryCategoryId),
+                                setOf(weekendTagId),
+                            ),
+                            currentMonth,
+                        ).single()
+                val updated: RecurringBudgetProgress =
+                    repository
+                        .save(
+                            RecurringBudgetDraft(
+                                original.id,
+                                original.name,
+                                original.limitMinor,
+                                original.accountIds,
+                                setOf(diningCategoryId),
+                                setOf(holidayTagId),
+                            ),
+                            currentMonth,
+                        ).single()
+                assertEquals(original.id, updated.id)
+                assertEquals(500L, updated.spentMinor)
+                assertEquals(400L, repository.load(pastMonth).single().spentMinor)
+                assertEquals(500L, repository.load(currentMonth).single().spentMinor)
+                assertEquals(600L, repository.load(futureMonth).single().spentMinor)
+                assertEquals(setOf(diningCategoryId), repository.load(pastMonth).single().categoryIds)
+                assertEquals(setOf(holidayTagId), repository.load(futureMonth).single().tagIds)
+            } finally {
+                database.close()
+            }
+        }
+
+    @Test
     fun rejectMissingOrIncomeCategoryFiltersWithoutReplacingSavedBudget(): Unit =
         runTest {
             val database: AppDatabase = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()

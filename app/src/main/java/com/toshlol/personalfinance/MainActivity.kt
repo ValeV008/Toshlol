@@ -215,6 +215,7 @@ class MainActivity : ComponentActivity() {
                                             save = transactionsViewModel::saveCategory,
                                             edit = transactionsViewModel::beginCategoryEdit,
                                             archive = transactionsViewModel::archiveCategory,
+                                            cancelEditing = transactionsViewModel::cancelCategoryEdit,
                                         ),
                                     tags =
                                         TagActions(
@@ -223,6 +224,7 @@ class MainActivity : ComponentActivity() {
                                             save = transactionsViewModel::saveTag,
                                             edit = transactionsViewModel::beginTagEdit,
                                             archive = transactionsViewModel::archiveTag,
+                                            cancelEditing = transactionsViewModel::cancelTagEdit,
                                         ),
                                     accounts =
                                         AccountEditorActions(

@@ -1,10 +1,12 @@
-﻿package com.toshlol.personalfinance.ui
+package com.toshlol.personalfinance.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +14,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -23,11 +27,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.AccountType
@@ -36,173 +46,461 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
+private val ClassificationCharcoal: Color = Color(0xFF292B2F)
+private val ClassificationPageGray: Color = Color(0xFFF1F2F4)
+private val ClassificationCardRadius = 20.dp
+
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
 fun CategoryTagScreen(
     state: TransactionsUiState,
     actions: OrganizerActions,
 ): Unit {
-    val keyboardController = LocalSoftwareKeyboardController.current
     var isAccountSectionVisible: Boolean by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Categories and tags", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-        OutlinedButton(onClick = actions.close) { Text("Back to overview") }
-        LazyColumn(Modifier.testTag("category-tag-list"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize().background(ClassificationPageGray)) {
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth().testTag("category-tag-list"),
+            contentPadding =
+                androidx.compose.foundation.layout
+                    .PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item {
-                Text("Account", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                OutlinedButton(onClick = { isAccountSectionVisible = !isAccountSectionVisible }) {
-                    Text(if (isAccountSectionVisible) "Hide accounts" else "Manage accounts")
+                ClassificationHeader(actions.close, isEnabled = !state.isSaving)
+            }
+            item {
+                AccountManagementCard(state, actions.accounts, isAccountSectionVisible) {
+                    isAccountSectionVisible = !isAccountSectionVisible
                 }
-                if (isAccountSectionVisible) {
-                    Text("Account closing balances for ${state.selectedMonth}", style = MaterialTheme.typography.titleMedium)
-                    state.accounts.forEach { account ->
-                        Text(
-                            "${account.name} · ${account.type.label} · ${state.currency} ${formatMoney(
-                                state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L,
-                                state.currency,
-                            )}${if (account.isArchived) " · Archived" else ""}",
-                        )
-                        if (!account.isArchived) {
-                            TextButton(onClick = { actions.accounts.select(account.id) }) {
-                                val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
-                                Text("$accountAction ${account.name}")
-                            }
-                            TextButton(onClick = { actions.accounts.archive(account.id) }) { Text("Archive ${account.name}") }
-                        }
-                    }
-                    OutlinedTextField(
-                        state.accountNameDraft,
-                        actions.accounts.nameChanged,
-                        label = { Text("Account name") },
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        state.openingBalanceAmount,
-                        actions.accounts.openingBalanceChanged,
-                        label = { Text("Account opening balance") },
-                        singleLine = true,
-                    )
-                    OutlinedTextField(state.openingBalanceDate, actions.accounts.openingDateChanged, label = {
-                        Text("Account opening date (YYYY-MM-DD)")
-                    }, singleLine = true)
-                    Button(
-                        onClick = {
-                            keyboardController?.hide()
-                            actions.accounts.save()
-                        },
-                        enabled = !state.isSaving,
-                    ) { Text("Save account details") }
-                    Text("Add Account", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(
-                        value = state.newAccountName,
-                        onValueChange = actions.accounts.newNameChanged,
-                        label = { Text("New account name") },
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = state.newAccountOpeningBalance,
-                        onValueChange = actions.accounts.newOpeningBalanceChanged,
-                        label = { Text("New account opening balance") },
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = state.newAccountOpeningDate,
-                        onValueChange = actions.accounts.newOpeningDateChanged,
-                        label = { Text("New account opening date (YYYY-MM-DD)") },
-                        singleLine = true,
-                    )
-                    Row {
-                        AccountType.entries.forEach { type ->
-                            Row(
-                                Modifier
-                                    .selectable(
-                                        selected = state.newAccountType == type,
-                                        role = androidx.compose.ui.semantics.Role.RadioButton,
-                                        onClick = { actions.accounts.newTypeChanged(type) },
-                                    ),
-                            ) {
-                                RadioButton(selected = state.newAccountType == type, onClick = null)
-                                Text(type.name.lowercase().replaceFirstChar(Char::uppercase))
-                            }
-                        }
-                    }
-                    Button(onClick = actions.accounts.create, enabled = !state.isSaving) { Text("Create account") }
-                }
+            }
+            item {
+                CategoryEditorCard(state, actions.categories)
             }
             item {
                 Text("Categories", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                OutlinedTextField(state.categoryName, actions.categories.nameChanged, label = { Text("Category name") }, singleLine = true)
-                Row {
-                    TransactionDirection.entries.forEach { direction: TransactionDirection ->
-                        Row {
-                            RadioButton(
-                                selected = state.categoryDirection == direction,
-                                onClick = { actions.categories.directionChanged(direction) },
-                                enabled = state.editingCategoryId == null,
-                            )
-                            Text(direction.name.lowercase().replaceFirstChar(Char::uppercase))
-                        }
-                    }
-                }
+            }
+            items(state.categories, key = { category -> "category-${category.id}" }) { category ->
+                CategoryRow(category, actions.categories, isEnabled = !state.isSaving)
             }
             item {
-                Button(
-                    onClick = {
-                        keyboardController?.hide()
-                        actions.categories.save()
-                    },
-                    enabled = !state.isSaving,
-                ) { Text(if (state.editingCategoryId == null) "Add category" else "Save category") }
+                TagEditorCard(state, actions.tags)
             }
             item {
                 Text("Tags", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                OutlinedTextField(
-                    state.tagName,
-                    actions.tags.nameChanged,
-                    label = { Text("Tag name") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
-                )
-                Row {
-                    RadioButton(selected = state.tagCategoryId == null, onClick = { actions.tags.categoryChanged(null) })
-                    Text("Independent")
-                }
-                state.categories.filterNot(FinanceCategory::archived).forEach { category: FinanceCategory ->
-                    Row {
-                        RadioButton(selected = state.tagCategoryId == category.id, onClick = { actions.tags.categoryChanged(category.id) })
-                        Text("${category.name} tag")
+            }
+            items(state.tags, key = { tag -> "tag-${tag.id}" }) { tag ->
+                TagRow(tag, state.categories, actions.tags, isEnabled = !state.isSaving)
+            }
+        }
+        state.error?.let { error ->
+            Text(
+                error,
+                Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(12.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun ClassificationHeader(
+    onBack: () -> Unit,
+    isEnabled: Boolean,
+): Unit {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                ClassificationCharcoal,
+                androidx.compose.foundation.shape
+                    .RoundedCornerShape(ClassificationCardRadius),
+            ).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            "Categories & Tags",
+            color = Color.White,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            "Use text labels to organize Income and Expense Transactions.",
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedButton(
+            onClick = onBack,
+            enabled = isEnabled,
+            modifier = Modifier.heightIn(min = 48.dp).testTag("classification-back"),
+        ) {
+            Text("Back to overview")
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun AccountManagementCard(
+    state: TransactionsUiState,
+    actions: AccountEditorActions,
+    isVisible: Boolean,
+    onVisibilityChanged: () -> Unit,
+): Unit {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(ClassificationCardRadius),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+            OutlinedButton(onClick = onVisibilityChanged, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(if (isVisible) "Hide accounts" else "Manage accounts")
+            }
+            if (isVisible) {
+                Text("Account closing balances for ${state.selectedMonth}", style = MaterialTheme.typography.titleMedium)
+                state.accounts.forEach { account ->
+                    Text(
+                        "${account.name} · ${account.type.label} · ${state.currency} ${formatMoney(
+                            state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L,
+                            state.currency,
+                        )}${if (account.isArchived) " · Archived" else ""}",
+                    )
+                    if (!account.isArchived) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick = { actions.select(account.id) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
+                                Text("$accountAction ${account.name}")
+                            }
+                            TextButton(onClick = { actions.archive(account.id) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Archive ${account.name}")
+                            }
+                        }
                     }
                 }
+                OutlinedTextField(
+                    value = state.accountNameDraft,
+                    onValueChange = actions.nameChanged,
+                    label = { Text("Account name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.openingBalanceAmount,
+                    onValueChange = actions.openingBalanceChanged,
+                    label = { Text("Account opening balance") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.openingBalanceDate,
+                    onValueChange = actions.openingDateChanged,
+                    label = { Text("Account opening date (YYYY-MM-DD)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = actions.save,
+                    enabled = !state.isSaving,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("Save account details") }
+                Text("Add Account", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = state.newAccountName,
+                    onValueChange = actions.newNameChanged,
+                    label = { Text("New account name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.newAccountOpeningBalance,
+                    onValueChange = actions.newOpeningBalanceChanged,
+                    label = { Text("New account opening balance") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.newAccountOpeningDate,
+                    onValueChange = actions.newOpeningDateChanged,
+                    label = { Text("New account opening date (YYYY-MM-DD)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AccountType.entries.forEach { type ->
+                        ClassificationRadioChoice(
+                            label = type.name.lowercase().replaceFirstChar(Char::uppercase),
+                            isSelected = state.newAccountType == type,
+                            onSelected = { actions.newTypeChanged(type) },
+                            modifier = Modifier.weight(1f).testTag("account-type-${type.name}"),
+                        )
+                    }
+                }
+                Button(
+                    onClick = actions.create,
+                    enabled = !state.isSaving,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) { Text("Create account") }
             }
-            item {
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun CategoryEditorCard(
+    state: TransactionsUiState,
+    actions: CategoryActions,
+): Unit {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isEditing: Boolean = state.editingCategoryId != null
+    Card(
+        Modifier.fillMaxWidth().testTag("category-editor"),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(ClassificationCardRadius),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                if (isEditing) "Edit Category" else "New Category",
+                style = MaterialTheme.typography.titleLarge,
+                modifier =
+                    Modifier
+                        .semantics {
+                            heading()
+                        },
+            )
+            OutlinedTextField(
+                value = state.categoryName,
+                onValueChange = actions.nameChanged,
+                label = { Text("Category name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text("Direction", style = MaterialTheme.typography.titleMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TransactionDirection.entries.forEach { direction ->
+                    ClassificationRadioChoice(
+                        label = direction.name.lowercase().replaceFirstChar(Char::uppercase),
+                        isSelected = state.categoryDirection == direction,
+                        onSelected = { actions.directionChanged(direction) },
+                        enabled = !isEditing,
+                        modifier = Modifier.weight(1f).testTag("category-direction-${direction.name}"),
+                    )
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
                         keyboardController?.hide()
-                        actions.tags.save()
+                        actions.save()
                     },
                     enabled = !state.isSaving,
-                ) { Text(if (state.editingTagId == null) "Add tag" else "Save tag") }
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-            items(state.categories, key = { "category-${it.id}" }) { category: FinanceCategory ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${category.name} · ${category.direction.name.lowercase()}${if (category.archived) " · archived" else ""}")
-                    if (!category.archived) {
-                        TextButton(onClick = { actions.categories.edit(category) }) { Text("Rename") }
-                        TextButton(onClick = { actions.categories.archive(category.id) }) { Text("Archive") }
-                    }
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                ) { Text(if (isEditing) "Save category" else "Add category") }
+                if (isEditing) {
+                    OutlinedButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            actions.cancelEditing()
+                        },
+                        enabled = !state.isSaving,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) { Text("Cancel Category edit") }
                 }
             }
-            items(state.tags, key = { "tag-${it.id}" }) { tag: FinanceTag ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("${tag.name}${tag.categoryName?.let { " · $it" }.orEmpty()}${if (tag.archived) " · archived" else ""}")
-                    if (!tag.archived) {
-                        TextButton(onClick = { actions.tags.edit(tag) }) { Text("Rename") }
-                        TextButton(onClick = { actions.tags.archive(tag.id) }) { Text("Archive") }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun CategoryRow(
+    category: FinanceCategory,
+    actions: CategoryActions,
+    isEnabled: Boolean,
+): Unit {
+    Card(
+        Modifier.fillMaxWidth().testTag("category-row-${category.id}").semantics {
+            stateDescription = if (category.archived) "Archived" else "Active"
+        },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(16.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text(
+                "${category.name} · ${category.direction.name.lowercase()}${if (category.archived) " · Archived" else ""}",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(
+                    onClick = { actions.edit(category) },
+                    enabled = isEnabled,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("edit-category-${category.id}"),
+                ) {
+                    Text(if (category.archived) "Rename archived" else "Rename")
+                }
+                if (!category.archived) {
+                    TextButton(
+                        onClick = { actions.archive(category.id) },
+                        enabled = isEnabled,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("archive-category-${category.id}"),
+                    ) {
+                        Text("Archive")
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun TagEditorCard(
+    state: TransactionsUiState,
+    actions: TagActions,
+): Unit {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isEditing: Boolean = state.editingTagId != null
+    val availableCategories: List<FinanceCategory> =
+        state.categories.filter { category -> !category.archived || category.id == state.tagCategoryId }
+    Card(
+        Modifier.fillMaxWidth().testTag("tag-editor"),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(ClassificationCardRadius),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                if (isEditing) "Edit Tag" else "New Tag",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+            OutlinedTextField(
+                value = state.tagName,
+                onValueChange = actions.nameChanged,
+                label = { Text("Tag name") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text("Category association", style = MaterialTheme.typography.titleMedium)
+            ClassificationRadioChoice(
+                label = "Independent",
+                isSelected = state.tagCategoryId == null,
+                onSelected = { actions.categoryChanged(null) },
+                modifier = Modifier.testTag("tag-association-independent"),
+            )
+            availableCategories.forEach { category ->
+                ClassificationRadioChoice(
+                    label = "${category.name} Category${if (category.archived) " (Archived)" else ""}",
+                    isSelected = state.tagCategoryId == category.id,
+                    onSelected = { actions.categoryChanged(category.id) },
+                    modifier = Modifier.testTag("tag-category-${category.id}"),
+                )
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        keyboardController?.hide()
+                        actions.save()
+                    },
+                    enabled = !state.isSaving,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                ) { Text(if (isEditing) "Save tag" else "Add tag") }
+                if (isEditing) {
+                    OutlinedButton(
+                        onClick = {
+                            keyboardController?.hide()
+                            actions.cancelEditing()
+                        },
+                        enabled = !state.isSaving,
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) { Text("Cancel Tag edit") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun TagRow(
+    tag: FinanceTag,
+    categories: List<FinanceCategory>,
+    actions: TagActions,
+    isEnabled: Boolean,
+): Unit {
+    val category: FinanceCategory? = categories.firstOrNull { category -> category.id == tag.categoryId }
+    val association: String =
+        category?.let { parent ->
+            "${parent.name} Category${if (parent.archived) " (Archived)" else ""}"
+        } ?: if (tag.categoryId == null) "Independent" else "${tag.categoryName ?: "Unknown"} Category"
+    Card(
+        Modifier.fillMaxWidth().testTag("tag-row-${tag.id}").semantics {
+            stateDescription = if (tag.archived) "Archived" else "Active"
+        },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape =
+            androidx.compose.foundation.shape
+                .RoundedCornerShape(16.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text(tag.name, style = MaterialTheme.typography.titleMedium)
+            Text("$association${if (tag.archived) " · Archived" else ""}", style = MaterialTheme.typography.bodyMedium)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(
+                    onClick = { actions.edit(tag) },
+                    enabled = isEnabled,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("edit-tag-${tag.id}"),
+                ) {
+                    Text(if (tag.archived) "Rename archived" else "Rename")
+                }
+                if (!tag.archived) {
+                    TextButton(
+                        onClick = { actions.archive(tag.id) },
+                        enabled = isEnabled,
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("archive-tag-${tag.id}"),
+                    ) {
+                        Text("Archive")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun ClassificationRadioChoice(
+    label: String,
+    isSelected: Boolean,
+    onSelected: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+): Unit {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = onSelected)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = isSelected, onClick = null, enabled = enabled)
+        Text(label, modifier = Modifier.padding(start = 8.dp))
     }
 }

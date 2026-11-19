@@ -207,6 +207,9 @@ private fun TransactionEntryDialog(
                     Text("Tags (optional)", color = Color.White, style = MaterialTheme.typography.titleSmall)
                     state.tags.filter { !it.archived || it.id in state.tagIds }.forEach { tag ->
                         val canAssignTag: Boolean = tag.categoryId == null || tag.categoryId == state.categoryId
+                        val isCategoryArchived: Boolean = state.categories.firstOrNull { it.id == tag.categoryId }?.archived == true
+                        val categoryLabel: String =
+                            tag.categoryName?.let { " · $it" }.orEmpty() + if (isCategoryArchived) " (archived Category)" else ""
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -221,7 +224,7 @@ private fun TransactionEntryDialog(
                         ) {
                             Checkbox(checked = tag.id in state.tagIds, onCheckedChange = null, enabled = canAssignTag)
                             Text(
-                                tag.name + tag.categoryName?.let { " · $it" }.orEmpty() + if (tag.archived) " (archived)" else "",
+                                tag.name + categoryLabel + if (tag.archived) " (archived)" else "",
                                 color = Color.White,
                             )
                         }

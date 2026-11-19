@@ -83,6 +83,7 @@ data class CategoryActions(
     val save: () -> Unit,
     val edit: (FinanceCategory) -> Unit,
     val archive: (String) -> Unit,
+    val cancelEditing: () -> Unit,
 )
 
 data class TagActions(
@@ -91,6 +92,7 @@ data class TagActions(
     val save: () -> Unit,
     val edit: (FinanceTag) -> Unit,
     val archive: (String) -> Unit,
+    val cancelEditing: () -> Unit,
 )
 
 data class AccountEditorActions(

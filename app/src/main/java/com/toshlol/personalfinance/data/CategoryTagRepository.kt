@@ -130,7 +130,10 @@ class RoomCategoryTagRepository(
                     "An active tag with this name already exists."
                 }
                 val category: CategoryEntity? = draft.categoryId?.let { database.categoryTagDao().loadCategory(it) }
-                require(draft.categoryId == null || category?.archived == false) { "Choose an active category for this tag." }
+                val keepsArchivedCategory: Boolean = category != null && category.archived && existing?.categoryId == category.id
+                require(draft.categoryId == null || category?.archived == false || keepsArchivedCategory) {
+                    "Choose an active category for this tag."
+                }
                 val timestamp: Long = currentTime()
                 database.categoryTagDao().saveTag(
                     TagEntity(

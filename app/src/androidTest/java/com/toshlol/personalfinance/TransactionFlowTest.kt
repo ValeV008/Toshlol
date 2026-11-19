@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isDisplayed
@@ -714,6 +716,225 @@ class TransactionFlowTest {
     }
 
     @Test
+    fun manageTextOnlyDirectionScopedCategories() {
+        openOrganizer()
+        composeRule.onNodeWithText("Choose Category icon").assertDoesNotExist()
+        ui.enterText("Category name", "Utilities", "category-tag-list")
+        composeRule.onNodeWithTag("category-direction-EXPENSE").assertIsSelected()
+        ui.clickText("Add category", "category-tag-list")
+        val expenseCategory: FinanceCategory = category("Utilities", TransactionDirection.EXPENSE)
+        composeRule
+            .onNodeWithTag("category-direction-INCOME")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
+        ui.enterText("Category name", "Utilities", "category-tag-list")
+        ui.clickText("Add category", "category-tag-list")
+        val incomeCategory: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
+        assertTrue(expenseCategory.id != incomeCategory.id)
+        composeRule
+            .onNodeWithTag("category-direction-EXPENSE")
+            .performScrollTo()
+            .performClick()
+            .assertIsSelected()
+        ui.enterText("Category name", " utilities ", "category-tag-list")
+        ui.clickText("Add category", "category-tag-list")
+        ui.showText("An active category with this name already exists.")
+        ui.showText("Utilities · expense", "category-tag-list")
+        editCategory(expenseCategory.id)
+        composeRule.onNodeWithTag("category-direction-EXPENSE").performScrollTo().assertIsNotEnabled()
+        ui.enterText("Category name", "Household", "category-tag-list")
+        ui.clickText("Save category", "category-tag-list")
+        val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
+        val preservedIncome: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
+        assertEquals(expenseCategory.id, renamedExpense.id)
+        assertEquals(incomeCategory.id, preservedIncome.id)
+        ui.showText("Household · expense", "category-tag-list")
+        ui.showText("Utilities · income", "category-tag-list")
+    }
+
+    @Test
+    fun manageIndependentAndAssociatedTags() {
+        createFoodCategory()
+        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        ui.enterText("Tag name", "Everywhere", "category-tag-list")
+        composeRule.onNodeWithTag("tag-association-independent").assertIsSelected()
+        ui.clickText("Add tag", "category-tag-list")
+        val independentTag: FinanceTag = tag("Everywhere")
+        ui.showText("Everywhere", "category-tag-list")
+        ui.show(hasTestTag("tag-category-${foodCategory.id}"), "category-tag-list").performClick().assertIsSelected()
+        ui.enterText("Tag name", "Lunch", "category-tag-list")
+        ui.clickText("Add tag", "category-tag-list")
+        val associatedTag: FinanceTag = tag("Lunch")
+        assertTrue(independentTag.id != associatedTag.id)
+        ui.showText("Lunch", "category-tag-list")
+        editTag(independentTag.id)
+        ui.enterText("Tag name", "Any meal", "category-tag-list")
+        ui.show(hasTestTag("tag-category-${foodCategory.id}"), "category-tag-list").performClick()
+        ui.clickText("Save tag", "category-tag-list")
+        val renamedAssociatedTag: FinanceTag = tag("Any meal")
+        assertEquals(independentTag.id, renamedAssociatedTag.id)
+        assertEquals(foodCategory.id, renamedAssociatedTag.categoryId)
+        ui.showText("Any meal", "category-tag-list")
+        editTag(associatedTag.id)
+        ui.enterText("Tag name", "Flexible lunch", "category-tag-list")
+        ui.show(hasTestTag("tag-association-independent"), "category-tag-list").performClick()
+        ui.clickText("Save tag", "category-tag-list")
+        val renamedIndependentTag: FinanceTag = tag("Flexible lunch")
+        assertEquals(associatedTag.id, renamedIndependentTag.id)
+        assertNull(renamedIndependentTag.categoryId)
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "2.00", "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-${renamedAssociatedTag.id}").performScrollTo().assertIsNotEnabled()
+        ui.clickText("Food", "transaction-form")
+        composeRule
+            .onNodeWithTag("transaction-tag-${renamedAssociatedTag.id}")
+            .performScrollTo()
+            .assertIsEnabled()
+            .performClick()
+            .assertIsOn()
+        composeRule
+            .onNodeWithTag("transaction-tag-${renamedIndependentTag.id}")
+            .performScrollTo()
+            .assertIsEnabled()
+            .performClick()
+            .assertIsOn()
+        ui.clickText("Save")
+        val transaction: com.toshlol.personalfinance.data.FinanceTransaction =
+            runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(setOf(renamedAssociatedTag.id, renamedIndependentTag.id), transaction.tagIds.toSet())
+    }
+
+    @Test
+    fun renameAndArchiveClassificationsWithoutChangingTransactions() {
+        val previousMonth: YearMonth = YearMonth.now().minusMonths(1)
+        createFoodCategory()
+        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.clickText("Add expense")
+        ui.enterText("Amount", "12.50", "transaction-form")
+        ui.clickText("Food", "transaction-form")
+        composeRule.onNodeWithTag("transaction-tag-${lunchTag.id}").performScrollTo().performClick()
+        ui.enterText("Date (YYYY-MM-DD)", previousMonth.atDay(15).toString(), "transaction-form")
+        ui.clickText("Save")
+        val originalTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
+            runBlocking { transactionRepository().loadTransactions().single() }
+        val budgetRepository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(AppDatabase.getInstance(appContext()))
+        val budgetName: String = "Food limit"
+        runBlocking {
+            budgetRepository.save(
+                RecurringBudgetDraft(
+                    null,
+                    budgetName,
+                    20_000L,
+                    setOf(accountId("Cash")),
+                    setOf(foodCategory.id),
+                    setOf(lunchTag.id),
+                ),
+                previousMonth,
+            )
+        }
+        navigateTo("Overview")
+        composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
+        composeRule.onNodeWithTag("open-budgets").performScrollTo().performClick()
+        ui.showText(budgetName)
+        navigateTo("Expenses")
+        val expectedMonthLabel: String = previousMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+        ui.showText(expectedMonthLabel)
+        openOrganizerFromCurrentArea()
+        ui.showText("Food · expense", "category-tag-list")
+        editCategory(foodCategory.id)
+        ui.enterText("Category name", "Groceries", "category-tag-list")
+        ui.clickText("Save category", "category-tag-list")
+        ui.showText("Groceries · expense", "category-tag-list")
+        val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
+        ui.showText("Groceries · expense", "category-tag-list")
+        ui.showText("Lunch", "category-tag-list")
+        editTag(lunchTag.id)
+        ui.enterText("Tag name", "Dinner", "category-tag-list")
+        ui.clickText("Save tag", "category-tag-list")
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.showText(expectedMonthLabel)
+        ui.showText("Cash · Groceries · Dinner")
+        val renamedTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
+            runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(originalTransaction.id, renamedTransaction.id)
+        assertEquals(originalTransaction.amountMinor, renamedTransaction.amountMinor)
+        assertEquals(originalTransaction.categoryId, renamedTransaction.categoryId)
+        assertEquals(originalTransaction.tagIds, renamedTransaction.tagIds)
+        val expectedActivityDay: String =
+            LocalDate.ofEpochDay(originalTransaction.date).format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()))
+        ui.showText(expectedActivityDay)
+        ui.showText("Cash · Groceries · Dinner")
+        navigateTo("Budgets")
+        ui.showText("$budgetName")
+        ui.showText("Categories: Groceries")
+        ui.showText("Tags: Dinner")
+        openOrganizerFromCurrentArea()
+        ui.show(hasTestTag("archive-category-${renamedCategory.id}"), "category-tag-list").performClick()
+        ui.showText("Groceries · expense · Archived", "category-tag-list")
+        ui.show(hasTestTag("archive-tag-${lunchTag.id}"), "category-tag-list").performClick()
+        ui.showText("Dinner", "category-tag-list")
+        ui.showText("Groceries Category (Archived) · Archived", "category-tag-list")
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.showText("Monthly expense limits")
+        ui.showText("Categories: Groceries (Archived)")
+        ui.showText("Tags: Dinner (Archived)")
+        val preservedBudget: com.toshlol.personalfinance.data.RecurringBudgetProgress =
+            runBlocking {
+                budgetRepository.load(previousMonth).single()
+            }
+        assertEquals(setOf(foodCategory.id), preservedBudget.restrictions.categoryIds)
+        assertEquals(setOf(lunchTag.id), preservedBudget.restrictions.tagIds)
+        assertEquals(1_250L, preservedBudget.totals.spentMinor)
+        val archivedTransaction: com.toshlol.personalfinance.data.FinanceTransaction =
+            runBlocking { transactionRepository().loadTransactions().single() }
+        assertEquals(originalTransaction.id, archivedTransaction.id)
+        assertEquals(originalTransaction.amountMinor, archivedTransaction.amountMinor)
+        assertEquals(originalTransaction.categoryId, archivedTransaction.categoryId)
+        assertEquals(originalTransaction.tagIds, archivedTransaction.tagIds)
+        navigateTo("Accounts")
+        ui.clickText("View Cash history")
+        ui.showText("Groceries (Archived)", substring = true)
+        ui.showText("Dinner (Archived)", substring = true)
+        ui.clickText("Back")
+        navigateTo("Expenses")
+        ui.clickText("Add expense")
+        composeRule
+            .onNode(hasText("Groceries (Archived)") and hasAnyAncestor(hasTestTag("transaction-form")))
+            .assertDoesNotExist()
+        composeRule
+            .onNode(hasText("Dinner (Archived)") and hasAnyAncestor(hasTestTag("transaction-form")))
+            .assertDoesNotExist()
+        ui.clickText("Cancel")
+    }
+
+    @Test
+    fun refreshClassificationChoicesWithoutResettingMonth() {
+        createFoodCategory()
+        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        navigateTo("Overview")
+        composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
+        navigateTo("Expenses")
+        val expectedMonthLabel: String =
+            YearMonth.now().minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
+        ui.showText(expectedMonthLabel)
+        openOrganizerFromCurrentArea()
+        ui.showText("Food · expense", "category-tag-list")
+        editCategory(foodCategory.id)
+        ui.enterText("Category name", "Household", "category-tag-list")
+        ui.clickText("Save category", "category-tag-list")
+        ui.show(hasTestTag("classification-back"), "category-tag-list").performClick()
+        ui.showText(expectedMonthLabel)
+        ui.clickText("Add expense")
+        ui.showText("Household", "transaction-form")
+        ui.clickText("Cancel")
+    }
+
+    @Test
     fun changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags() {
         ui.clickText("Add expense")
         ui.enterText("Amount", "8.25", "transaction-form")
@@ -1253,6 +1474,53 @@ class TransactionFlowTest {
         ui.clickText("Add category", "category-tag-list")
         ui.showText("Food \u00b7 expense", "category-tag-list")
     }
+
+    private fun createAssociatedTag(
+        name: String,
+        categoryId: String,
+    ): FinanceTag {
+        ui.show(hasTestTag("tag-category-$categoryId"), "category-tag-list").performClick()
+        ui.enterText("Tag name", name, "category-tag-list")
+        ui.clickText("Add tag", "category-tag-list")
+        return tag(name)
+    }
+
+    private fun editCategory(id: String) {
+        ui.show(hasTestTag("edit-category-$id"), "category-tag-list").performClick()
+    }
+
+    private fun editTag(id: String) {
+        ui.show(hasTestTag("edit-tag-$id"), "category-tag-list").performClick()
+    }
+
+    private fun openOrganizerFromCurrentArea() {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Categories & Tags").performClick()
+        ui.showText("Category name", "category-tag-list")
+    }
+
+    private fun category(
+        name: String,
+        direction: TransactionDirection,
+    ): FinanceCategory =
+        runBlocking {
+            FinanceTestFixtures(AppDatabase.getInstance(appContext()))
+                .organization
+                .load()
+                .categories
+                .single { category -> category.name == name && category.direction == direction }
+        }
+
+    private fun tag(name: String): FinanceTag =
+        runBlocking {
+            FinanceTestFixtures(AppDatabase.getInstance(appContext()))
+                .organization
+                .load()
+                .tags
+                .single { tag -> tag.name == name }
+        }
+
+    private fun appContext(): Context = ApplicationProvider.getApplicationContext()
 
     @Suppress("ktlint:standard:no-unit-return")
     private fun assertOverviewAccountSelection(

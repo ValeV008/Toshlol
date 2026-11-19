@@ -23,6 +23,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.Account
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.FinanceTransfer
 import com.toshlol.personalfinance.data.TransactionDirection
@@ -80,6 +82,8 @@ fun AccountHistoryScreen(
                 AccountHistoryContentState(
                     account = account,
                     accounts = state.accounts,
+                    categories = state.categories,
+                    tags = state.tags,
                     currency = state.currency,
                     month = selectedMonth,
                     closingBalanceMinor = closingBalanceMinor,
@@ -116,7 +120,15 @@ private fun ShowAccountHistoryContent(
             )
             if (content.activities.isEmpty()) ShowAccountHistoryMessage("No account activity yet")
             content.activities.forEach { item: AccountHistoryItem ->
-                AccountHistoryActivity(item, content.account, content.currency, content.actions, content.accounts)
+                AccountHistoryActivity(
+                    item,
+                    content.account,
+                    content.currency,
+                    content.actions,
+                    content.accounts,
+                    content.categories,
+                    content.tags,
+                )
             }
         }
     }
@@ -161,6 +173,8 @@ private fun AccountHistoryActivity(
     currency: String,
     actions: AccountHistoryScreenActions,
     accounts: List<Account>,
+    categories: List<FinanceCategory>,
+    tags: List<FinanceTag>,
 ): Unit {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(historyCardCornerRadius)) {
         Column(
@@ -168,7 +182,7 @@ private fun AccountHistoryActivity(
             verticalArrangement = Arrangement.spacedBy(historyMovementItemSpacing),
         ) {
             item.transaction?.let { transaction: FinanceTransaction ->
-                ShowTransactionHistoryActivity(transaction, account, currency, actions)
+                ShowTransactionHistoryActivity(transaction, account, currency, actions, categories, tags)
             }
             item.transfer?.let { transfer: FinanceTransfer ->
                 ShowTransferHistoryActivity(transfer, account, accounts, currency, actions)
@@ -184,6 +198,8 @@ private fun ShowTransactionHistoryActivity(
     account: Account,
     currency: String,
     actions: AccountHistoryScreenActions,
+    categories: List<FinanceCategory>,
+    tags: List<FinanceTag>,
 ): Unit {
     val isIncome: Boolean = transaction.direction == TransactionDirection.INCOME
     val sign: String = if (isIncome) "+" else "-"
@@ -197,7 +213,12 @@ private fun ShowTransactionHistoryActivity(
             Text(title, color = color, style = MaterialTheme.typography.titleMedium)
         }
     }
-    Text("${LocalDate.ofEpochDay(transaction.date)} \u00B7 ${transaction.categoryName ?: "No Category"}")
+    val categoryName: String = formatTransactionCategory(transaction, categories) ?: "No Category"
+    val tagNames: List<String> = formatTransactionTags(transaction, tags)
+    Text(
+        "${LocalDate.ofEpochDay(transaction.date)} \u00B7 $categoryName" +
+            tagNames.joinToString(prefix = " \u00B7 ").takeIf { tagNames.isNotEmpty() }.orEmpty(),
+    )
     transaction.note?.let { note: String -> Text(note) }
     if (!account.isArchived) TextButton(onClick = { actions.deleteTransaction(transaction.id) }) { Text("Delete") }
 }
@@ -238,6 +259,8 @@ private data class AccountHistoryItem(
 private data class AccountHistoryContentState(
     val account: Account?,
     val accounts: List<Account>,
+    val categories: List<FinanceCategory>,
+    val tags: List<FinanceTag>,
     val currency: String,
     val month: YearMonth,
     val closingBalanceMinor: Long,

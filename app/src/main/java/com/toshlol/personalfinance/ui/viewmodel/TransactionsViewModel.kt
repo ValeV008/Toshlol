@@ -8,6 +8,7 @@ import com.toshlol.personalfinance.data.BudgetRepository
 import com.toshlol.personalfinance.data.CategoryBudget
 import com.toshlol.personalfinance.data.CategoryDraft
 import com.toshlol.personalfinance.data.CategoryTagRepository
+import com.toshlol.personalfinance.data.CategoryTagSnapshot
 import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
@@ -628,11 +629,31 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(isOrganizerVisible = false, error = null)
         viewModelScope.launch {
             try {
-                val organization: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.load()
-                mutableUiState.value = uiState.value.copy(categories = organization.categories, tags = organization.tags)
+                refreshClassificationReferences(categoryTagRepository.load())
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not load categories and tags.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not refresh category and tag references.")
             }
+        }
+    }
+
+    private suspend fun refreshClassificationReferences(snapshot: CategoryTagSnapshot) {
+        mutableUiState.value = uiState.value.copy(categories = snapshot.categories, tags = snapshot.tags)
+        try {
+            val transactions: List<FinanceTransaction> = repository.loadTransactions()
+            val budgets: List<CategoryBudget> = budgetRepository.load()
+            val month: YearMonth = runCatching { YearMonth.parse(uiState.value.selectedMonth) }.getOrDefault(YearMonth.now())
+            val recurringBudgets: List<RecurringBudgetProgress> = recurringBudgetRepository.load(month)
+            mutableUiState.value =
+                uiState.value.copy(
+                    transactions = transactions,
+                    budgets = budgets,
+                    recurringBudgets = recurringBudgets,
+                    isSaving = false,
+                    error = null,
+                )
+        } catch (exception: IOException) {
+            mutableUiState.value =
+                uiState.value.copy(isSaving = false, error = "Classification saved, but related views could not refresh.")
         }
     }
 
@@ -815,24 +836,19 @@ class TransactionsViewModel(
             )
     }
 
+    fun cancelCategoryEdit() {
+        mutableUiState.value = uiState.value.copy(editingCategoryId = null, categoryName = "", error = null)
+    }
+
     fun saveCategory() {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot =
-                    categoryTagRepository.saveCategory(
-                        CategoryDraft(state.editingCategoryId, state.categoryName, state.categoryDirection),
-                    )
-                mutableUiState.value =
-                    uiState.value.copy(
-                        categories = result.categories,
-                        tags = result.tags,
-                        categoryName = "",
-                        editingCategoryId = null,
-                        isSaving = false,
-                        error = null,
-                    )
+                val result: CategoryTagSnapshot =
+                    categoryTagRepository.saveCategory(CategoryDraft(state.editingCategoryId, state.categoryName, state.categoryDirection))
+                mutableUiState.value = uiState.value.copy(categoryName = "", editingCategoryId = null)
+                refreshClassificationReferences(result)
             } catch (exception: IllegalArgumentException) {
                 mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not save category.")
             } catch (exception: IOException) {
@@ -842,14 +858,15 @@ class TransactionsViewModel(
     }
 
     fun archiveCategory(id: String) {
+        mutableUiState.value = uiState.value.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.archiveCategory(id)
-                mutableUiState.value = uiState.value.copy(categories = result.categories, tags = result.tags, error = null)
+                val result: CategoryTagSnapshot = categoryTagRepository.archiveCategory(id)
+                refreshClassificationReferences(result)
             } catch (exception: IllegalArgumentException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not archive category.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive category.")
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not archive category.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive category.")
             }
         }
     }
@@ -866,25 +883,21 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(editingTagId = tag.id, tagName = tag.name, tagCategoryId = tag.categoryId, error = null)
     }
 
+    fun cancelTagEdit() {
+        mutableUiState.value = uiState.value.copy(editingTagId = null, tagName = "", tagCategoryId = null, error = null)
+    }
+
     fun saveTag() {
         val state: TransactionsUiState = uiState.value
         mutableUiState.value = state.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot =
+                val result: CategoryTagSnapshot =
                     categoryTagRepository.saveTag(
                         TagDraft(state.editingTagId, state.tagName, state.tagCategoryId),
                     )
-                mutableUiState.value =
-                    uiState.value.copy(
-                        categories = result.categories,
-                        tags = result.tags,
-                        tagName = "",
-                        tagCategoryId = null,
-                        editingTagId = null,
-                        isSaving = false,
-                        error = null,
-                    )
+                mutableUiState.value = uiState.value.copy(tagName = "", tagCategoryId = null, editingTagId = null)
+                refreshClassificationReferences(result)
             } catch (exception: IllegalArgumentException) {
                 mutableUiState.value = uiState.value.copy(isSaving = false, error = exception.message ?: "Could not save tag.")
             } catch (exception: IOException) {
@@ -894,14 +907,15 @@ class TransactionsViewModel(
     }
 
     fun archiveTag(id: String) {
+        mutableUiState.value = uiState.value.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                val result: com.toshlol.personalfinance.data.CategoryTagSnapshot = categoryTagRepository.archiveTag(id)
-                mutableUiState.value = uiState.value.copy(categories = result.categories, tags = result.tags, error = null)
+                val result: CategoryTagSnapshot = categoryTagRepository.archiveTag(id)
+                refreshClassificationReferences(result)
             } catch (exception: IllegalArgumentException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not archive tag.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive tag.")
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(error = "Could not archive tag.")
+                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not archive tag.")
             }
         }
     }

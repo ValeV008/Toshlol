@@ -1,6 +1,6 @@
 # 08: Redesigned Category and Tag management
 
-Status: ready-for-agent
+Status: claimed
 Blocked by: 01
 
 **What to build:** Create, rename, associate, and archive Categories and Tags in a consistent text-only management interface while preserving direction scopes, historical references, and compatibility with Transaction entry and Budget restrictions.

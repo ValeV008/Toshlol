@@ -99,6 +99,7 @@ fun TransactionsScreen(
             transactions.forEach { transaction: FinanceTransaction ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                     val isAccountActive: Boolean = state.accounts.firstOrNull { it.id == transaction.accountId }?.isArchived == false
+                    val displayedTags: List<String> = formatTransactionTags(transaction, state.tags)
                     TextButton(onClick = { actions.edit(transaction) }, enabled = isAccountActive) {
                         Text(
                             "${transaction.direction.name.lowercase().replaceFirstChar(
@@ -108,10 +109,10 @@ fun TransactionsScreen(
                     }
                     Text(
                         "${LocalDate.ofEpochDay(transaction.date)} · ${transaction.accountName}" +
-                            transaction.categoryName?.let { " · $it" }.orEmpty() +
-                            transaction.tagNames
+                            formatTransactionCategory(transaction, state.categories)?.let { " · $it" }.orEmpty() +
+                            displayedTags
                                 .joinToString(prefix = " · ")
-                                .takeIf { transaction.tagNames.isNotEmpty() }
+                                .takeIf { displayedTags.isNotEmpty() }
                                 .orEmpty() +
                             transaction.note?.let { " · $it" }.orEmpty(),
                     )

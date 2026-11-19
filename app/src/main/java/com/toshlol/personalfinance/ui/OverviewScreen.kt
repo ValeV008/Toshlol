@@ -346,12 +346,9 @@ private fun ActivityCard(
                     )
                 }
                 Text(
-                    "$date · ${transaction.accountName}${transaction.categoryName?.let {
+                    "$date · ${transaction.accountName}${formatTransactionCategory(transaction, state.categories)?.let {
                         " · $it"
-                    }.orEmpty()}${transaction.tagNames.takeIf {
-                        it
-                            .isNotEmpty()
-                    }?.joinToString(
+                    }.orEmpty()}${formatTransactionTags(transaction, state.tags).takeIf { it.isNotEmpty() }?.joinToString(
                         prefix = " · ",
                     ).orEmpty()}${transaction.note?.let { " · $it" }.orEmpty()}",
                 )

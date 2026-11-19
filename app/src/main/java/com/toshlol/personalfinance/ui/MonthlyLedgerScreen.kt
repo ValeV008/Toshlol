@@ -142,8 +142,18 @@ fun MonthlyLedgerScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LedgerFilter("Category", state.categories.map { it.id to it.name }, state.selectedCategoryId, actions.categoryChanged)
-                    LedgerFilter("Tag", state.tags.map { it.id to it.name }, state.selectedTagId, actions.tagChanged)
+                    LedgerFilter(
+                        "Category",
+                        state.categories.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
+                        state.selectedCategoryId,
+                        actions.categoryChanged,
+                    )
+                    LedgerFilter(
+                        "Tag",
+                        state.tags.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
+                        state.selectedTagId,
+                        actions.tagChanged,
+                    )
                 }
                 if (days.isEmpty()) {
                     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -264,8 +274,8 @@ private fun LedgerTransactionRow(
                 Text(
                     listOfNotNull(
                         transaction.accountName,
-                        transaction.categoryName,
-                        transaction.tagNames.takeIf { it.isNotEmpty() }?.joinToString(),
+                        formatTransactionCategory(transaction, state.categories),
+                        formatTransactionTags(transaction, state.tags).takeIf { it.isNotEmpty() }?.joinToString(),
                         transaction.note,
                     ).joinToString(" · "),
                 )

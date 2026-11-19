@@ -156,7 +156,8 @@ abstract class AppDatabase : RoomDatabase() {
 
         val MIGRATION_8_9: Migration =
             object : Migration(8, 9) {
-                override fun migrate(db: SupportSQLiteDatabase) {
+                @Suppress("ktlint:standard:no-unit-return")
+                override fun migrate(db: SupportSQLiteDatabase): Unit {
                     db.execSQL(
                         "CREATE TABLE recurring_budget_categories (budgetId TEXT NOT NULL, categoryId TEXT NOT NULL, PRIMARY KEY(budgetId, categoryId), FOREIGN KEY(budgetId) REFERENCES recurring_budgets(id) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(categoryId) REFERENCES categories(id) ON UPDATE NO ACTION ON DELETE RESTRICT)",
                     )

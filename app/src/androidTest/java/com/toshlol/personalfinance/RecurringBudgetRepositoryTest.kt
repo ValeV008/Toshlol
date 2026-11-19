@@ -7,6 +7,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.toshlol.personalfinance.data.Account
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.CategoryDraft
+import com.toshlol.personalfinance.data.CategoryTagSnapshot
+import com.toshlol.personalfinance.data.FinanceCategory
+import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.FinanceTransaction
 import com.toshlol.personalfinance.data.RecurringBudgetDraft
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
@@ -39,29 +42,29 @@ class RecurringBudgetRepositoryTest {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val selectedAccount: Account = fixtures.createFirstAccount("Cash")
                 val otherAccount: Account = fixtures.createAdditionalAccount("Savings")
-                val groceryCategory =
+                val groceryCategory: FinanceCategory =
                     fixtures.organization
                         .saveCategory(
                             CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
                         ).categories
                         .single { it.name == "Groceries" }
-                val diningCategory =
+                val diningCategory: FinanceCategory =
                     fixtures.organization
                         .saveCategory(CategoryDraft(name = "Dining", direction = TransactionDirection.EXPENSE))
                         .categories
                         .single { it.name == "Dining" }
-                val otherCategory =
+                val otherCategory: FinanceCategory =
                     fixtures.organization
                         .saveCategory(
                             CategoryDraft(name = "Transport", direction = TransactionDirection.EXPENSE),
                         ).categories
                         .single { it.name == "Transport" }
-                val weekendTag =
+                val weekendTag: FinanceTag =
                     fixtures.organization
                         .saveTag(TagDraft(name = "weekend"))
                         .tags
                         .single { it.name == "weekend" }
-                val holidayTag =
+                val holidayTag: FinanceTag =
                     fixtures.organization
                         .saveTag(TagDraft(name = "holiday"))
                         .tags
@@ -130,13 +133,13 @@ class RecurringBudgetRepositoryTest {
             try {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val account: Account = fixtures.createFirstAccount("Cash")
-                val category =
+                val category: FinanceCategory =
                     fixtures.organization
                         .saveCategory(
                             CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
                         ).categories
                         .single { it.name == "Groceries" }
-                val tag =
+                val tag: FinanceTag =
                     fixtures.organization
                         .saveTag(TagDraft(name = "weekend"))
                         .tags
@@ -200,7 +203,7 @@ class RecurringBudgetRepositoryTest {
                 fixtures.organization.saveCategory(CategoryDraft(category.id, "Pantry", TransactionDirection.EXPENSE))
                 fixtures.organization.saveTag(TagDraft(tag.id, "Occasion", null))
                 val actual: RecurringBudgetProgress = repository.load(YearMonth.of(2026, 9)).single()
-                val currentOrganization = fixtures.organization.load()
+                val currentOrganization: CategoryTagSnapshot = fixtures.organization.load()
                 assertEquals(setOf(category.id), actual.categoryIds)
                 assertEquals(setOf(tag.id), actual.tagIds)
                 assertEquals("Pantry", currentOrganization.categories.single { it.id == category.id }.name)
@@ -299,18 +302,18 @@ class RecurringBudgetRepositoryTest {
             try {
                 val fixtures: FinanceTestFixtures = FinanceTestFixtures(database)
                 val account: Account = fixtures.createFirstAccount("Cash")
-                val expenseCategory =
+                val expenseCategory: FinanceCategory =
                     fixtures.organization
                         .saveCategory(
                             CategoryDraft(name = "Groceries", direction = TransactionDirection.EXPENSE),
                         ).categories
                         .single { it.name == "Groceries" }
-                val incomeCategory =
+                val incomeCategory: FinanceCategory =
                     fixtures.organization
                         .saveCategory(CategoryDraft(name = "Salary", direction = TransactionDirection.INCOME))
                         .categories
                         .single { it.name == "Salary" }
-                val tag =
+                val tag: FinanceTag =
                     fixtures.organization
                         .saveTag(TagDraft(name = "Weekend"))
                         .tags

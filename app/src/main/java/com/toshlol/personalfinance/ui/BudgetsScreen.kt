@@ -27,7 +27,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.toshlol.personalfinance.data.CategoryBudget
-import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import java.time.YearMonth
@@ -41,20 +40,12 @@ private data class BudgetChoiceState(
 )
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 fun BudgetsScreen(
     state: TransactionsUiState,
-    onBack: () -> Unit,
-    onMonthChanged: (String) -> Unit,
-    onNameChanged: (String) -> Unit,
-    onAmountChanged: (String) -> Unit,
-    onAccountToggled: (String) -> Unit,
-    onCategoryToggled: (String) -> Unit,
-    onTagToggled: (String) -> Unit,
-    onCreate: () -> Unit,
-    onEdit: (RecurringBudgetProgress) -> Unit,
-    onSave: () -> Unit,
+    actions: BudgetActions,
     onAddTransaction: () -> Unit = {},
-) {
+): Unit {
     val selectedMonth: YearMonth? = runCatching { YearMonth.parse(state.budgetMonth) }.getOrNull()
     val legacyBudgets: List<CategoryBudget> = state.budgets.filter { it.month.toString() == state.budgetMonth }
     Column(
@@ -66,16 +57,14 @@ fun BudgetsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Budgets", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-        BudgetMonthNavigation(selectedMonth, onMonthChanged)
+        BudgetMonthNavigation(selectedMonth, actions.monthChanged)
         Text("Monthly expense limits", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         state.recurringBudgets.forEach { budget ->
             BudgetProgressCard(
                 state = budget.toBudgetProgressCardState(state.categories, state.tags),
                 accounts = state.accounts,
                 currency = state.currency,
-                categories = state.categories,
-                tags = state.tags,
-                onEdit = { onEdit(budget) },
+                onEdit = { actions.edit(budget) },
             )
         }
         legacyBudgets.forEach { budget ->
@@ -83,23 +72,22 @@ fun BudgetsScreen(
                 budget.toBudgetProgressCardState(),
                 state.accounts,
                 state.currency,
-                state.categories,
-                state.tags,
             )
         }
         if (state.recurringBudgets.isEmpty() && legacyBudgets.isEmpty()) Text("No Budgets for this month.")
-        OutlinedButton(onClick = onBack, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to overview") }
+        OutlinedButton(onClick = actions.close, modifier = Modifier.heightIn(min = 48.dp)) { Text("Back to overview") }
         OutlinedButton(onClick = onAddTransaction, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add transaction") }
-        Button(onClick = onCreate, modifier = Modifier.heightIn(min = 48.dp).testTag("budget-create")) { Text("Create Budget") }
-        BudgetEditor(state, onNameChanged, onAmountChanged, onAccountToggled, onCategoryToggled, onTagToggled, onSave)
+        Button(onClick = actions.create, modifier = Modifier.heightIn(min = 48.dp).testTag("budget-create")) { Text("Create Budget") }
+        BudgetEditor(state, actions)
     }
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun BudgetMonthNavigation(
     selectedMonth: YearMonth?,
     onMonthChanged: (String) -> Unit,
-) {
+): Unit {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         OutlinedButton(
             onClick = { selectedMonth?.minusMonths(1)?.let { onMonthChanged(it.toString()) } },
@@ -120,15 +108,11 @@ private fun BudgetMonthNavigation(
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun BudgetEditor(
     state: TransactionsUiState,
-    onNameChanged: (String) -> Unit,
-    onAmountChanged: (String) -> Unit,
-    onAccountToggled: (String) -> Unit,
-    onCategoryToggled: (String) -> Unit,
-    onTagToggled: (String) -> Unit,
-    onSave: () -> Unit,
-) {
+    actions: BudgetActions,
+): Unit {
     Text(
         if (state.editingBudgetId == null) "New recurring Budget" else "Edit recurring Budget",
         style = MaterialTheme.typography.titleLarge,
@@ -136,14 +120,14 @@ private fun BudgetEditor(
     )
     OutlinedTextField(
         value = state.budgetName,
-        onValueChange = onNameChanged,
+        onValueChange = actions.nameChanged,
         label = { Text("Budget name") },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().testTag("budget-name"),
     )
     OutlinedTextField(
         value = state.budgetAmount,
-        onValueChange = onAmountChanged,
+        onValueChange = actions.amountChanged,
         label = { Text("Monthly limit (${state.currency})") },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         singleLine = true,
@@ -158,7 +142,7 @@ private fun BudgetEditor(
                 account.id in state.budgetAccountIds,
                 "budget-account-${account.id}",
             ),
-            onAccountToggled,
+            actions.accountToggled,
         )
     }
     Text("Expense Categories", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
@@ -171,7 +155,7 @@ private fun BudgetEditor(
                 category.id in state.budgetCategoryIds,
                 "budget-category-${category.id}",
             ),
-            onCategoryToggled,
+            actions.categoryToggled,
         )
     }
     Text("Tags", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
@@ -184,22 +168,23 @@ private fun BudgetEditor(
                 tag.id in state.budgetTagIds,
                 "budget-tag-${tag.id}",
             ),
-            onTagToggled,
+            actions.tagToggled,
         )
     }
     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Button(
-        onClick = onSave,
+        onClick = actions.save,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag("budget-save"),
     ) { Text(if (state.editingBudgetId == null) "Save Budget" else "Save changes") }
     Text("Budgets repeat each month. Only Expenses in selected Accounts count.", style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun BudgetChoiceRow(
     choice: BudgetChoiceState,
     onToggled: (String) -> Unit,
-) {
+): Unit {
     Row(
         Modifier
             .fillMaxWidth()

@@ -63,14 +63,13 @@ internal fun CategoryBudget.toBudgetProgressCardState(): BudgetProgressCardState
     )
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
 internal fun BudgetProgressCard(
     state: BudgetProgressCardState,
     accounts: List<Account>,
     currency: String,
-    categories: List<FinanceCategory> = emptyList(),
-    tags: List<FinanceTag> = emptyList(),
     onEdit: (() -> Unit)? = null,
-) {
+): Unit {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             val titleModifier: Modifier =

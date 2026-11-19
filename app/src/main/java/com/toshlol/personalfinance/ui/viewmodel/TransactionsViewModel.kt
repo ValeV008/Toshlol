@@ -702,14 +702,16 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(budgetAccountIds = updatedAccountIds, error = null)
     }
 
-    fun toggleBudgetCategory(categoryId: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun toggleBudgetCategory(categoryId: String): Unit {
         val selectedCategoryIds: Set<String> = uiState.value.budgetCategoryIds
         val updatedCategoryIds: Set<String> =
             if (categoryId in selectedCategoryIds) selectedCategoryIds - categoryId else selectedCategoryIds + categoryId
         mutableUiState.value = uiState.value.copy(budgetCategoryIds = updatedCategoryIds, error = null)
     }
 
-    fun toggleBudgetTag(tagId: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun toggleBudgetTag(tagId: String): Unit {
         val selectedTagIds: Set<String> = uiState.value.budgetTagIds
         val updatedTagIds: Set<String> = if (tagId in selectedTagIds) selectedTagIds - tagId else selectedTagIds + tagId
         mutableUiState.value = uiState.value.copy(budgetTagIds = updatedTagIds, error = null)

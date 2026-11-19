@@ -27,6 +27,7 @@ import com.toshlol.personalfinance.data.FinanceCategory
 import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.TransactionDirection
+import com.toshlol.personalfinance.ui.BudgetActions
 import com.toshlol.personalfinance.ui.BudgetsScreen
 import com.toshlol.personalfinance.ui.theme.ToshlolTheme
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
@@ -46,7 +47,8 @@ class BudgetAccessibilityTest {
     val rules: RuleChain = RuleChain.outerRule(composeRule).around(UiFailureArtifactsRule(composeRule))
 
     @Test
-    fun operateNamedBudgetEditorAtLargeFont() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun operateNamedBudgetEditorAtLargeFont(): Unit {
         composeRule.setContent {
             val currentDensity: Density = LocalDensity.current
             val month: YearMonth = YearMonth.now()
@@ -102,30 +104,34 @@ class BudgetAccessibilityTest {
                 ToshlolTheme {
                     BudgetsScreen(
                         state = state,
-                        onBack = {},
-                        onMonthChanged = { value -> state = state.copy(budgetMonth = value, selectedMonth = value) },
-                        onNameChanged = { value -> state = state.copy(budgetName = value) },
-                        onAmountChanged = { value -> state = state.copy(budgetAmount = value) },
-                        onAccountToggled = { id ->
-                            val accountIds: Set<String> = state.budgetAccountIds
-                            state = state.copy(budgetAccountIds = if (id in accountIds) accountIds - id else accountIds + id)
-                        },
-                        onCategoryToggled = { id ->
-                            val categoryIds: Set<String> = state.budgetCategoryIds
-                            state = state.copy(budgetCategoryIds = if (id in categoryIds) categoryIds - id else categoryIds + id)
-                        },
-                        onTagToggled = { id ->
-                            val tagIds: Set<String> = state.budgetTagIds
-                            state = state.copy(budgetTagIds = if (id in tagIds) tagIds - id else tagIds + id)
-                        },
-                        onCreate = {},
-                        onEdit = {},
-                        onSave = {
-                            state =
-                                state.copy(
-                                    error = if (state.budgetAccountIds.isEmpty()) "Choose at least one Account." else null,
-                                )
-                        },
+                        actions =
+                            BudgetActions(
+                                open = {},
+                                close = {},
+                                monthChanged = { value -> state = state.copy(budgetMonth = value, selectedMonth = value) },
+                                nameChanged = { value -> state = state.copy(budgetName = value) },
+                                amountChanged = { value -> state = state.copy(budgetAmount = value) },
+                                accountToggled = { id ->
+                                    val accountIds: Set<String> = state.budgetAccountIds
+                                    state = state.copy(budgetAccountIds = if (id in accountIds) accountIds - id else accountIds + id)
+                                },
+                                categoryToggled = { id ->
+                                    val categoryIds: Set<String> = state.budgetCategoryIds
+                                    state = state.copy(budgetCategoryIds = if (id in categoryIds) categoryIds - id else categoryIds + id)
+                                },
+                                tagToggled = { id ->
+                                    val tagIds: Set<String> = state.budgetTagIds
+                                    state = state.copy(budgetTagIds = if (id in tagIds) tagIds - id else tagIds + id)
+                                },
+                                create = {},
+                                edit = {},
+                                save = {
+                                    state =
+                                        state.copy(
+                                            error = if (state.budgetAccountIds.isEmpty()) "Choose at least one Account." else null,
+                                        )
+                                },
+                            ),
                         onAddTransaction = {},
                     )
                 }
@@ -199,7 +205,8 @@ class BudgetAccessibilityTest {
         composeRule.onNodeWithText("Choose at least one Account.").assertDoesNotExist()
     }
 
-    private fun saveScreenEvidence(name: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun saveScreenEvidence(name: String): Unit {
         val outputRoot: File =
             InstrumentationRegistry
                 .getArguments()

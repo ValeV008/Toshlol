@@ -155,8 +155,6 @@ fun OverviewScreen(
                                 budget.toBudgetProgressCardState(state.categories, state.tags),
                                 state.accounts,
                                 state.currency,
-                                state.categories,
-                                state.tags,
                             )
                         }
                         budgets.forEach { budget ->
@@ -164,8 +162,6 @@ fun OverviewScreen(
                                 budget.toBudgetProgressCardState(),
                                 state.accounts,
                                 state.currency,
-                                state.categories,
-                                state.tags,
                             )
                         }
                     }

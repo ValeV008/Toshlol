@@ -10,6 +10,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.toshlol.personalfinance.data.AppDatabase
 import com.toshlol.personalfinance.data.CategoryBudget
+import com.toshlol.personalfinance.data.RecurringBudgetProgress
 import com.toshlol.personalfinance.data.RoomBudgetRepository
 import com.toshlol.personalfinance.data.RoomRecurringBudgetRepository
 import kotlinx.coroutines.test.runTest
@@ -44,7 +45,7 @@ class BudgetMigrationTest {
                 migrationHelper.runMigrationsAndValidate(databaseName, 9, true, AppDatabase.MIGRATION_8_9).close()
                 val migratedDatabase: AppDatabase = openDatabase(databaseName)
                 try {
-                    val budget = RoomRecurringBudgetRepository(migratedDatabase).load(month).single()
+                    val budget: RecurringBudgetProgress = RoomRecurringBudgetRepository(migratedDatabase).load(month).single()
                     assertEquals(setOf("cash"), budget.accountIds)
                     assertEquals(emptySet<String>(), budget.categoryIds)
                     assertEquals(emptySet<String>(), budget.tagIds)
@@ -54,7 +55,7 @@ class BudgetMigrationTest {
                 }
                 val reopenedDatabase: AppDatabase = openDatabase(databaseName)
                 try {
-                    val budget = RoomRecurringBudgetRepository(reopenedDatabase).load(month).single()
+                    val budget: RecurringBudgetProgress = RoomRecurringBudgetRepository(reopenedDatabase).load(month).single()
                     assertEquals(emptySet<String>(), budget.categoryIds)
                     assertEquals(emptySet<String>(), budget.tagIds)
                     assertEquals(750L, budget.spentMinor)
@@ -132,10 +133,11 @@ class BudgetMigrationTest {
         database.execSQL("INSERT INTO budgets VALUES ('legacy-budget', 'legacy-food', '2025-12', 10000, 100, 200)")
     }
 
+    @Suppress("ktlint:standard:no-unit-return")
     private fun seedUnrestrictedRecurringBudget(
         database: SupportSQLiteDatabase,
         month: YearMonth,
-    ) {
+    ): Unit {
         database.execSQL("INSERT INTO accounts VALUES ('cash', 'Cash', 'CASH', 1, 2, 0, 20450, 0)")
         database.execSQL("INSERT INTO app_settings VALUES (1, 'EUR')")
         database.execSQL("INSERT INTO categories VALUES ('food', 'Food', 'EXPENSE', 0, 5, 6)")

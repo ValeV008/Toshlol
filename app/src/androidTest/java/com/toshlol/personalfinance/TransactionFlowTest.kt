@@ -811,7 +811,8 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun editBudgetCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonthsOnBothScreens() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun editBudgetCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonthsOnBothScreens(): Unit {
         val currentMonth: YearMonth = YearMonth.now()
         createBudgetRestrictionDefinitions()
         saveBudgetRestrictionExpenses(currentMonth)
@@ -1098,7 +1099,8 @@ class TransactionFlowTest {
         assertEquals(1250L, runBlocking { transactionRepository().loadTransactions().single().amountMinor })
     }
 
-    private fun createBudgetRestrictionDefinitions() {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createBudgetRestrictionDefinitions(): Unit {
         createFoodCategory()
         ui.enterText("Category name", "Dining", "category-tag-list")
         ui.clickText("Add category", "category-tag-list")
@@ -1109,7 +1111,8 @@ class TransactionFlowTest {
         ui.clickText("Back to overview")
     }
 
-    private fun saveBudgetRestrictionExpenses(currentMonth: YearMonth) {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun saveBudgetRestrictionExpenses(currentMonth: YearMonth): Unit {
         val repository: RoomTransactionRepository = transactionRepository()
         val foodCategoryId: String = categoryId("Food")
         val diningCategoryId: String = categoryId("Dining")
@@ -1125,10 +1128,11 @@ class TransactionFlowTest {
         ).forEach { expense -> saveBudgetRestrictionExpense(expense, repository) }
     }
 
+    @Suppress("ktlint:standard:no-unit-return")
     private fun saveBudgetRestrictionExpense(
         expense: BudgetRestrictionExpense,
         repository: RoomTransactionRepository,
-    ) {
+    ): Unit {
         runBlocking {
             repository.save(
                 TransactionDraft(
@@ -1145,7 +1149,8 @@ class TransactionFlowTest {
         }
     }
 
-    private fun verifyBudgetFilterMonths() {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyBudgetFilterMonths(): Unit {
         composeRule.onNodeWithTag("budget-previous-month").performScrollTo().performClick()
         ui.showText("Spent  EUR 4.00")
         composeRule.onNodeWithTag("budget-next-month").performScrollTo().performClick()
@@ -1154,7 +1159,8 @@ class TransactionFlowTest {
         ui.showText("Spent  EUR 6.00")
     }
 
-    private fun verifyBudgetFilterMonthsOnOverview() {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun verifyBudgetFilterMonthsOnOverview(): Unit {
         ui.clickText("Back to overview")
         ui.showText("Spent  EUR 6.00")
         composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()

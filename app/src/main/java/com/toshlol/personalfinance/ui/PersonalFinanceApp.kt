@@ -237,16 +237,7 @@ fun PersonalFinanceApp(
                         uiState.isSetupComplete && transactionsState.selectedArea == "Budgets" ->
                             BudgetsScreen(
                                 state = transactionsState.copy(currency = uiState.currency),
-                                onBack = actions.budgets.close,
-                                onMonthChanged = actions.budgets.monthChanged,
-                                onNameChanged = actions.budgets.nameChanged,
-                                onAmountChanged = actions.budgets.amountChanged,
-                                onAccountToggled = actions.budgets.accountToggled,
-                                onCategoryToggled = actions.budgets.categoryToggled,
-                                onTagToggled = actions.budgets.tagToggled,
-                                onCreate = actions.budgets.create,
-                                onEdit = actions.budgets.edit,
-                                onSave = actions.budgets.save,
+                                actions = actions.budgets,
                                 onAddTransaction = { actions.transactions.create(TransactionDirection.EXPENSE) },
                             )
                         uiState.isSetupComplete && transactionsState.selectedArea == "Accounts" ->

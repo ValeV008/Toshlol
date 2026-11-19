@@ -75,7 +75,7 @@ fun CategoryTagScreen(
 ): Unit {
     var isAccountSectionVisible: Boolean by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(ClassificationPageGray)) {
-        ClassificationHeader(actions.close, isEnabled = !state.isSaving)
+        renderClassificationHeader(actions.close, isEnabled = !state.isSaving)
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().testTag("category-tag-list"),
             contentPadding =
@@ -84,27 +84,27 @@ fun CategoryTagScreen(
             verticalArrangement = Arrangement.spacedBy(ClassificationPageItemSpacing),
         ) {
             item {
-                AccountManagementCard(state, actions.accounts, isAccountSectionVisible) {
+                renderAccountManagementCard(state, actions.accounts, isAccountSectionVisible) {
                     isAccountSectionVisible = !isAccountSectionVisible
                 }
             }
             item {
-                CategoryEditorCard(state, actions.categories)
+                renderCategoryEditorCard(state, actions.categories)
             }
             item {
                 Text("Categories", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             }
             items(state.categories, key = { category -> "category-${category.id}" }) { category ->
-                CategoryRow(category, actions.categories, isEnabled = !state.isSaving)
+                renderCategoryRow(category, actions.categories, isEnabled = !state.isSaving)
             }
             item {
-                TagEditorCard(state, actions.tags)
+                renderTagEditorCard(state, actions.tags)
             }
             item {
                 Text("Tags", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             }
             items(state.tags, key = { tag -> "tag-${tag.id}" }) { tag ->
-                TagRow(tag, state.categories, actions.tags, isEnabled = !state.isSaving)
+                renderTagRow(tag, state.categories, actions.tags, isEnabled = !state.isSaving)
             }
         }
         state.error?.let { error ->
@@ -123,7 +123,7 @@ fun CategoryTagScreen(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun ClassificationHeader(
+private fun renderClassificationHeader(
     onBack: () -> Unit,
     isEnabled: Boolean,
 ): Unit {
@@ -160,7 +160,7 @@ private fun ClassificationHeader(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun AccountManagementCard(
+private fun renderAccountManagementCard(
     state: TransactionsUiState,
     actions: AccountEditorActions,
     isVisible: Boolean,
@@ -182,9 +182,9 @@ private fun AccountManagementCard(
                 Text(if (isVisible) "Hide accounts" else "Manage accounts")
             }
             if (isVisible) {
-                AccountManagementRows(state, actions)
-                AccountDetailsForm(state, actions)
-                AccountCreationForm(state, actions)
+                renderAccountManagementRows(state, actions)
+                renderAccountDetailsForm(state, actions)
+                renderAccountCreationForm(state, actions)
             }
         }
     }
@@ -192,19 +192,19 @@ private fun AccountManagementCard(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun AccountManagementRows(
+private fun renderAccountManagementRows(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
     Column(verticalArrangement = Arrangement.spacedBy(ClassificationAccountActionSpacing)) {
         Text("Account closing balances for ${state.selectedMonth}", style = MaterialTheme.typography.titleMedium)
-        state.accounts.forEach { account: Account -> AccountManagementRow(account, state, actions) }
+        state.accounts.forEach { account: Account -> renderAccountManagementRow(account, state, actions) }
     }
 }
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun AccountManagementRow(
+private fun renderAccountManagementRow(
     account: Account,
     state: TransactionsUiState,
     actions: AccountEditorActions,
@@ -240,7 +240,7 @@ private fun AccountManagementRow(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun AccountDetailsForm(
+private fun renderAccountDetailsForm(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
@@ -269,7 +269,7 @@ private fun AccountDetailsForm(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun AccountCreationForm(
+private fun renderAccountCreationForm(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
@@ -289,7 +289,7 @@ private fun AccountCreationForm(
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
             AccountType.entries.forEach { type: AccountType ->
-                ClassificationRadioChoice(
+                renderClassificationRadioChoice(
                     label = type.name.lowercase().replaceFirstChar(Char::uppercase),
                     isSelected = state.newAccountType == type,
                     onSelected = { actions.newTypeChanged(type) },
@@ -309,7 +309,7 @@ private fun AccountCreationForm(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun CategoryEditorCard(
+private fun renderCategoryEditorCard(
     state: TransactionsUiState,
     actions: CategoryActions,
 ): Unit {
@@ -347,7 +347,7 @@ private fun CategoryEditorCard(
             Text("Direction", style = MaterialTheme.typography.titleMedium)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
                 TransactionDirection.entries.forEach { direction ->
-                    ClassificationRadioChoice(
+                    renderClassificationRadioChoice(
                         label = direction.name.lowercase().replaceFirstChar(Char::uppercase),
                         isSelected = state.categoryDirection == direction,
                         onSelected = { actions.directionChanged(direction) },
@@ -382,7 +382,7 @@ private fun CategoryEditorCard(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun CategoryRow(
+private fun renderCategoryRow(
     category: FinanceCategory,
     actions: CategoryActions,
     isEnabled: Boolean,
@@ -427,7 +427,7 @@ private fun CategoryRow(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun TagEditorCard(
+private fun renderTagEditorCard(
     state: TransactionsUiState,
     actions: TagActions,
 ): Unit {
@@ -461,14 +461,14 @@ private fun TagEditorCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text("Category association", style = MaterialTheme.typography.titleMedium)
-            ClassificationRadioChoice(
+            renderClassificationRadioChoice(
                 label = "Independent",
                 isSelected = state.tagCategoryId == null,
                 onSelected = { actions.categoryChanged(null) },
                 modifier = Modifier.testTag("tag-association-independent"),
             )
             availableCategories.forEach { category ->
-                ClassificationRadioChoice(
+                renderClassificationRadioChoice(
                     label = "${category.name} Category${if (category.archived) " (Archived)" else ""}",
                     isSelected = state.tagCategoryId == category.id,
                     onSelected = { actions.categoryChanged(category.id) },
@@ -501,7 +501,7 @@ private fun TagEditorCard(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun TagRow(
+private fun renderTagRow(
     tag: FinanceTag,
     categories: List<FinanceCategory>,
     actions: TagActions,
@@ -550,7 +550,7 @@ private fun TagRow(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun ClassificationRadioChoice(
+private fun renderClassificationRadioChoice(
     label: String,
     isSelected: Boolean,
     onSelected: () -> Unit,

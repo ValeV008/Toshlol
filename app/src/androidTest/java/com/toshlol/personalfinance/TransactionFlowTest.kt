@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:no-unit-return")
+
 package com.toshlol.personalfinance
 
 import android.content.Context
@@ -745,7 +747,7 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun manageTextOnlyDirectionScopedCategories() {
+    fun manageTextOnlyDirectionScopedCategories(): Unit {
         openOrganizer()
         composeRule.onNodeWithText("Choose Category icon").assertDoesNotExist()
         val categories: DirectionScopedCategories = createDirectionScopedCategories()
@@ -755,14 +757,14 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun manageIndependentAndAssociatedTags() {
+    fun manageIndependentAndAssociatedTags(): Unit {
         val fixture: TagManagementFixture = createTagManagementFixture()
         val renamedTags: TagManagementFixture = renameTagAssociations(fixture)
         assertTagsAssignedOnTransaction(renamedTags)
     }
 
     @Test
-    fun renameAndArchiveClassificationsWithoutChangingTransactions() {
+    fun renameAndArchiveClassificationsWithoutChangingTransactions(): Unit {
         val fixture: ClassificationJourneyFixture = createClassificationJourneyFixture()
         showPreviousMonthBudget(fixture)
         renameJourneyClassifications(fixture)
@@ -773,7 +775,7 @@ class TransactionFlowTest {
     }
 
     @Test
-    fun refreshClassificationChoicesWithoutResettingMonth() {
+    fun refreshClassificationChoicesWithoutResettingMonth(): Unit {
         val fixture: ClassificationRefreshFixture = createClassificationRefreshFixture()
         selectPreviousMonthInExpenses(fixture.monthLabel)
         renameRefreshClassifications(fixture)
@@ -797,7 +799,7 @@ class TransactionFlowTest {
         return DirectionScopedCategories(expenseCategory, incomeCategory)
     }
 
-    private fun assertDuplicateCategoryRejected() {
+    private fun assertDuplicateCategoryRejected(): Unit {
         composeRule
             .onNodeWithTag("category-direction-EXPENSE")
             .performScrollTo()
@@ -807,9 +809,10 @@ class TransactionFlowTest {
         ui.clickText("Add category", "category-tag-list")
         ui.showText("An active category with this name already exists.")
         ui.showText("Utilities \u00b7 expense", "category-tag-list")
+        saveEvidenceScreenshot("classification-evidence", "classification-validation.png")
     }
 
-    private fun renameExpenseCategory(expenseCategory: FinanceCategory) {
+    private fun renameExpenseCategory(expenseCategory: FinanceCategory): Unit {
         editCategory(expenseCategory.id)
         composeRule.onNodeWithTag("category-direction-EXPENSE").performScrollTo().assertIsNotEnabled()
         ui.enterText("Category name", "Household", "category-tag-list")
@@ -817,7 +820,7 @@ class TransactionFlowTest {
         ui.showText("Household \u00b7 expense", "category-tag-list")
     }
 
-    private fun assertCategoryDirectionsPreserved(categories: DirectionScopedCategories) {
+    private fun assertCategoryDirectionsPreserved(categories: DirectionScopedCategories): Unit {
         val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
         val preservedIncome: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
         assertEquals(categories.expense.id, renamedExpense.id)
@@ -857,10 +860,11 @@ class TransactionFlowTest {
         val renamedIndependentTag: FinanceTag = tag("Flexible lunch")
         assertEquals(fixture.associatedTag.id, renamedIndependentTag.id)
         assertNull(renamedIndependentTag.categoryId)
+        saveEvidenceScreenshot("classification-evidence", "classification-independent-and-associated-tags.png")
         return TagManagementFixture(fixture.category, renamedIndependentTag, renamedAssociatedTag)
     }
 
-    private fun assertTagsAssignedOnTransaction(fixture: TagManagementFixture) {
+    private fun assertTagsAssignedOnTransaction(fixture: TagManagementFixture): Unit {
         ui.show(hasTestTag("classification-back")).performClick()
         ui.clickText("Add expense")
         ui.enterText("Amount", "2.00", "transaction-form")
@@ -926,7 +930,7 @@ class TransactionFlowTest {
         categoryId: String,
         tagId: String,
         month: YearMonth,
-    ) {
+    ): Unit {
         runBlocking {
             budgetRepository.save(
                 RecurringBudgetDraft(
@@ -942,7 +946,7 @@ class TransactionFlowTest {
         }
     }
 
-    private fun showPreviousMonthBudget(fixture: ClassificationJourneyFixture) {
+    private fun showPreviousMonthBudget(fixture: ClassificationJourneyFixture): Unit {
         navigateTo("Overview")
         composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
         composeRule.onNodeWithTag("open-budgets").performScrollTo().performClick()
@@ -951,7 +955,7 @@ class TransactionFlowTest {
         ui.showText(fixture.monthLabel)
     }
 
-    private fun renameJourneyClassifications(fixture: ClassificationJourneyFixture) {
+    private fun renameJourneyClassifications(fixture: ClassificationJourneyFixture): Unit {
         openOrganizerFromCurrentArea()
         ui.showText("Food \u00b7 expense", "category-tag-list")
         editCategory(fixture.category.id)
@@ -962,11 +966,11 @@ class TransactionFlowTest {
         editTag(fixture.tag.id)
         ui.enterText("Tag name", "Dinner", "category-tag-list")
         ui.clickText("Save tag", "category-tag-list")
-        ui.show(hasTestTag("classification-back")).performClick()
+        ui.click(hasTestTag("classification-back"))
         ui.showText(fixture.monthLabel)
     }
 
-    private fun assertRenamedJourneyHistory(fixture: ClassificationJourneyFixture) {
+    private fun assertRenamedJourneyHistory(fixture: ClassificationJourneyFixture): Unit {
         ui.showText("Cash \u00b7 Groceries \u00b7 Dinner")
         val renamedTransaction: FinanceTransaction = runBlocking { transactionRepository().loadTransactions().single() }
         assertEquals(fixture.originalTransaction.id, renamedTransaction.id)
@@ -980,13 +984,19 @@ class TransactionFlowTest {
                 ).format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault()))
         ui.showText(expectedActivityDay)
         ui.showText("Cash \u00b7 Groceries \u00b7 Dinner")
+        navigateTo("Accounts")
+        ui.clickText("View Cash history")
+        ui.showText("Groceries", substring = true)
+        ui.showText("Dinner", substring = true)
+        saveEvidenceScreenshot("classification-evidence", "classification-renamed-history.png")
+        ui.clickText("Back")
         navigateTo("Budgets")
         ui.showText(fixture.budgetName)
         ui.showText("Categories: Groceries")
         ui.showText("Tags: Dinner")
     }
 
-    private fun archiveJourneyClassifications(fixture: ClassificationJourneyFixture) {
+    private fun archiveJourneyClassifications(fixture: ClassificationJourneyFixture): Unit {
         openOrganizerFromCurrentArea()
         val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
         ui.show(hasTestTag("archive-category-${renamedCategory.id}"), "category-tag-list").performClick()
@@ -998,9 +1008,10 @@ class TransactionFlowTest {
         ui.showText("Monthly expense limits")
         ui.showText("Categories: Groceries (Archived)")
         ui.showText("Tags: Dinner (Archived)")
+        saveEvidenceScreenshot("classification-evidence", "classification-archived-budget.png")
     }
 
-    private fun assertArchivedJourneyReferences(fixture: ClassificationJourneyFixture) {
+    private fun assertArchivedJourneyReferences(fixture: ClassificationJourneyFixture): Unit {
         val preservedBudget: RecurringBudgetProgress = runBlocking { fixture.budgetRepository.load(fixture.month).single() }
         assertEquals(setOf(fixture.category.id), preservedBudget.restrictions.categoryIds)
         assertEquals(setOf(fixture.tag.id), preservedBudget.restrictions.tagIds)
@@ -1017,7 +1028,7 @@ class TransactionFlowTest {
         ui.clickText("Back")
     }
 
-    private fun assertArchivedClassificationsUnavailableForNewEntries() {
+    private fun assertArchivedClassificationsUnavailableForNewEntries(): Unit {
         navigateTo("Expenses")
         ui.clickText("Add expense")
         composeRule.onNode(hasText("Groceries (Archived)") and hasAnyAncestor(hasTestTag("transaction-form"))).assertDoesNotExist()
@@ -1034,14 +1045,14 @@ class TransactionFlowTest {
         return ClassificationRefreshFixture(monthLabel, foodCategory, lunchTag)
     }
 
-    private fun selectPreviousMonthInExpenses(monthLabel: String) {
+    private fun selectPreviousMonthInExpenses(monthLabel: String): Unit {
         navigateTo("Overview")
         composeRule.onNodeWithTag("previous-month").performScrollTo().performClick()
         navigateTo("Expenses")
         ui.showText(monthLabel)
     }
 
-    private fun renameRefreshClassifications(fixture: ClassificationRefreshFixture) {
+    private fun renameRefreshClassifications(fixture: ClassificationRefreshFixture): Unit {
         openOrganizerFromCurrentArea()
         ui.showText("Food \u00b7 expense", "category-tag-list")
         editCategory(fixture.category.id)
@@ -1056,7 +1067,7 @@ class TransactionFlowTest {
         ui.showText(fixture.monthLabel)
     }
 
-    private fun assertRefreshFiltersAndEntryChoices(fixture: ClassificationRefreshFixture) {
+    private fun assertRefreshFiltersAndEntryChoices(fixture: ClassificationRefreshFixture): Unit {
         ui.clickText("Category: All Category")
         ui.clickText("Household")
         ui.showText("Category: Household")
@@ -1152,7 +1163,7 @@ class TransactionFlowTest {
         ui.showText("Accounts: Cash")
         ui.showText("Categories: Food")
         ui.showText("Tags: Lunch")
-        saveBudgetEvidenceScreenshot("budget-progress.png")
+        saveEvidenceScreenshot("budget-evidence", "budget-progress.png")
     }
 
     @Suppress("ktlint:standard:no-unit-return")
@@ -1167,7 +1178,7 @@ class TransactionFlowTest {
             .performClick()
             .assertIsNotSelected()
         swipeBudgetEditorToTheTop()
-        saveBudgetEvidenceScreenshot("budget-editor.png")
+        saveEvidenceScreenshot("budget-evidence", "budget-editor.png")
         composeRule.onNodeWithText("Save changes").performScrollTo().performClick()
         ui.showText("Categories: Food")
         ui.showText("Tags: No Tag Restriction")
@@ -1197,7 +1208,7 @@ class TransactionFlowTest {
         ui.showText("Tags: No Tag Restriction")
         ui.showText("Spent  EUR 12.50")
         ui.showText("Remaining  EUR 7.50")
-        saveBudgetEvidenceScreenshot("overview-budget-progress.png")
+        saveEvidenceScreenshot("budget-evidence", "overview-budget-progress.png")
     }
 
     @Suppress("ktlint:standard:no-unit-return")
@@ -1443,7 +1454,11 @@ class TransactionFlowTest {
         }
     }
 
-    private fun saveBudgetEvidenceScreenshot(name: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun saveEvidenceScreenshot(
+        outputDirectoryName: String,
+        name: String,
+    ): Unit {
         val context: Context = ApplicationProvider.getApplicationContext()
         val outputRoot: File =
             InstrumentationRegistry
@@ -1452,7 +1467,7 @@ class TransactionFlowTest {
                 ?.takeIf(String::isNotBlank)
                 ?.let(::File)
                 ?: context.cacheDir
-        val outputDirectory: File = File(outputRoot, "budget-evidence")
+        val outputDirectory: File = File(outputRoot, outputDirectoryName)
         check(outputDirectory.mkdirs() || outputDirectory.isDirectory)
         val screenshot: Bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
         try {
@@ -1625,15 +1640,15 @@ class TransactionFlowTest {
         return tag(name)
     }
 
-    private fun editCategory(id: String) {
+    private fun editCategory(id: String): Unit {
         ui.show(hasTestTag("edit-category-$id"), "category-tag-list").performClick()
     }
 
-    private fun editTag(id: String) {
+    private fun editTag(id: String): Unit {
         ui.show(hasTestTag("edit-tag-$id"), "category-tag-list").performClick()
     }
 
-    private fun openOrganizerFromCurrentArea() {
+    private fun openOrganizerFromCurrentArea(): Unit {
         composeRule.onNodeWithTag("open-navigation-drawer").performClick()
         composeRule.onNodeWithTag("drawer-Categories & Tags").performClick()
         ui.showText("Category name", "category-tag-list")

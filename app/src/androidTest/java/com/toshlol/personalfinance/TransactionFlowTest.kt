@@ -787,7 +787,7 @@ class TransactionFlowTest {
         ui.enterText("Category name", "Utilities", "category-tag-list")
         composeRule.onNodeWithTag("category-direction-EXPENSE").assertIsSelected()
         ui.clickText("Add category", "category-tag-list")
-        val expenseCategory: FinanceCategory = category("Utilities", TransactionDirection.EXPENSE)
+        val expenseCategory: FinanceCategory = findCategory("Utilities", TransactionDirection.EXPENSE)
         composeRule
             .onNodeWithTag("category-direction-INCOME")
             .performScrollTo()
@@ -795,7 +795,7 @@ class TransactionFlowTest {
             .assertIsSelected()
         ui.enterText("Category name", "Utilities", "category-tag-list")
         ui.clickText("Add category", "category-tag-list")
-        val incomeCategory: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
+        val incomeCategory: FinanceCategory = findCategory("Utilities", TransactionDirection.INCOME)
         assertTrue(expenseCategory.id != incomeCategory.id)
         return DirectionScopedCategories(expenseCategory, incomeCategory)
     }
@@ -830,8 +830,8 @@ class TransactionFlowTest {
     }
 
     private fun assertCategoryDirectionsPreserved(categories: DirectionScopedCategories): Unit {
-        val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
-        val renamedIncome: FinanceCategory = category("Salary", TransactionDirection.INCOME)
+        val renamedExpense: FinanceCategory = findCategory("Household", TransactionDirection.EXPENSE)
+        val renamedIncome: FinanceCategory = findCategory("Salary", TransactionDirection.INCOME)
         assertEquals(categories.expense.id, renamedExpense.id)
         assertEquals(categories.income.id, renamedIncome.id)
         ui.showText("Salary \u00b7 income", "category-tag-list")
@@ -839,15 +839,15 @@ class TransactionFlowTest {
 
     private fun createTagManagementFixture(): TagManagementFixture {
         createFoodCategory()
-        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        val foodCategory: FinanceCategory = findCategory("Food", TransactionDirection.EXPENSE)
         ui.enterText("Tag name", "Everywhere", "category-tag-list")
         composeRule.onNodeWithTag("tag-association-independent").assertIsSelected()
         ui.clickText("Add tag", "category-tag-list")
-        val independentTag: FinanceTag = tag("Everywhere")
+        val independentTag: FinanceTag = findTag("Everywhere")
         ui.show(hasTestTag("tag-category-${foodCategory.id}"), "category-tag-list").performClick().assertIsSelected()
         ui.enterText("Tag name", "Lunch", "category-tag-list")
         ui.clickText("Add tag", "category-tag-list")
-        val associatedTag: FinanceTag = tag("Lunch")
+        val associatedTag: FinanceTag = findTag("Lunch")
         assertTrue(independentTag.id != associatedTag.id)
         return TagManagementFixture(foodCategory, independentTag, associatedTag)
     }
@@ -858,7 +858,7 @@ class TransactionFlowTest {
         ui.enterText("Tag name", "Any meal", "category-tag-list")
         ui.show(hasTestTag("tag-category-${fixture.category.id}"), "category-tag-list").performClick()
         ui.clickText("Save tag", "category-tag-list")
-        val renamedAssociatedTag: FinanceTag = tag("Any meal")
+        val renamedAssociatedTag: FinanceTag = findTag("Any meal")
         assertEquals(fixture.independentTag.id, renamedAssociatedTag.id)
         assertEquals(fixture.category.id, renamedAssociatedTag.categoryId)
         ui.showText("Any meal", "category-tag-list")
@@ -866,7 +866,7 @@ class TransactionFlowTest {
         ui.enterText("Tag name", "Flexible lunch", "category-tag-list")
         ui.show(hasTestTag("tag-association-independent"), "category-tag-list").performClick()
         ui.clickText("Save tag", "category-tag-list")
-        val renamedIndependentTag: FinanceTag = tag("Flexible lunch")
+        val renamedIndependentTag: FinanceTag = findTag("Flexible lunch")
         assertEquals(fixture.associatedTag.id, renamedIndependentTag.id)
         assertNull(renamedIndependentTag.categoryId)
         saveEvidenceScreenshot("classification-evidence", "classification-independent-and-associated-tags.png")
@@ -901,11 +901,14 @@ class TransactionFlowTest {
     private fun createClassificationJourneyFixture(): ClassificationJourneyFixture {
         val previousMonth: YearMonth = YearMonth.now().minusMonths(1)
         createFoodCategory()
-        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        val foodCategory: FinanceCategory = findCategory("Food", TransactionDirection.EXPENSE)
         val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
         closeClassificationManagement()
         val originalTransaction: FinanceTransaction = recordClassificationJourneyExpense(previousMonth, lunchTag.id)
-        val budgetRepository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(AppDatabase.getInstance(appContext()))
+        val budgetRepository: RoomRecurringBudgetRepository =
+            RoomRecurringBudgetRepository(
+                AppDatabase.getInstance(getApplicationContext()),
+            )
         val budgetName: String = "Food limit"
         saveClassificationJourneyBudget(budgetRepository, budgetName, foodCategory.id, lunchTag.id, previousMonth)
         val monthLabel: String = previousMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
@@ -1011,7 +1014,7 @@ class TransactionFlowTest {
 
     private fun archiveJourneyClassifications(fixture: ClassificationJourneyFixture): Unit {
         openOrganizerFromCurrentArea()
-        val renamedCategory: FinanceCategory = category("Groceries", TransactionDirection.EXPENSE)
+        val renamedCategory: FinanceCategory = findCategory("Groceries", TransactionDirection.EXPENSE)
         createAssociatedTag("Side dish", renamedCategory.id)
         ui.show(hasTestTag("archive-category-${renamedCategory.id}"), "category-tag-list").performClick()
         ui.showText("Groceries \u00b7 expense \u00b7 Archived", "category-tag-list")
@@ -1073,7 +1076,7 @@ class TransactionFlowTest {
 
     private fun createClassificationRefreshFixture(): ClassificationRefreshFixture {
         createFoodCategory()
-        val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
+        val foodCategory: FinanceCategory = findCategory("Food", TransactionDirection.EXPENSE)
         val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
         closeClassificationManagement()
         val monthLabel: String = YearMonth.now().minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
@@ -1101,7 +1104,7 @@ class TransactionFlowTest {
             hasText("Meals") and hasAnyAncestor(hasTestTag("tag-row-${fixture.tag.id}")),
             "category-tag-list",
         )
-        val renamedTag: FinanceTag = tag("Meals")
+        val renamedTag: FinanceTag = findTag("Meals")
         assertEquals(fixture.tag.id, renamedTag.id)
         closeClassificationManagement()
         ui.showText(fixture.monthLabel)
@@ -1677,7 +1680,7 @@ class TransactionFlowTest {
         ui.show(hasTestTag("tag-category-$categoryId"), "category-tag-list").performClick()
         ui.enterText("Tag name", name, "category-tag-list")
         ui.clickText("Add tag", "category-tag-list")
-        return tag(name)
+        return findTag(name)
     }
 
     private fun editCategory(id: String): Unit {
@@ -1699,28 +1702,28 @@ class TransactionFlowTest {
         ui.showText("Category name", "category-tag-list")
     }
 
-    private fun category(
+    private fun findCategory(
         name: String,
         direction: TransactionDirection,
     ): FinanceCategory =
         runBlocking {
-            FinanceTestFixtures(AppDatabase.getInstance(appContext()))
+            FinanceTestFixtures(AppDatabase.getInstance(getApplicationContext()))
                 .organization
                 .load()
                 .categories
                 .single { category: FinanceCategory -> category.name == name && category.direction == direction }
         }
 
-    private fun tag(name: String): FinanceTag =
+    private fun findTag(name: String): FinanceTag =
         runBlocking {
-            FinanceTestFixtures(AppDatabase.getInstance(appContext()))
+            FinanceTestFixtures(AppDatabase.getInstance(getApplicationContext()))
                 .organization
                 .load()
                 .tags
                 .single { tag: FinanceTag -> tag.name == name }
         }
 
-    private fun appContext(): Context = ApplicationProvider.getApplicationContext()
+    private fun getApplicationContext(): Context = ApplicationProvider.getApplicationContext()
 
     @Suppress("ktlint:standard:no-unit-return")
     private fun assertOverviewAccountSelection(

@@ -1,6 +1,6 @@
 # 08: Redesigned Category and Tag management
 
-Status: claimed
+Status: resolved
 Blocked by: 01
 
 **What to build:** Create, rename, associate, and archive Categories and Tags in a consistent text-only management interface while preserving direction scopes, historical references, and compatibility with Transaction entry and Budget restrictions.
@@ -15,13 +15,13 @@ Blocked by: 01
 
 ## Observable acceptance criteria
 
-- [ ] The Categories & Tags destination and create/edit/archive controls use the shared visual system with accessible headings, labeled inputs, selection states, validation, and larger-font scrolling. Category rows/choices remain text-only with no icon picker or icon storage.
-- [ ] Create and rename Income and Expense Categories within their existing direction scopes, preserving trimmed case-insensitive uniqueness rules and stable identities. Offer direction clearly rather than allowing one Category to classify both Income and Expense.
-- [ ] Create/rename independent Tags and Category-associated Tags, showing their association and enforcing existing validation. Distinct fixture records remain independently editable.
-- [ ] Renames resolve through stable references in already available Transaction lists/forms, Account history, and Budget views. No movement identity, amount, or chosen scope is rewritten to achieve a displayed name change.
-- [ ] Archiving prevents prohibited new classification assignments while preserving historical names and references. A selected archived Budget restriction must not be silently removed or converted into an unrestricted group; integrate through the existing stable-reference contracts used by tickets 06-07.
-- [ ] Changing Transaction Category/direction retains existing automatic removal of incompatible associated Tags, while Categories themselves remain optional. Updated management records become available in already existing entry/filter flows without navigation resets or stale lists.
-- [ ] Persistence/reopen and public classification tests, Android 10 management/history journeys, relevant lint/formatting checks, and Category/Tag screenshots verify validation, independent records, renamed history, archived state, and larger fonts.
+- [x] The Categories & Tags destination and create/edit/archive controls use the shared visual system with accessible headings, labeled inputs, selection states, validation, and larger-font scrolling. Category rows/choices remain text-only with no icon picker or icon storage.
+- [x] Create and rename Income and Expense Categories within their existing direction scopes, preserving trimmed case-insensitive uniqueness rules and stable identities. Offer direction clearly rather than allowing one Category to classify both Income and Expense.
+- [x] Create/rename independent Tags and Category-associated Tags, showing their association and enforcing existing validation. Distinct fixture records remain independently editable.
+- [x] Renames resolve through stable references in already available Transaction lists/forms, Account history, and Budget views. No movement identity, amount, or chosen scope is rewritten to achieve a displayed name change.
+- [x] Archiving prevents prohibited new classification assignments while preserving historical names and references. A selected archived Budget restriction must not be silently removed or converted into an unrestricted group; integrate through the existing stable-reference contracts used by tickets 06-07.
+- [x] Changing Transaction Category/direction retains existing automatic removal of incompatible associated Tags, while Categories themselves remain optional. Updated management records become available in already existing entry/filter flows without navigation resets or stale lists.
+- [x] Persistence/reopen and public classification tests, Android 10 management/history journeys, relevant lint/formatting checks, and Category/Tag screenshots verify validation, independent records, renamed history, archived state, and larger fonts.
 
 ## Named behavior tests
 
@@ -39,3 +39,13 @@ Blocked by: 01
 Do not make this ticket wait for the redesigned entry or custom Budget editor: existing public classification flows provide an independently demoable journey. Their own tickets verify the final integration with the revised forms and Budget model. No Category icons, seeded Categories, nested classifications, or new deletion policy.
 
 Each slice must remain independently demoable and keep existing callers and relevant checks working. Include the feature's behavior and UI verification in this ticket rather than deferring them to the final integration ticket. Follow the parent spec's exclusions and existing ADRs.
+
+## Answer
+
+Implemented the accessible text-only Categories & Tags manager, including direction-scoped category creation and renaming, independent and category-associated tags, validation, archiving, stable-reference history, archived Budget restrictions, and refreshed entry/filter choices. Returning from management now waits for related references to refresh, preventing stale category and tag options.
+
+Verification passed on Android 10/API 29: all 85 connected tests passed with no failures or skips. Host-runner tests passed 15/15. `:app:testDebugUnitTest`, `:app:lintDebug`, `:app:ktlintCheck`, `:app:assembleDebug`, and `:app:assembleDebugAndroidTest` passed. The selected and empty Overview process-restart checks passed.
+
+Screenshots: [validation](evidence/08/classification-validation.png), [independent and associated tags](evidence/08/classification-independent-and-associated-tags.png), [renamed history](evidence/08/classification-renamed-history.png), [archived Budget restrictions](evidence/08/classification-archived-budget.png), and [large-font management](evidence/08/large-font-management.png).
+
+Run logs: [connected Android tests](evidence/08/connected-android-test.log), [Gradle checks](evidence/08/gradle-checks.log), [host-runner tests](evidence/08/host-tests.log), and [Overview persistence](evidence/08/overview-persistence.log). Overview restart evidence is under `build/overview-persistence/20261119T174310562546Z/`.

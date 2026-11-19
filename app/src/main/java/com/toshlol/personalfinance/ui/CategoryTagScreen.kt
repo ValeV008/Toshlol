@@ -49,23 +49,24 @@ import com.toshlol.personalfinance.data.FinanceTag
 import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 
-private val ClassificationCharcoal: Color = Color(0xFF292B2F)
-private val ClassificationPageGray: Color = Color(0xFFF1F2F4)
-private val ClassificationCardRadius: Dp = 20.dp
-private val ClassificationRowRadius: Dp = 16.dp
-private val ClassificationPageHorizontalPadding: Dp = 18.dp
-private val ClassificationPageVerticalPadding: Dp = 16.dp
-private val ClassificationPageItemSpacing: Dp = 12.dp
-private val ClassificationErrorPadding: Dp = 12.dp
-private val ClassificationHeaderPadding: Dp = 18.dp
-private val ClassificationCardPadding: Dp = 16.dp
-private val ClassificationFormItemSpacing: Dp = 10.dp
-private val ClassificationStandardSpacing: Dp = 8.dp
-private val ClassificationAccountActionSpacing: Dp = 4.dp
-private val ClassificationRowHorizontalPadding: Dp = 16.dp
-private val ClassificationRowVerticalPadding: Dp = 10.dp
-private val ClassificationActionMinimumHeight: Dp = 48.dp
-private val ClassificationRadioMinimumHeight: Dp = 52.dp
+private val classificationCharcoal: Color = Color(0xFF292B2F)
+private val classificationPageGray: Color = Color(0xFFF1F2F4)
+private val classificationLabelSeparator: String = "\u00b7"
+private val classificationCardRadius: Dp = 20.dp
+private val classificationRowRadius: Dp = 16.dp
+private val classificationPageHorizontalPadding: Dp = 18.dp
+private val classificationPageVerticalPadding: Dp = 16.dp
+private val classificationPageItemSpacing: Dp = 12.dp
+private val classificationErrorPadding: Dp = 12.dp
+private val classificationHeaderPadding: Dp = 18.dp
+private val classificationCardPadding: Dp = 16.dp
+private val classificationFormItemSpacing: Dp = 10.dp
+private val classificationStandardSpacing: Dp = 8.dp
+private val classificationAccountActionSpacing: Dp = 4.dp
+private val classificationRowHorizontalPadding: Dp = 16.dp
+private val classificationRowVerticalPadding: Dp = 10.dp
+private val classificationActionMinimumHeight: Dp = 48.dp
+private val classificationRadioMinimumHeight: Dp = 52.dp
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
@@ -74,14 +75,14 @@ fun CategoryTagScreen(
     actions: OrganizerActions,
 ): Unit {
     var isAccountSectionVisible: Boolean by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(ClassificationPageGray)) {
+    Column(Modifier.fillMaxSize().background(classificationPageGray)) {
         renderClassificationHeader(actions.close, isEnabled = !state.isSaving)
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().testTag("category-tag-list"),
             contentPadding =
                 androidx.compose.foundation.layout
-                    .PaddingValues(horizontal = ClassificationPageHorizontalPadding, vertical = ClassificationPageVerticalPadding),
-            verticalArrangement = Arrangement.spacedBy(ClassificationPageItemSpacing),
+                    .PaddingValues(horizontal = classificationPageHorizontalPadding, vertical = classificationPageVerticalPadding),
+            verticalArrangement = Arrangement.spacedBy(classificationPageItemSpacing),
         ) {
             item {
                 renderAccountManagementCard(state, actions.accounts, isAccountSectionVisible) {
@@ -94,7 +95,7 @@ fun CategoryTagScreen(
             item {
                 Text("Categories", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             }
-            items(state.categories, key = { category -> "category-${category.id}" }) { category ->
+            items(state.categories, key = { category: FinanceCategory -> "category-${category.id}" }) { category: FinanceCategory ->
                 renderCategoryRow(category, actions.categories, isEnabled = !state.isSaving)
             }
             item {
@@ -103,7 +104,7 @@ fun CategoryTagScreen(
             item {
                 Text("Tags", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             }
-            items(state.tags, key = { tag -> "tag-${tag.id}" }) { tag ->
+            items(state.tags, key = { tag: FinanceTag -> "tag-${tag.id}" }) { tag: FinanceTag ->
                 renderTagRow(tag, state.categories, actions.tags, isEnabled = !state.isSaving)
             }
         }
@@ -113,7 +114,7 @@ fun CategoryTagScreen(
                 Modifier
                     .fillMaxWidth()
                     .background(Color.White)
-                    .padding(ClassificationErrorPadding)
+                    .padding(classificationErrorPadding)
                     .semantics { liveRegion = LiveRegionMode.Polite },
                 color = MaterialTheme.colorScheme.error,
             )
@@ -131,11 +132,11 @@ private fun renderClassificationHeader(
         Modifier
             .fillMaxWidth()
             .background(
-                ClassificationCharcoal,
+                classificationCharcoal,
                 androidx.compose.foundation.shape
-                    .RoundedCornerShape(ClassificationCardRadius),
-            ).padding(ClassificationHeaderPadding),
-        verticalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing),
+                    .RoundedCornerShape(classificationCardRadius),
+            ).padding(classificationHeaderPadding),
+        verticalArrangement = Arrangement.spacedBy(classificationStandardSpacing),
     ) {
         Text(
             "Categories & Tags",
@@ -151,7 +152,7 @@ private fun renderClassificationHeader(
         OutlinedButton(
             onClick = onBack,
             enabled = isEnabled,
-            modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight).testTag("classification-back"),
+            modifier = Modifier.heightIn(min = classificationActionMinimumHeight).testTag("classification-back"),
         ) {
             Text("Back to overview")
         }
@@ -171,14 +172,14 @@ private fun renderAccountManagementCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape =
             androidx.compose.foundation.shape
-                .RoundedCornerShape(ClassificationCardRadius),
+                .RoundedCornerShape(classificationCardRadius),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(ClassificationCardPadding),
-            verticalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing),
+            Modifier.fillMaxWidth().padding(classificationCardPadding),
+            verticalArrangement = Arrangement.spacedBy(classificationStandardSpacing),
         ) {
             Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-            OutlinedButton(onClick = onVisibilityChanged, modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight)) {
+            OutlinedButton(onClick = onVisibilityChanged, modifier = Modifier.heightIn(min = classificationActionMinimumHeight)) {
                 Text(if (isVisible) "Hide accounts" else "Manage accounts")
             }
             if (isVisible) {
@@ -196,7 +197,7 @@ private fun renderAccountManagementRows(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
-    Column(verticalArrangement = Arrangement.spacedBy(ClassificationAccountActionSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(classificationAccountActionSpacing)) {
         Text("Account closing balances for ${state.selectedMonth}", style = MaterialTheme.typography.titleMedium)
         state.accounts.forEach { account: Account -> renderAccountManagementRow(account, state, actions) }
     }
@@ -211,25 +212,23 @@ private fun renderAccountManagementRow(
 ): Unit {
     Column {
         val closingBalanceMinor: Long = state.monthlyOverview.closingBalancesMinor[account.id] ?: 0L
-        val archiveLabel: String = if (account.isArchived) " · Archived" else ""
-        Text(
-            "${account.name} · ${account.type.label} · ${state.currency} ${formatMoney(
-                closingBalanceMinor,
-                state.currency,
-            )}$archiveLabel",
-        )
+        val archiveLabel: String = if (account.isArchived) " $classificationLabelSeparator Archived" else ""
+        val accountBalance: String = formatMoney(closingBalanceMinor, state.currency)
+        val accountSummary: String =
+            "${account.name} $classificationLabelSeparator ${account.type.label} $classificationLabelSeparator ${state.currency} $accountBalance$archiveLabel"
+        Text(accountSummary)
         if (!account.isArchived) {
-            Row(horizontalArrangement = Arrangement.spacedBy(ClassificationAccountActionSpacing)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(classificationAccountActionSpacing)) {
                 val accountAction: String = if (state.editingAccountId == account.id) "Editing" else "Edit"
                 TextButton(
                     onClick = { actions.select(account.id) },
-                    modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight),
+                    modifier = Modifier.heightIn(min = classificationActionMinimumHeight),
                 ) {
                     Text("$accountAction ${account.name}")
                 }
                 TextButton(
                     onClick = { actions.archive(account.id) },
-                    modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight),
+                    modifier = Modifier.heightIn(min = classificationActionMinimumHeight),
                 ) {
                     Text("Archive ${account.name}")
                 }
@@ -244,7 +243,7 @@ private fun renderAccountDetailsForm(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
-    Column(verticalArrangement = Arrangement.spacedBy(ClassificationFormItemSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(classificationFormItemSpacing)) {
         OutlinedTextField(
             value = state.accountNameDraft,
             onValueChange = actions.nameChanged,
@@ -260,7 +259,7 @@ private fun renderAccountDetailsForm(
         Button(
             onClick = actions.save,
             enabled = !state.isSaving,
-            modifier = Modifier.fillMaxWidth().heightIn(min = ClassificationActionMinimumHeight),
+            modifier = Modifier.fillMaxWidth().heightIn(min = classificationActionMinimumHeight),
         ) {
             Text("Save account details")
         }
@@ -273,7 +272,7 @@ private fun renderAccountCreationForm(
     state: TransactionsUiState,
     actions: AccountEditorActions,
 ): Unit {
-    Column(verticalArrangement = Arrangement.spacedBy(ClassificationFormItemSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(classificationFormItemSpacing)) {
         Text("Add Account", style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(value = state.newAccountName, onValueChange = actions.newNameChanged, label = {
             Text("New account name")
@@ -287,7 +286,7 @@ private fun renderAccountCreationForm(
             label = { Text("New account opening date (YYYY-MM-DD)") },
             singleLine = true,
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(classificationStandardSpacing)) {
             AccountType.entries.forEach { type: AccountType ->
                 renderClassificationRadioChoice(
                     label = type.name.lowercase().replaceFirstChar(Char::uppercase),
@@ -300,7 +299,7 @@ private fun renderAccountCreationForm(
         Button(
             onClick = actions.create,
             enabled = !state.isSaving,
-            modifier = Modifier.fillMaxWidth().heightIn(min = ClassificationActionMinimumHeight),
+            modifier = Modifier.fillMaxWidth().heightIn(min = classificationActionMinimumHeight),
         ) {
             Text("Create account")
         }
@@ -320,11 +319,11 @@ private fun renderCategoryEditorCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape =
             androidx.compose.foundation.shape
-                .RoundedCornerShape(ClassificationCardRadius),
+                .RoundedCornerShape(classificationCardRadius),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(ClassificationCardPadding),
-            verticalArrangement = Arrangement.spacedBy(ClassificationFormItemSpacing),
+            Modifier.fillMaxWidth().padding(classificationCardPadding),
+            verticalArrangement = Arrangement.spacedBy(classificationFormItemSpacing),
         ) {
             Text(
                 if (isEditing) "Edit Category" else "New Category",
@@ -345,7 +344,7 @@ private fun renderCategoryEditorCard(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text("Direction", style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(classificationStandardSpacing)) {
                 TransactionDirection.entries.forEach { direction ->
                     renderClassificationRadioChoice(
                         label = direction.name.lowercase().replaceFirstChar(Char::uppercase),
@@ -356,14 +355,14 @@ private fun renderCategoryEditorCard(
                     )
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(classificationStandardSpacing)) {
                 Button(
                     onClick = {
                         keyboardController?.hide()
                         actions.save()
                     },
                     enabled = !state.isSaving,
-                    modifier = Modifier.weight(1f).heightIn(min = ClassificationActionMinimumHeight),
+                    modifier = Modifier.weight(1f).heightIn(min = classificationActionMinimumHeight),
                 ) { Text(if (isEditing) "Save category" else "Add category") }
                 if (isEditing) {
                     OutlinedButton(
@@ -372,7 +371,7 @@ private fun renderCategoryEditorCard(
                             actions.cancelEditing()
                         },
                         enabled = !state.isSaving,
-                        modifier = Modifier.weight(1f).heightIn(min = ClassificationActionMinimumHeight),
+                        modifier = Modifier.weight(1f).heightIn(min = classificationActionMinimumHeight),
                     ) { Text("Cancel Category edit") }
                 }
             }
@@ -394,20 +393,20 @@ private fun renderCategoryRow(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape =
             androidx.compose.foundation.shape
-                .RoundedCornerShape(ClassificationRowRadius),
+                .RoundedCornerShape(classificationRowRadius),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = ClassificationRowHorizontalPadding, vertical = ClassificationRowVerticalPadding),
+            Modifier.fillMaxWidth().padding(horizontal = classificationRowHorizontalPadding, vertical = classificationRowVerticalPadding),
         ) {
             Text(
-                "${category.name} · ${category.direction.name.lowercase()}${if (category.archived) " · Archived" else ""}",
+                "${category.name} $classificationLabelSeparator ${category.direction.name.lowercase()}${if (category.archived) " $classificationLabelSeparator Archived" else ""}",
                 style = MaterialTheme.typography.titleMedium,
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(
                     onClick = { actions.edit(category) },
                     enabled = isEnabled,
-                    modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight).testTag("edit-category-${category.id}"),
+                    modifier = Modifier.heightIn(min = classificationActionMinimumHeight).testTag("edit-category-${category.id}"),
                 ) {
                     Text(if (category.archived) "Rename archived" else "Rename")
                 }
@@ -415,7 +414,7 @@ private fun renderCategoryRow(
                     TextButton(
                         onClick = { actions.archive(category.id) },
                         enabled = isEnabled,
-                        modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight).testTag("archive-category-${category.id}"),
+                        modifier = Modifier.heightIn(min = classificationActionMinimumHeight).testTag("archive-category-${category.id}"),
                     ) {
                         Text("Archive")
                     }
@@ -440,11 +439,11 @@ private fun renderTagEditorCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape =
             androidx.compose.foundation.shape
-                .RoundedCornerShape(ClassificationCardRadius),
+                .RoundedCornerShape(classificationCardRadius),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(ClassificationCardPadding),
-            verticalArrangement = Arrangement.spacedBy(ClassificationFormItemSpacing),
+            Modifier.fillMaxWidth().padding(classificationCardPadding),
+            verticalArrangement = Arrangement.spacedBy(classificationFormItemSpacing),
         ) {
             Text(
                 if (isEditing) "Edit Tag" else "New Tag",
@@ -475,14 +474,14 @@ private fun renderTagEditorCard(
                     modifier = Modifier.testTag("tag-category-${category.id}"),
                 )
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ClassificationStandardSpacing)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(classificationStandardSpacing)) {
                 Button(
                     onClick = {
                         keyboardController?.hide()
                         actions.save()
                     },
                     enabled = !state.isSaving,
-                    modifier = Modifier.weight(1f).heightIn(min = ClassificationActionMinimumHeight),
+                    modifier = Modifier.weight(1f).heightIn(min = classificationActionMinimumHeight),
                 ) { Text(if (isEditing) "Save tag" else "Add tag") }
                 if (isEditing) {
                     OutlinedButton(
@@ -491,7 +490,7 @@ private fun renderTagEditorCard(
                             actions.cancelEditing()
                         },
                         enabled = !state.isSaving,
-                        modifier = Modifier.weight(1f).heightIn(min = ClassificationActionMinimumHeight),
+                        modifier = Modifier.weight(1f).heightIn(min = classificationActionMinimumHeight),
                     ) { Text("Cancel Tag edit") }
                 }
             }
@@ -519,18 +518,21 @@ private fun renderTagRow(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape =
             androidx.compose.foundation.shape
-                .RoundedCornerShape(ClassificationRowRadius),
+                .RoundedCornerShape(classificationRowRadius),
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = ClassificationRowHorizontalPadding, vertical = ClassificationRowVerticalPadding),
+            Modifier.fillMaxWidth().padding(horizontal = classificationRowHorizontalPadding, vertical = classificationRowVerticalPadding),
         ) {
             Text(tag.name, style = MaterialTheme.typography.titleMedium)
-            Text("$association${if (tag.archived) " · Archived" else ""}", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "$association${if (tag.archived) " $classificationLabelSeparator Archived" else ""}",
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(
                     onClick = { actions.edit(tag) },
                     enabled = isEnabled,
-                    modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight).testTag("edit-tag-${tag.id}"),
+                    modifier = Modifier.heightIn(min = classificationActionMinimumHeight).testTag("edit-tag-${tag.id}"),
                 ) {
                     Text(if (tag.archived) "Rename archived" else "Rename")
                 }
@@ -538,7 +540,7 @@ private fun renderTagRow(
                     TextButton(
                         onClick = { actions.archive(tag.id) },
                         enabled = isEnabled,
-                        modifier = Modifier.heightIn(min = ClassificationActionMinimumHeight).testTag("archive-tag-${tag.id}"),
+                        modifier = Modifier.heightIn(min = classificationActionMinimumHeight).testTag("archive-tag-${tag.id}"),
                     ) {
                         Text("Archive")
                     }
@@ -560,12 +562,12 @@ private fun renderClassificationRadioChoice(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = ClassificationRadioMinimumHeight)
+            .heightIn(min = classificationRadioMinimumHeight)
             .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = onSelected)
-            .padding(horizontal = ClassificationStandardSpacing),
+            .padding(horizontal = classificationStandardSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = isSelected, onClick = null, enabled = enabled)
-        Text(label, modifier = Modifier.padding(start = ClassificationStandardSpacing))
+        Text(label, modifier = Modifier.padding(start = classificationStandardSpacing))
     }
 }

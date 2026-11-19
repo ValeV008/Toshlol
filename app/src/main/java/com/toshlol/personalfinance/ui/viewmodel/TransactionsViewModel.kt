@@ -625,19 +625,28 @@ class TransactionsViewModel(
             .valueOf(amountMinor, fractionDigits(currency))
             .toPlainString()
 
-    fun closeOrganizer() {
-        mutableUiState.value = uiState.value.copy(isOrganizerVisible = false, error = null)
+    @Suppress("ktlint:standard:no-unit-return")
+    fun closeOrganizer(): Unit {
+        mutableUiState.value = uiState.value.copy(isSaving = true, error = null)
         viewModelScope.launch {
             try {
-                refreshClassificationReferences(categoryTagRepository.load())
+                refreshClassificationReferences(categoryTagRepository.load(), shouldCloseOrganizer = true)
             } catch (exception: IOException) {
-                mutableUiState.value = uiState.value.copy(isSaving = false, error = "Could not refresh category and tag references.")
+                mutableUiState.value =
+                    uiState.value.copy(
+                        isOrganizerVisible = false,
+                        isSaving = false,
+                        error = "Could not refresh category and tag references.",
+                    )
             }
         }
     }
 
     @Suppress("ktlint:standard:no-unit-return")
-    private suspend fun refreshClassificationReferences(snapshot: CategoryTagSnapshot): Unit {
+    private suspend fun refreshClassificationReferences(
+        snapshot: CategoryTagSnapshot,
+        shouldCloseOrganizer: Boolean = false,
+    ): Unit {
         mutableUiState.value = uiState.value.copy(categories = snapshot.categories, tags = snapshot.tags)
         try {
             val transactions: List<FinanceTransaction> = repository.loadTransactions()
@@ -649,12 +658,22 @@ class TransactionsViewModel(
                     transactions = transactions,
                     budgets = budgets,
                     recurringBudgets = recurringBudgets,
+                    isOrganizerVisible = if (shouldCloseOrganizer) false else uiState.value.isOrganizerVisible,
                     isSaving = false,
                     error = null,
                 )
         } catch (exception: IOException) {
             mutableUiState.value =
-                uiState.value.copy(isSaving = false, error = "Classification saved, but related views could not refresh.")
+                uiState.value.copy(
+                    isOrganizerVisible = if (shouldCloseOrganizer) false else uiState.value.isOrganizerVisible,
+                    isSaving = false,
+                    error =
+                        if (shouldCloseOrganizer) {
+                            "Could not refresh category and tag references."
+                        } else {
+                            "Classification saved, but related views could not refresh."
+                        },
+                )
         }
     }
 
@@ -837,7 +856,8 @@ class TransactionsViewModel(
             )
     }
 
-    fun cancelCategoryEdit() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun cancelCategoryEdit(): Unit {
         mutableUiState.value = uiState.value.copy(editingCategoryId = null, categoryName = "", error = null)
     }
 
@@ -873,7 +893,8 @@ class TransactionsViewModel(
         mutableUiState.value = uiState.value.copy(editingTagId = tag.id, tagName = tag.name, tagCategoryId = tag.categoryId, error = null)
     }
 
-    fun cancelTagEdit() {
+    @Suppress("ktlint:standard:no-unit-return")
+    fun cancelTagEdit(): Unit {
         mutableUiState.value = uiState.value.copy(editingTagId = null, tagName = "", tagCategoryId = null, error = null)
     }
 
@@ -916,7 +937,8 @@ class TransactionsViewModel(
         }
     }
 
-    private fun showArchiveError(message: String) {
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun showArchiveError(message: String): Unit {
         mutableUiState.value = uiState.value.copy(isSaving = false, error = message)
     }
 

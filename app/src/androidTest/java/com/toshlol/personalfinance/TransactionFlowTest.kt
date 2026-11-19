@@ -520,7 +520,7 @@ class TransactionFlowTest {
         ui.clickText("Save account details", "category-tag-list")
         ui.click(hasText("Edit Savings", substring = true), "category-tag-list")
         ui.showText("2026-01-01", "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         ui.clickText("Add expense")
         ui.enterText("Amount", "1.00", "transaction-form")
         ui.enterText("Date (YYYY-MM-DD)", previousMonth.atEndOfMonth().toString(), "transaction-form")
@@ -580,7 +580,7 @@ class TransactionFlowTest {
         ui.enterText("Account name", "Reserve", "category-tag-list")
         ui.clickText("Save account details", "category-tag-list")
         ui.showText("Reserve \u00b7 Bank \u00b7 EUR 15.00", "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         showOverviewAccount("Cash", "-10.00").performClick()
         ui.showText("Cash history")
         ui.showText("-EUR 10.00 · Transfer out")
@@ -718,10 +718,10 @@ class TransactionFlowTest {
         composeRule.onNode(hasText("Lunch") and hasSetTextAction()).performImeAction()
         ui.clickText("Add tag", "category-tag-list")
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         openOrganizer()
         ui.show(hasText("Lunch") and !hasSetTextAction(), "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         ui.clickText("Add expense")
         ui.enterText("Amount", "8.25", "transaction-form")
         ui.clickText("Food", "transaction-form")
@@ -742,7 +742,7 @@ class TransactionFlowTest {
         accountNameField.assert(hasText("Wallet"))
         ui.clickText("Save account details", "category-tag-list")
         ui.showText("Wallet · Cash · EUR -8.25", "category-tag-list", substring = true)
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         showOverviewAccount("Wallet", "-8.25")
     }
 
@@ -753,6 +753,7 @@ class TransactionFlowTest {
         val categories: DirectionScopedCategories = createDirectionScopedCategories()
         assertDuplicateCategoryRejected()
         renameExpenseCategory(categories.expense)
+        renameIncomeCategory(categories.income)
         assertCategoryDirectionsPreserved(categories)
     }
 
@@ -820,12 +821,20 @@ class TransactionFlowTest {
         ui.showText("Household \u00b7 expense", "category-tag-list")
     }
 
+    private fun renameIncomeCategory(incomeCategory: FinanceCategory): Unit {
+        editCategory(incomeCategory.id)
+        composeRule.onNodeWithTag("category-direction-INCOME").performScrollTo().assertIsNotEnabled()
+        ui.enterText("Category name", "Salary", "category-tag-list")
+        ui.clickText("Save category", "category-tag-list")
+        ui.showText("Salary \u00b7 income", "category-tag-list")
+    }
+
     private fun assertCategoryDirectionsPreserved(categories: DirectionScopedCategories): Unit {
         val renamedExpense: FinanceCategory = category("Household", TransactionDirection.EXPENSE)
-        val preservedIncome: FinanceCategory = category("Utilities", TransactionDirection.INCOME)
+        val renamedIncome: FinanceCategory = category("Salary", TransactionDirection.INCOME)
         assertEquals(categories.expense.id, renamedExpense.id)
-        assertEquals(categories.income.id, preservedIncome.id)
-        ui.showText("Utilities \u00b7 income", "category-tag-list")
+        assertEquals(categories.income.id, renamedIncome.id)
+        ui.showText("Salary \u00b7 income", "category-tag-list")
     }
 
     private fun createTagManagementFixture(): TagManagementFixture {
@@ -865,7 +874,7 @@ class TransactionFlowTest {
     }
 
     private fun assertTagsAssignedOnTransaction(fixture: TagManagementFixture): Unit {
-        ui.show(hasTestTag("classification-back")).performClick()
+        closeClassificationManagement()
         ui.clickText("Add expense")
         ui.enterText("Amount", "2.00", "transaction-form")
         composeRule.onNodeWithTag("transaction-tag-${fixture.associatedTag.id}").performScrollTo().assertIsNotEnabled()
@@ -894,7 +903,7 @@ class TransactionFlowTest {
         createFoodCategory()
         val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
         val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
-        ui.show(hasTestTag("classification-back")).performClick()
+        closeClassificationManagement()
         val originalTransaction: FinanceTransaction = recordClassificationJourneyExpense(previousMonth, lunchTag.id)
         val budgetRepository: RoomRecurringBudgetRepository = RoomRecurringBudgetRepository(AppDatabase.getInstance(appContext()))
         val budgetName: String = "Food limit"
@@ -966,7 +975,11 @@ class TransactionFlowTest {
         editTag(fixture.tag.id)
         ui.enterText("Tag name", "Dinner", "category-tag-list")
         ui.clickText("Save tag", "category-tag-list")
-        ui.click(hasTestTag("classification-back"))
+        ui.show(
+            hasText("Dinner") and hasAnyAncestor(hasTestTag("tag-row-${fixture.tag.id}")),
+            "category-tag-list",
+        )
+        closeClassificationManagement()
         ui.showText(fixture.monthLabel)
     }
 
@@ -1004,7 +1017,7 @@ class TransactionFlowTest {
         ui.show(hasTestTag("archive-tag-${fixture.tag.id}"), "category-tag-list").performClick()
         ui.showText("Dinner", "category-tag-list")
         ui.showText("Groceries Category (Archived) \u00b7 Archived", "category-tag-list")
-        ui.show(hasTestTag("classification-back")).performClick()
+        closeClassificationManagement()
         ui.showText("Monthly expense limits")
         ui.showText("Categories: Groceries (Archived)")
         ui.showText("Tags: Dinner (Archived)")
@@ -1040,7 +1053,7 @@ class TransactionFlowTest {
         createFoodCategory()
         val foodCategory: FinanceCategory = category("Food", TransactionDirection.EXPENSE)
         val lunchTag: FinanceTag = createAssociatedTag("Lunch", foodCategory.id)
-        ui.show(hasTestTag("classification-back")).performClick()
+        closeClassificationManagement()
         val monthLabel: String = YearMonth.now().minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))
         return ClassificationRefreshFixture(monthLabel, foodCategory, lunchTag)
     }
@@ -1058,12 +1071,17 @@ class TransactionFlowTest {
         editCategory(fixture.category.id)
         ui.enterText("Category name", "Household", "category-tag-list")
         ui.clickText("Save category", "category-tag-list")
+        ui.showText("Household \u00b7 expense", "category-tag-list")
         editTag(fixture.tag.id)
         ui.enterText("Tag name", "Meals", "category-tag-list")
         ui.clickText("Save tag", "category-tag-list")
+        ui.show(
+            hasText("Meals") and hasAnyAncestor(hasTestTag("tag-row-${fixture.tag.id}")),
+            "category-tag-list",
+        )
         val renamedTag: FinanceTag = tag("Meals")
         assertEquals(fixture.tag.id, renamedTag.id)
-        ui.show(hasTestTag("classification-back")).performClick()
+        closeClassificationManagement()
         ui.showText(fixture.monthLabel)
     }
 
@@ -1129,7 +1147,7 @@ class TransactionFlowTest {
         ui.enterText("Tag name", "Lunch", "category-tag-list")
         composeRule.onNode(hasText("Lunch") and hasSetTextAction()).performImeAction()
         ui.clickText("Add tag", "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
     }
 
     @Suppress("ktlint:standard:no-unit-return")
@@ -1370,7 +1388,7 @@ class TransactionFlowTest {
         }
         ui.clickText("Manage categories and tags")
         ui.showText("Category name", "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
         navigateTo("Overview")
     }
 
@@ -1535,7 +1553,7 @@ class TransactionFlowTest {
         ui.clickText("Add tag", "category-tag-list")
         ui.enterText("Tag name", "Weekend", "category-tag-list")
         ui.clickText("Add tag", "category-tag-list")
-        ui.clickText("Back to overview")
+        closeClassificationManagement()
     }
 
     @Suppress("ktlint:standard:no-unit-return")
@@ -1641,11 +1659,16 @@ class TransactionFlowTest {
     }
 
     private fun editCategory(id: String): Unit {
-        ui.show(hasTestTag("edit-category-$id"), "category-tag-list").performClick()
+        ui.click(hasTestTag("edit-category-$id"), "category-tag-list")
+    }
+
+    private fun closeClassificationManagement(): Unit {
+        ui.click(hasTestTag("classification-back"))
+        ui.show(hasTestTag("open-navigation-drawer"))
     }
 
     private fun editTag(id: String): Unit {
-        ui.show(hasTestTag("edit-tag-$id"), "category-tag-list").performClick()
+        ui.click(hasTestTag("edit-tag-$id"), "category-tag-list")
     }
 
     private fun openOrganizerFromCurrentArea(): Unit {

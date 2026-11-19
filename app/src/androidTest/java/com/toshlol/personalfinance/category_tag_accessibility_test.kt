@@ -68,7 +68,7 @@ class CategoryTagAccessibilityTest {
         composeRule.onNodeWithTag("category-direction-INCOME").performScrollTo().assertHasClickAction()
         composeRule.onNodeWithText("Add category").performScrollTo().assertHeightIsAtLeast(48.dp)
         composeRule.onNodeWithText("Choose Category icon").assertDoesNotExist()
-        composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Past medical · expense · Archived"))
+        composeRule.onNodeWithTag("category-tag-list").performScrollToNode(hasText("Past medical \u00b7 expense \u00b7 Archived"))
         composeRule.onNodeWithTag("category-row-retired").assertIsDisplayed()
         composeRule.onNodeWithTag("edit-category-retired").assertHasClickAction()
         composeRule.onNodeWithTag("archive-category-retired").assertDoesNotExist()

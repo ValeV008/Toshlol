@@ -1,6 +1,6 @@
 # 11: Integrated Android 10 design verification
 
-Status: ready-for-agent
+Status: claimed
 Blocked by: 04, 05, 08, 09, 10
 
 **What to build:** Review and verify the fully integrated redesigned app on Android 10, with reproducible visual evidence and accessible complete finance journeys, and resolve integration defects while retaining all previously delivered behavior coverage.
@@ -44,3 +44,11 @@ Blocked by: 04, 05, 08, 09, 10
 This is integrated verification and correction of the approved design, not authorization for new features, a release-signing/deployment task, or a substitute for per-slice tests. Keep original source specifications and previously resolved issues intact.
 
 Each slice must remain independently demoable and keep existing callers and relevant checks working. Include the feature's behavior and UI verification in this ticket rather than deferring them to the final integration ticket. Follow the parent spec's exclusions and existing ADRs.
+
+## Answer
+
+Ran the integrated verification on the Android 10/API 29 `xperia_xz2_compact(AVD) - 10` emulator. Python host-runner tests passed 15/15; JVM tests, lint, ktlint formatting, and debug app/test APK assembly passed. The selected and explicitly empty Overview persistence runner passed after process restarts. The full unfiltered connected suite passed 96/96 with no failures, errors, or skips. The Android HTML report is `app/build/reports/androidTests/connected/debug/index.html`; restart evidence is `build/overview-persistence/20261120T214326577741Z/`.
+
+No integration defect was found in these checks. The existing per-slice suite exercises setup, monthly navigation and Account scope, Income/Expense entry and edit, transfers, account history and archive, Budget filters/progress/migrations, and complete Backup journeys. Current run screenshots were visually spot-checked against the supplied Overview reference for the shared charcoal/yellow/pale-card visual language and the accepted adaptations. The curated screenshot bundle is [evidence/11](evidence/11/verification.md).
+
+This issue remains `claimed`: the proposed one-test `operateRedesignedAppOnAndroid10` journey is not implemented, and integrated screenshots for paired Transfer lists/history and empty/validation states on every destination are not present. Feature-ticket tests cover those behaviors separately. Manual TalkBack/Switch Access, physical-device usability, and human visual sign-off also remain outstanding. Do not treat this ticket as resolved until the integrated journey/evidence gaps are addressed and the human review is recorded.

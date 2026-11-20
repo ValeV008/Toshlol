@@ -18,7 +18,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | resolved |
 | [09: Redesigned first-run setup](issues/09-redesigned-first-run-setup.md) | 01 | resolved |
 | [10: Redesigned Settings and Backup journeys](issues/10-redesigned-settings-and-backup-journeys.md) | 02, 07 | resolved |
-| [11: Integrated Android 10 design verification](issues/11-integrated-android-10-design-verification.md) | 04, 05, 08, 09, 10 | ready-for-agent |
+| [11: Integrated Android 10 design verification](issues/11-integrated-android-10-design-verification.md) | 04, 05, 08, 09, 10 | claimed |
 
 The ready-for-agent status is a triage label. A ticket can be started only after every listed blocker is resolved.
 
@@ -72,3 +72,4 @@ Numbers reference the parent [User Stories](spec.md#user-stories). Shared requir
 | 11 | 1-85, integrated verification of the completed feature slices |
 
 All ticket files also link the parent's [Implementation Decisions](spec.md#implementation-decisions) and [Testing Decisions](spec.md#testing-decisions), identify their observable criteria, and name the public behavior/UI tests that must verify them. These are planned tests and acceptance criteria, not claims of completed implementation.
+- Issue 11 verification on 2026-11-20: Python host-runner 15/15, JVM/lint/format/assembly passed, selected and empty API 29 process-restart checks passed, and the full unfiltered API 29 connected suite passed 96/96. Fresh restart artifacts are under `build/overview-persistence/20261120T214326577741Z/`; curated screenshots and the run record are in `issues/evidence/11/`. No integration defect was identified. Issue 11 remains claimed because the complete named end-to-end journey and some integration screenshot states are not yet collected; manual TalkBack/Switch Access and human visual/device review are also outstanding.

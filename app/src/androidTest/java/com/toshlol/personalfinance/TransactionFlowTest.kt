@@ -1098,14 +1098,17 @@ class TransactionFlowTest {
         ui.clickText("Save category", "category-tag-list")
         ui.showText("Household \u00b7 expense", "category-tag-list")
         editTag(fixture.tag.id)
-        ui.enterText("Tag name", "Meals", "category-tag-list")
+        val tagNameField: SemanticsNodeInteraction = composeRule.onNode(hasText("Lunch") and hasSetTextAction())
+        tagNameField.performTextReplacement("Meals")
+        composeRule.onNode(hasText("Meals") and hasSetTextAction()).assertIsDisplayed()
+        ui.showText("Meals", "category-tag-list")
         ui.clickText("Save tag", "category-tag-list")
+        val renamedTag: FinanceTag = findTag("Meals")
+        assertEquals(fixture.tag.id, renamedTag.id)
         ui.show(
             hasText("Meals") and hasAnyAncestor(hasTestTag("tag-row-${fixture.tag.id}")),
             "category-tag-list",
         )
-        val renamedTag: FinanceTag = findTag("Meals")
-        assertEquals(fixture.tag.id, renamedTag.id)
         closeClassificationManagement()
         ui.showText(fixture.monthLabel)
     }

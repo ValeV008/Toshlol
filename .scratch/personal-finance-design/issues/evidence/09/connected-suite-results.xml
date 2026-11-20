@@ -1,0 +1,228 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="92" failures="0" errors="0" skipped="0" time="1068.265" timestamp="2026-11-20T13:30:30" hostname="localhost">
+  <testsuite name="com.toshlol.personalfinance.AccessibilityTest" tests="6" failures="0" errors="0" skipped="0" time="35.1" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="announceSetupLoadingProgressAtLargeFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="6.627" />
+    <testcase name="captureRetryStateAtNormalFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="4.168" />
+    <testcase name="exposeLabeledInputsSelectedTypesAndValidationAtLargeFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="8.22" />
+    <testcase name="showAccountSavingProgressAtLargeFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="5.041" />
+    <testcase name="exposeRetryActionForSetupLoadFailureAtLargeFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="5.891" />
+    <testcase name="exposeSelectedNavigationAndMenuAtLargeFont" classname="com.toshlol.personalfinance.AccessibilityTest" time="5.153" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.AppDatabaseTest" tests="16" failures="0" errors="0" skipped="0" time="8.265" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="organizeCategoriesAndTagsWithoutDamagingHistoricalTransactions" classname="com.toshlol.personalfinance.AppDatabaseTest" time="2.121" />
+    <testcase name="persistDistinctFixtureRecordsAndEditOnlyTheRequestedTransaction" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.488" />
+    <testcase name="persistFirstAccountAndCurrencyAcrossDatabaseReopen" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.402" />
+    <testcase name="keepMigratedSetupUsableWhenLegacyCleanupFails" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.709" />
+    <testcase name="calculateMonthlyBudgetFromExpenseTransactionsAndKeepArchivedHistory" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.371" />
+    <testcase name="loadCompletedSetupWithoutConsultingLegacyPreferences" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.137" />
+    <testcase name="persistTransactionAndPreserveIdentityAndCreationTimeWhenEdited" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.189" />
+    <testcase name="archiveAccountRetainsHistoryAndRejectsNewMovements" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.316" />
+    <testcase name="transfersPersistValidateAndChangeAccountBalancesByOpeningDate" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.579" />
+    <testcase name="completeConcurrentSubmissionsWithExactlyOneAccount" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.221" />
+    <testcase name="loadFreshDatabaseWithoutSeededAccountsOrCurrency" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.088" />
+    <testcase name="migrateSeparateInstallationsWithUniqueStableIdentifiers" classname="com.toshlol.personalfinance.AppDatabaseTest" time="1.014" />
+    <testcase name="rollBackAccountWhenSavingCurrencyFails" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.139" />
+    <testcase name="migrateVersionThreeTransactionsWithoutLosingHistory" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.674" />
+    <testcase name="saveOpeningBalanceAndDateRecalculatesPersistedBalance" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.24" />
+    <testcase name="migratePrototypeAccountAndLegacyCurrencyWithoutDataLoss" classname="com.toshlol.personalfinance.AppDatabaseTest" time="0.577" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BackupExportTest" tests="4" failures="0" errors="0" skipped="0" time="0.632" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="codecRoundTripsAndRejectsMalformedUnknownAndUnsupportedInput" classname="com.toshlol.personalfinance.BackupExportTest" time="0.215" />
+    <testcase name="codecNormalizesVersionOneOpeningBalancesAndTransfers" classname="com.toshlol.personalfinance.BackupExportTest" time="0.008" />
+    <testcase name="failedDocumentWriteLeavesFinanceSnapshotUnchanged" classname="com.toshlol.personalfinance.BackupExportTest" time="0.217" />
+    <testcase name="exportWritesCompleteVersionedSnapshot" classname="com.toshlol.personalfinance.BackupExportTest" time="0.192" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BackupImportTest" tests="9" failures="0" errors="0" skipped="0" time="2.394" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="failedCommitRollsBackEveryEntityAndSetting" classname="com.toshlol.personalfinance.BackupImportTest" time="0.218" />
+    <testcase name="localResetClearsBackupDataAndAllowsFirstRunSetupAgain" classname="com.toshlol.personalfinance.BackupImportTest" time="0.145" />
+    <testcase name="mergeIsIdempotentAndAppliesNewerWholeRecords" classname="com.toshlol.personalfinance.BackupImportTest" time="0.417" />
+    <testcase name="rejectsCurrencyTimestampAndFinalDatasetConflictsAtomically" classname="com.toshlol.personalfinance.BackupImportTest" time="0.267" />
+    <testcase name="reconcileBudgetAsCompleteBackupRecordWithoutStaleAccountUnion" classname="com.toshlol.personalfinance.BackupImportTest" time="0.655" />
+    <testcase name="canceledImportDoesNotMutateLedger" classname="com.toshlol.personalfinance.BackupImportTest" time="0.139" />
+    <testcase name="invalidReferencesAndMalformedInputLeaveDataUnchanged" classname="com.toshlol.personalfinance.BackupImportTest" time="0.228" />
+    <testcase name="importerNormalizesV1AndRejectsUnsupportedSchemaWithoutMutation" classname="com.toshlol.personalfinance.BackupImportTest" time="0.162" />
+    <testcase name="overwriteReplacesCompleteDatasetAndSettingsAndReportsInsertedCounts" classname="com.toshlol.personalfinance.BackupImportTest" time="0.163" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BackupImportUiTest" tests="1" failures="0" errors="0" skipped="0" time="33.31" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="settingsLaunchesDocumentPickerForMergeAndCancellationReturnsToSettings" classname="com.toshlol.personalfinance.BackupImportUiTest" time="33.31" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BudgetAccessibilityTest" tests="2" failures="0" errors="0" skipped="0" time="18.478" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="operateNamedBudgetEditorAtLargeFont" classname="com.toshlol.personalfinance.BudgetAccessibilityTest" time="13.62" />
+    <testcase name="showsRenamedCategoryAndTagNamesForSavedBudget" classname="com.toshlol.personalfinance.BudgetAccessibilityTest" time="4.858" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BudgetBackupCompatibilityTest" tests="3" failures="0" errors="0" skipped="0" time="1.836" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="rejectIncomeCategoryAsExpenseBudgetFilterBeforeMutation" classname="com.toshlol.personalfinance.BudgetBackupCompatibilityTest" time="1.42" />
+    <testcase name="restoresVersionThreeBudgetsWithoutOptionalCategoryOrTagRestrictions" classname="com.toshlol.personalfinance.BudgetBackupCompatibilityTest" time="0.266" />
+    <testcase name="restoresVersionTwoBudgetsWithTheirOriginalAllAccountScope" classname="com.toshlol.personalfinance.BudgetBackupCompatibilityTest" time="0.15" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.BudgetMigrationTest" tests="2" failures="0" errors="0" skipped="0" time="2.799" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="migrateVersionEightBudgetKeepsEmptyOptionalGroupsUnrestrictedAfterReopen" classname="com.toshlol.personalfinance.BudgetMigrationTest" time="1.433" />
+    <testcase name="migrateLegacyBudgetPreservesIdentityProvenanceAndAllExistingAccountsAcrossReopen" classname="com.toshlol.personalfinance.BudgetMigrationTest" time="1.366" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.CategoryTagAccessibilityTest" tests="1" failures="0" errors="0" skipped="0" time="8.581" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="operateClassificationManagementAtLargeFont" classname="com.toshlol.personalfinance.CategoryTagAccessibilityTest" time="8.581" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.CategoryTagPersistenceTest" tests="1" failures="0" errors="0" skipped="0" time="2.378" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="classificationNamesArchivesAndBudgetReferencesPersistAfterDatabaseReopen" classname="com.toshlol.personalfinance.CategoryTagPersistenceTest" time="2.378" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.FirstRunFlowTest" tests="4" failures="0" errors="0" skipped="0" time="74.798" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="createFirstAccountAndKeepOverviewAcrossRelaunch" classname="com.toshlol.personalfinance.FirstRunFlowTest" time="38.897" />
+    <testcase name="requireCurrencyAndAccountNameBeforeContinuing" classname="com.toshlol.personalfinance.FirstRunFlowTest" time="8.464" />
+    <testcase name="retainUnsubmittedFormAcrossActivityRecreation" classname="com.toshlol.personalfinance.FirstRunFlowTest" time="9.665" />
+    <testcase name="captureFirstRunDesignExamples" classname="com.toshlol.personalfinance.FirstRunFlowTest" time="17.772" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.MonthlyLedgerTest" tests="1" failures="0" errors="0" skipped="0" time="23.986" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="showDirectionTotalsAndPairedTransferInDayGroupedLedgers" classname="com.toshlol.personalfinance.MonthlyLedgerTest" time="23.986" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.OverviewAccessibilityTest" tests="2" failures="0" errors="0" skipped="0" time="15.667" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="largeFontDrawerSelectionPreservesActivityOrder" classname="com.toshlol.personalfinance.OverviewAccessibilityTest" time="8.244" />
+    <testcase name="largeFontOverviewControlsRemainAccessible" classname="com.toshlol.personalfinance.OverviewAccessibilityTest" time="7.423" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.OverviewAccountSelectionTest" tests="3" failures="0" errors="0" skipped="0" time="31.68" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="persistSelectedAndExplicitlyEmptyAccountIdsInDataStore" classname="com.toshlol.personalfinance.OverviewAccountSelectionTest" time="8.691" />
+    <testcase name="selectAccountAndRetainMonthAcrossOverviewAndBudgetNavigation" classname="com.toshlol.personalfinance.OverviewAccountSelectionTest" time="14.22" />
+    <testcase name="selectArchivedAccountFromOverviewDrawer" classname="com.toshlol.personalfinance.OverviewAccountSelectionTest" time="8.769" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.OverviewPersistenceHandoffTest" tests="2" failures="0" errors="0" skipped="0" time="2.676" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="prepareSelectedOverviewForHostProcessRestart" classname="com.toshlol.personalfinance.OverviewPersistenceHandoffTest" time="1.789" />
+    <testcase name="prepareEmptyOverviewForHostProcessRestart" classname="com.toshlol.personalfinance.OverviewPersistenceHandoffTest" time="0.887" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.RecurringBudgetMatchingTest" tests="2" failures="0" errors="0" skipped="0" time="1.282" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="supportUnrestrictedBudgetGroups" classname="com.toshlol.personalfinance.RecurringBudgetMatchingTest" time="0.774" />
+    <testcase name="matchBudgetAcrossAccountCategoryAndTagSelections" classname="com.toshlol.personalfinance.RecurringBudgetMatchingTest" time="0.508" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" tests="9" failures="0" errors="0" skipped="0" time="3.228" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="overlappingBudgetsCountExpensesIndependentlyAndIgnoreIncomeTransfersAndNewAccounts" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.486" />
+    <testcase name="editCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonths" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.486" />
+    <testcase name="invalidBudgetDraftDoesNotMutateSavedDefinition" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.338" />
+    <testcase name="editNamedBudgetChangesAllMonthsAndReplacesItsAccountScope" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.298" />
+    <testcase name="preserveFiltersThroughRenamesAndArchives" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.378" />
+    <testcase name="deletingExpenseRecalculatesBudgetProgress" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.302" />
+    <testcase name="preserveNamedBudgetRestrictionsAcrossDatabaseReopen" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.508" />
+    <testcase name="rejectMissingOrIncomeCategoryFiltersWithoutReplacingSavedBudget" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.193" />
+    <testcase name="saveAndReloadNamedBudgetUsesOnlyItsSelectedAccounts" classname="com.toshlol.personalfinance.RecurringBudgetRepositoryTest" time="0.239" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.TransactionFlowTest" tests="23" failures="0" errors="0" skipped="0" time="785.103" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="createBudgetAndSeeExpenseProgressOnBudgetsAndOverview" classname="com.toshlol.personalfinance.TransactionFlowTest" time="58.597" />
+    <testcase name="editTransactionKeepsIdentityAndRecalculatesBothAccountBalances" classname="com.toshlol.personalfinance.TransactionFlowTest" time="37.908" />
+    <testcase name="editBudgetCategoryAndTagFiltersRecalculatesPastCurrentAndFutureMonthsOnBothScreens" classname="com.toshlol.personalfinance.TransactionFlowTest" time="38.5" />
+    <testcase name="manageTextOnlyDirectionScopedCategories" classname="com.toshlol.personalfinance.TransactionFlowTest" time="23.885" />
+    <testcase name="cancelAndConfirmTransactionDeletionUpdateLedger" classname="com.toshlol.personalfinance.TransactionFlowTest" time="23.886" />
+    <testcase name="renameAndArchiveClassificationsWithoutChangingTransactions" classname="com.toshlol.personalfinance.TransactionFlowTest" time="66.737" />
+    <testcase name="recordAndEditTransferThroughFullScreenEntry" classname="com.toshlol.personalfinance.TransactionFlowTest" time="140.385" />
+    <testcase name="validatesAmountAndDateWithoutMutationAndSavesWithoutOptionalFields" classname="com.toshlol.personalfinance.TransactionFlowTest" time="27.696" />
+    <testcase name="transferDoesNotContributeToBudgetActualSpending" classname="com.toshlol.personalfinance.TransactionFlowTest" time="10.12" />
+    <testcase name="accountManagementWrapsArchiveActionAndKeepsArchivedHistoryReadOnly" classname="com.toshlol.personalfinance.TransactionFlowTest" time="17.634" />
+    <testcase name="createCategoryAndTagThenAssignThemToAnExpense" classname="com.toshlol.personalfinance.TransactionFlowTest" time="34.038" />
+    <testcase name="createEditAndReopenAccountKeepsOverviewSelectionAndSignedOpeningValues" classname="com.toshlol.personalfinance.TransactionFlowTest" time="31.131" />
+    <testcase name="changeTransactionDirectionScopesCategoriesAndRemovesAssociatedTags" classname="com.toshlol.personalfinance.TransactionFlowTest" time="21.961" />
+    <testcase name="recordExpenseAndReviewItOnOverview" classname="com.toshlol.personalfinance.TransactionFlowTest" time="18.725" />
+    <testcase name="navigateFilterTransactionsAndQuickAddFromEveryMainArea" classname="com.toshlol.personalfinance.TransactionFlowTest" time="76.956" />
+    <testcase name="editTransactionPreservesAccountAndReusesLastAccountAcrossDirections" classname="com.toshlol.personalfinance.TransactionFlowTest" time="27.063" />
+    <testcase name="manageIndependentAndAssociatedTags" classname="com.toshlol.personalfinance.TransactionFlowTest" time="31.126" />
+    <testcase name="refreshClassificationChoicesWithoutResettingMonth" classname="com.toshlol.personalfinance.TransactionFlowTest" time="40.886" />
+    <testcase name="requiresAnActiveAccountBeforeSavingTransaction" classname="com.toshlol.personalfinance.TransactionFlowTest" time="13.258" />
+    <testcase name="transferEntryRemainsUsableAtLargeFontScale" classname="com.toshlol.personalfinance.TransactionFlowTest" time="12.871" />
+    <testcase name="recurringBudgetUsesSharedMonthAndResetsWithoutCarryover" classname="com.toshlol.personalfinance.TransactionFlowTest" time="9.408" />
+    <testcase name="transactionEntryRemainsUsableAtLargeFontScale" classname="com.toshlol.personalfinance.TransactionFlowTest" time="11.425" />
+    <testcase name="reviewEmptyAccountBeforeAndAfterArchiving" classname="com.toshlol.personalfinance.TransactionFlowTest" time="10.907" />
+  </testsuite>
+  <testsuite name="com.toshlol.personalfinance.UiFailureArtifactsRuleTest" tests="1" failures="0" errors="0" skipped="0" time="4.346" timestamp="2026-11-20T13:30:30" hostname="localhost">
+    <properties>
+      <property name="device" value="xperia_xz2_compact(AVD) - 10" />
+      <property name="flavor" value="" />
+      <property name="project" value=":app" />
+    </properties>
+    <testcase name="captureVisibleFailureBeforeCleanupAndPreserveOriginalException" classname="com.toshlol.personalfinance.UiFailureArtifactsRuleTest" time="4.346" />
+  </testsuite>
+</testsuites>

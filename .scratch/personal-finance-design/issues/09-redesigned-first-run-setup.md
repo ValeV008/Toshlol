@@ -1,6 +1,6 @@
 # 09: Redesigned first-run setup
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 
 **What to build:** Complete first-run currency and first-Account setup in the shared visual style, then arrive at the month-aware Overview with no Accounts selected, retaining valid setup and display selection across recreation and relaunch.
@@ -14,12 +14,12 @@ Blocked by: 01
 
 ## Observable acceptance criteria
 
-- [ ] First-run currency and first-Account controls, progress/loading, validation, and retry states use shared typography, colors, surfaces, and accessible labels without adding seeded finance data.
-- [ ] Setup still requires an allowed currency and valid first Account before entering the ledger. Repeated/concurrent submission does not create duplicate Accounts; errors leave a readable retryable state without partial completed setup.
-- [ ] Recreation preserves an unsubmitted setup form under the existing behavior. After successful creation, app relaunch restores completed setup rather than forcing setup again or changing the selected currency.
-- [ ] The first Overview opens on the current local month with an empty drawer selection and zero ledger totals and no Select Accounts prompt. The newly created Account is available for an explicit drawer switch and for mandatory Transaction Account selection, without automatically selecting it in the ledger filter.
-- [ ] Once the user selects or clears Accounts, a later app restart preserves exactly that saved display selection instead of treating setup completion as a reason to select all or the first Account.
-- [ ] Run existing public setup/ViewModel tests extended for the new visual state and Android 10 setup/recreation/relaunch journeys, lint, and formatting. Capture setup, validation/retry, and initial empty Overview examples at normal and larger fonts.
+- [x] First-run currency and first-Account controls, progress/loading, validation, and retry states use shared typography, colors, surfaces, and accessible labels without adding seeded finance data.
+- [x] Setup still requires an allowed currency and valid first Account before entering the ledger. Repeated/concurrent submission does not create duplicate Accounts; errors leave a readable retryable state without partial completed setup.
+- [x] Recreation preserves an unsubmitted setup form under the existing behavior. After successful creation, app relaunch restores completed setup rather than forcing setup again or changing the selected currency.
+- [x] The first Overview opens on the current local month with an empty drawer selection and zero ledger totals and no Select Accounts prompt. The newly created Account is available for an explicit drawer switch and for mandatory Transaction Account selection, without automatically selecting it in the ledger filter.
+- [x] Once the user selects or clears Accounts, a later app restart preserves exactly that saved display selection instead of treating setup completion as a reason to select all or the first Account.
+- [x] Run existing public setup/ViewModel tests extended for the new visual state and Android 10 setup/recreation/relaunch journeys, lint, and formatting. Capture setup, validation/retry, and initial empty Overview examples at normal and larger fonts.
 
 ## Named behavior tests
 
@@ -37,3 +37,17 @@ Blocked by: 01
 The blocker is the shared visual foundation and empty-selection Overview behavior from ticket 01. Do not introduce onboarding profiles, default Accounts/Categories, network requirements, or additional setup decisions.
 
 Each slice must remain independently demoable and keep existing callers and relevant checks working. Include the feature's behavior and UI verification in this ticket rather than deferring them to the final integration ticket. Follow the parent spec's exclusions and existing ADRs.
+
+## Answer
+
+Implemented the redesigned first-run currency and Account setup, including accessible Account type choices, validation and retry feedback, loading/saving progress, and large-font layouts. Setup remains atomic and creates no seeded finance data. The first Overview opens on the current local month with zero totals and an empty Account filter; the new Account remains available for explicit selection and Transaction entry. Selected and cleared Account filters survive host-driven process restarts.
+
+Verification on the Android 10/API 29 `xperia_xz2_compact(AVD) - 10` emulator:
+
+- Python host-runner tests: 15/15 passed.
+- JVM tests, Android lint, Kotlin formatting, and debug APK/instrumentation APK assembly passed.
+- Overview persistence runner passed for selected and empty filters; evidence: `build/overview-persistence/20261120T130844944098Z`.
+- `FirstRunFlowTest` at 2× font scale: 4/4 passed. `AccessibilityTest`: 6/6 passed.
+- Full unfiltered connected suite: 92/92 passed, 0 failures, 0 errors, 0 skips.
+
+Full commands, reports, and visual evidence are recorded in [verification.md](evidence/09/verification.md). The retained normal- and large-font screenshots cover setup, validation, retry, and the initial empty Overview.

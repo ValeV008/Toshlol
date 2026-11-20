@@ -1,20 +1,28 @@
 ﻿package com.toshlol.personalfinance.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Surface
@@ -29,7 +37,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -44,6 +55,8 @@ import com.toshlol.personalfinance.data.TransactionDirection
 import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import kotlinx.coroutines.launch
+
+private const val LARGE_FONT_SCALE: Float = 1.5f
 
 data class LedgerNavigationActions(
     val selectArea: (String) -> Unit = {},
@@ -209,27 +222,22 @@ fun PersonalFinanceApp(
                     transactionsState.accountHistoryAccountId == null &&
                     !transactionsState.isOrganizerVisible
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        TextButton(onClick = {
-                            coroutineScope.launch { drawerState.open() }
-                        }, modifier = Modifier.testTag("open-navigation-drawer")) { Text("Menu") }
-                        if (transactionsState.selectedArea in setOf("Overview", "Expenses", "Income")) {
-                            listOf("Overview", "Expenses", "Income").forEach { area ->
-                                TextButton(
-                                    onClick = { actions.navigation.selectArea(area) },
-                                    modifier =
-                                        Modifier.weight(1f).testTag("tab-$area").semantics {
-                                            stateDescription = if (transactionsState.selectedArea == area) "Current tab" else "Tab"
-                                        },
-                                ) { Text(area, maxLines = 1, softWrap = false) }
-                            }
-                        }
-                    }
+                    ShowPersonalFinanceTopNavigation(
+                        transactionsState.selectedArea,
+                        onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
+                        onAreaSelected = actions.navigation.selectArea,
+                    )
                 }
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when {
-                        !uiState.isLoaded -> ShowLoading(uiState.hasLoadFailed, actions.setup.retry)
-                        uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false) {}
+                        !uiState.isLoaded ->
+                            ShowLoading(
+                                hasFailed = uiState.hasLoadFailed,
+                                onRetry = actions.setup.retry,
+                                loadingMessage = "Loading your setup…",
+                                failureMessage = "Could not load your setup. Your saved data has not been changed.",
+                            )
+                        uiState.isSetupComplete && !transactionsState.isLoaded -> ShowLoading(false, {})
                         uiState.isSetupComplete && transactionsState.accountHistoryAccountId != null ->
                             AccountHistoryScreen(
                                 state = transactionsState.copy(currency = uiState.currency),
@@ -400,6 +408,51 @@ private data class SettingsActions(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
+internal fun ShowPersonalFinanceTopNavigation(
+    selectedArea: String,
+    onOpenDrawer: () -> Unit,
+    onAreaSelected: (String) -> Unit,
+): Unit {
+    val useLargeFontNavigation: Boolean = LocalDensity.current.fontScale >= LARGE_FONT_SCALE
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        TextButton(onClick = onOpenDrawer, modifier = Modifier.heightIn(min = 48.dp).testTag("open-navigation-drawer")) {
+            Text("Menu")
+        }
+        if (selectedArea in setOf("Overview", "Expenses", "Income")) {
+            if (useLargeFontNavigation) {
+                Text(
+                    selectedArea,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp)
+                            .semantics {
+                                stateDescription = "Current tab"
+                            }.testTag("current-area"),
+                )
+            } else {
+                listOf("Overview", "Expenses", "Income").forEach { area ->
+                    TextButton(
+                        onClick = { onAreaSelected(area) },
+                        modifier =
+                            Modifier.weight(1f).heightIn(min = 48.dp).testTag("tab-$area").semantics {
+                                stateDescription = if (selectedArea == area) "Current tab" else "Tab"
+                            },
+                    ) { Text(area, maxLines = 1, softWrap = false) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun SettingsScreen(
     state: TransactionsUiState,
     actions: SettingsActions,
@@ -451,21 +504,42 @@ private fun SettingsScreen(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun ShowLoading(
+internal fun ShowLoading(
     hasFailed: Boolean,
     onRetry: () -> Unit,
+    loadingMessage: String = "Loading your ledger…",
+    failureMessage: String = "Could not load your ledger. Your saved data has not been changed.",
 ): Unit {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        if (hasFailed) {
-            Text("Could not load your ledger. Your saved data has not been changed.")
-            Button(onClick = onRetry) { Text("Try again") }
-        } else {
-            CircularProgressIndicator()
-            Text("Loading your ledger…")
+        Card(
+            modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (hasFailed) {
+                    Text(
+                        failureMessage,
+                        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Try again") }
+                } else {
+                    CircularProgressIndicator()
+                    Text(
+                        loadingMessage,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
         }
     }
 }

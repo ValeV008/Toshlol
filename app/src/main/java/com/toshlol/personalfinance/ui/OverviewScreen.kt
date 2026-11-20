@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -56,6 +57,7 @@ private val IncomeGreen: Color = Color(0xFF24834A)
 private val ExpenseRed: Color = Color(0xFFBE3B3B)
 private val EDGE_GESTURE_WIDTH = 32.dp
 private val EDGE_GESTURE_DISTANCE = 48.dp
+private const val LARGE_FONT_SCALE: Float = 1.5f
 private const val DRAWER_WIDTH_FRACTION: Float = 0.86f
 private const val DRAWER_OVERLAY_ALPHA: Float = 0.35f
 
@@ -73,6 +75,15 @@ data class OverviewScreenActions(
     val accountDrawerChanged: (Boolean) -> Unit,
 )
 
+private data class OverviewScreenContentState(
+    val selectedMonth: YearMonth,
+    val projection: MonthlyOverview,
+    val budgets: List<CategoryBudget>,
+    val recurringBudgets: List<RecurringBudgetProgress>,
+    val activity: List<OverviewActivityItem>,
+    val useStackedActions: Boolean,
+)
+
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
 fun OverviewScreen(
@@ -80,139 +91,225 @@ fun OverviewScreen(
     actions: OverviewScreenActions,
 ): Unit {
     val keyboardController = LocalSoftwareKeyboardController.current
+    val useStackedActions: Boolean = LocalDensity.current.fontScale >= LARGE_FONT_SCALE
     androidx.compose.runtime.LaunchedEffect(state.isFormVisible) {
         if (!state.isFormVisible) keyboardController?.hide()
     }
     val selectedMonth: YearMonth = runCatching { YearMonth.parse(state.selectedMonth) }.getOrDefault(YearMonth.now())
     val projection: MonthlyOverview = state.monthlyOverview
-    val budgets: List<CategoryBudget> = state.budgets.filter { it.month == selectedMonth }
-    val recurringBudgets: List<RecurringBudgetProgress> = state.recurringBudgets.filter { it.month == selectedMonth }
-    val activity: List<OverviewActivityItem> = buildOverviewActivityItems(projection.transactions, projection.transfers)
+    val contentState: OverviewScreenContentState =
+        OverviewScreenContentState(
+            selectedMonth,
+            projection,
+            state.budgets.filter { it.month == selectedMonth },
+            state.recurringBudgets.filter { it.month == selectedMonth },
+            buildOverviewActivityItems(projection.transactions, projection.transfers),
+            useStackedActions,
+        )
     Box(
         modifier =
-            Modifier.fillMaxSize().background(PageGray).testTag("overview-root").pointerInput(state.isAccountDrawerOpen) {
-                var dragStartX: Float = 0f
-                var dragAmount: Float = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        dragStartX = offset.x
-                        dragAmount = 0f
-                    },
-                    onHorizontalDrag = { change, amount ->
-                        dragAmount += amount
-                        change.consume()
-                    },
-                    onDragEnd = {
-                        if (dragStartX > size.width - EDGE_GESTURE_WIDTH.toPx() &&
-                            dragAmount < -EDGE_GESTURE_DISTANCE.toPx()
-                        ) {
+            Modifier.fillMaxSize().background(PageGray).testTag("overview-root").detectAccountDrawerGestures(
+                state.isAccountDrawerOpen,
+                actions.accountDrawerChanged,
+            ),
+    ) {
+        OverviewScreenScaffold(state, contentState, actions)
+    }
+}
+
+private fun Modifier.detectAccountDrawerGestures(
+    isDrawerOpen: Boolean,
+    onDrawerChanged: (Boolean) -> Unit,
+): Modifier =
+    pointerInput(isDrawerOpen) {
+        var dragStartX: Float = 0f
+        var dragAmount: Float = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { offset ->
+                dragStartX = offset.x
+                dragAmount = 0f
+            },
+            onHorizontalDrag = { change, amount ->
+                dragAmount += amount
+                change.consume()
+            },
+            onDragEnd = {
+                if (dragStartX > size.width - EDGE_GESTURE_WIDTH.toPx() && dragAmount < -EDGE_GESTURE_DISTANCE.toPx()) {
+                    onDrawerChanged(true)
+                }
+                if (isDrawerOpen && dragAmount > EDGE_GESTURE_DISTANCE.toPx()) onDrawerChanged(false)
+            },
+        )
+    }
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewScreenScaffold(
+    state: TransactionsUiState,
+    contentState: OverviewScreenContentState,
+    actions: OverviewScreenActions,
+): Unit {
+    Column(Modifier.fillMaxSize()) {
+        OverviewScrollableContent(
+            Modifier.weight(1f),
+            state,
+            contentState,
+            actions,
+        )
+        if (!contentState.useStackedActions) FixedOverviewActions(actions)
+    }
+    if (state.isAccountDrawerOpen) AccountSelectionDrawer(state, contentState.projection, actions)
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewScrollableContent(
+    modifier: Modifier,
+    state: TransactionsUiState,
+    contentState: OverviewScreenContentState,
+    actions: OverviewScreenActions,
+): Unit {
+    Column(
+        modifier =
+            modifier.verticalScroll(rememberScrollState()).semantics {
+                customActions =
+                    listOf(
+                        CustomAccessibilityAction("Open Account selection") {
                             actions.accountDrawerChanged(true)
-                        }
-                        if (state.isAccountDrawerOpen && dragAmount > EDGE_GESTURE_DISTANCE.toPx()) actions.accountDrawerChanged(false)
-                    },
-                )
+                            true
+                        },
+                    )
             },
     ) {
-        Column(Modifier.fillMaxSize()) {
-            Column(
-                modifier =
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()).semantics {
-                        customActions =
-                            listOf(
-                                CustomAccessibilityAction("Open Account selection") {
-                                    actions.accountDrawerChanged(true)
-                                    true
-                                },
-                            )
-                    },
-            ) {
-                OverviewMonthHeader(selectedMonth, actions.monthChanged)
-                Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("CLOSING BALANCE", color = Color(0xFF686B70), style = MaterialTheme.typography.labelLarge)
-                            Text(
-                                "${state.currency} ${formatMoney(projection.closingBalanceMinor, state.currency)}",
-                                style = MaterialTheme.typography.headlineLarge,
-                            )
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SummaryAmount("Income", projection.incomeMinor, state.currency, IncomeGreen, Modifier.weight(1f))
-                                SummaryAmount("Expenses", projection.expenseMinor, state.currency, ExpenseRed, Modifier.weight(1f))
-                                SummaryAmount(
-                                    "Net",
-                                    projection.incomeMinor - projection.expenseMinor,
-                                    state.currency,
-                                    Charcoal,
-                                    Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    }
-                    if (budgets.isNotEmpty() || recurringBudgets.isNotEmpty()) {
-                        Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                        recurringBudgets.forEach { budget ->
-                            BudgetProgressCard(
-                                budget.toBudgetProgressCardState(state.categories, state.tags),
-                                state.accounts,
-                                state.currency,
-                            )
-                        }
-                        budgets.forEach { budget ->
-                            BudgetProgressCard(
-                                budget.toBudgetProgressCardState(),
-                                state.accounts,
-                                state.currency,
-                            )
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
-                        OutlinedButton(
-                            onClick = actions.openBudgets,
-                            modifier = Modifier.weight(1f).testTag("open-budgets"),
-                        ) { Text("Budgets") }
-                    }
-                    Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                    state.accounts.filter { it.id in state.selectedOverviewAccountIds }.forEach { account ->
-                        AccountCard(account, projection.closingBalancesMinor[account.id] ?: 0L, state.currency, actions.openAccountHistory)
-                    }
-                    Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
-                    if (activity.isEmpty()) {
-                        Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
-                            Text("No activity for this month and Account selection.", Modifier.padding(18.dp))
-                        }
-                    } else {
-                        activity.forEach { item -> ActivityCard(item, state, actions) }
-                    }
-                }
-            }
-            Row(
-                Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
-                Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
-                OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer money") }
-            }
-        }
-        if (state.isAccountDrawerOpen) {
-            AccountSelectionDrawer(state, projection, actions)
+        OverviewMonthHeader(contentState.selectedMonth, actions.monthChanged, contentState.useStackedActions)
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            OverviewSummaryCard(contentState.projection, state.currency, contentState.useStackedActions)
+            if (contentState.useStackedActions) ShowOverviewActions(actions)
+            OverviewBudgetSection(state, contentState.budgets, contentState.recurringBudgets)
+            OverviewOrganizerActions(actions)
+            OverviewAccountSection(state, contentState.projection, actions.openAccountHistory)
+            OverviewActivitySection(contentState.activity, state, actions)
         }
     }
 }
 
 @Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewSummaryCard(
+    projection: MonthlyOverview,
+    currency: String,
+    useStackedActions: Boolean,
+): Unit {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("CLOSING BALANCE", color = Color(0xFF686B70), style = MaterialTheme.typography.labelLarge)
+            Text("$currency ${formatMoney(projection.closingBalanceMinor, currency)}", style = MaterialTheme.typography.headlineLarge)
+            OverviewSummaryAmounts(projection, currency, useStackedActions)
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewSummaryAmounts(
+    projection: MonthlyOverview,
+    currency: String,
+    useStackedActions: Boolean,
+): Unit {
+    if (useStackedActions) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SummaryAmount("Income", projection.incomeMinor, currency, IncomeGreen, Modifier.fillMaxWidth())
+            SummaryAmount("Expenses", projection.expenseMinor, currency, ExpenseRed, Modifier.fillMaxWidth())
+            SummaryAmount("Net", projection.incomeMinor - projection.expenseMinor, currency, Charcoal, Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SummaryAmount("Income", projection.incomeMinor, currency, IncomeGreen, Modifier.weight(1f))
+            SummaryAmount("Expenses", projection.expenseMinor, currency, ExpenseRed, Modifier.weight(1f))
+            SummaryAmount("Net", projection.incomeMinor - projection.expenseMinor, currency, Charcoal, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewBudgetSection(
+    state: TransactionsUiState,
+    budgets: List<CategoryBudget>,
+    recurringBudgets: List<RecurringBudgetProgress>,
+): Unit {
+    if (budgets.isEmpty() && recurringBudgets.isEmpty()) return
+    Text("Budget progress", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+    recurringBudgets.forEach { budget ->
+        BudgetProgressCard(budget.toBudgetProgressCardState(state.categories, state.tags), state.accounts, state.currency)
+    }
+    budgets.forEach { budget ->
+        BudgetProgressCard(budget.toBudgetProgressCardState(), state.accounts, state.currency)
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewOrganizerActions(actions: OverviewScreenActions): Unit {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = actions.openOrganizer, modifier = Modifier.weight(1f)) { Text("Categories & Tags") }
+        OutlinedButton(onClick = actions.openBudgets, modifier = Modifier.weight(1f).testTag("open-budgets")) { Text("Budgets") }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewAccountSection(
+    state: TransactionsUiState,
+    projection: MonthlyOverview,
+    openAccountHistory: (String) -> Unit,
+): Unit {
+    Text("Accounts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+    state.accounts.filter { it.id in state.selectedOverviewAccountIds }.forEach { account ->
+        AccountCard(account, projection.closingBalancesMinor[account.id] ?: 0L, state.currency, openAccountHistory)
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun OverviewActivitySection(
+    activity: List<OverviewActivityItem>,
+    state: TransactionsUiState,
+    actions: OverviewScreenActions,
+): Unit {
+    Text("Recent activity", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+    if (activity.isEmpty()) {
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Text("No activity for this month and Account selection.", Modifier.padding(18.dp))
+        }
+    } else {
+        activity.forEach { item -> ActivityCard(item, state, actions) }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun FixedOverviewActions(actions: OverviewScreenActions): Unit {
+    Row(
+        Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
+        Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+        OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer money") }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
 private fun OverviewMonthHeader(
     month: YearMonth,
     monthChanged: (String) -> Unit,
-) {
+    useStackedActions: Boolean,
+): Unit {
     Column(Modifier.fillMaxWidth().background(Charcoal).padding(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 18.dp)) {
         Text("Overview", color = Color.White, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(
-                onClick = { monthChanged(month.minusMonths(1).toString()) },
-                modifier = Modifier.heightIn(min = 48.dp).testTag("previous-month").semantics { contentDescription = "Previous month" },
-            ) { Text("‹", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+        if (useStackedActions) {
             Text(
                 month.format(
                     java.time.format.DateTimeFormatter
@@ -221,10 +318,52 @@ private fun OverviewMonthHeader(
                 color = Color.White,
                 style = MaterialTheme.typography.titleLarge,
             )
-            TextButton(
-                onClick = { monthChanged(month.plusMonths(1).toString()) },
-                modifier = Modifier.heightIn(min = 48.dp).testTag("next-month").semantics { contentDescription = "Next month" },
-            ) { Text("›", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(
+                    onClick = { monthChanged(month.minusMonths(1).toString()) },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("previous-month").semantics { contentDescription = "Previous month" },
+                ) { Text("\u2039", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+                TextButton(
+                    onClick = { monthChanged(month.plusMonths(1).toString()) },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("next-month").semantics { contentDescription = "Next month" },
+                ) { Text("\u203A", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            }
+        }
+        if (!useStackedActions) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(
+                    onClick = { monthChanged(month.minusMonths(1).toString()) },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("previous-month").semantics { contentDescription = "Previous month" },
+                ) { Text("‹", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+                Text(
+                    month.format(
+                        java.time.format.DateTimeFormatter
+                            .ofPattern("MMMM yyyy"),
+                    ),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                TextButton(
+                    onClick = { monthChanged(month.plusMonths(1).toString()) },
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("next-month").semantics { contentDescription = "Next month" },
+                ) { Text("›", color = OverviewYellow, style = MaterialTheme.typography.headlineMedium) }
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun ShowOverviewActions(actions: OverviewScreenActions): Unit {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("Add expense")
+        }
+        Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("Add income")
+        }
+        OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text("Transfer money")
         }
     }
 }

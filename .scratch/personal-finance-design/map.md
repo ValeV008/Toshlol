@@ -17,7 +17,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [07: Category and Tag restrictions for Budgets](issues/07-category-and-tag-restrictions-for-budgets.md) | 06 | resolved |
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | resolved |
 | [09: Redesigned first-run setup](issues/09-redesigned-first-run-setup.md) | 01 | resolved |
-| [10: Redesigned Settings and Backup journeys](issues/10-redesigned-settings-and-backup-journeys.md) | 02, 07 | ready-for-agent |
+| [10: Redesigned Settings and Backup journeys](issues/10-redesigned-settings-and-backup-journeys.md) | 02, 07 | resolved |
 | [11: Integrated Android 10 design verification](issues/11-integrated-android-10-design-verification.md) | 04, 05, 08, 09, 10 | ready-for-agent |
 
 The ready-for-agent status is a triage label. A ticket can be started only after every listed blocker is resolved.
@@ -29,7 +29,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - 03 is resolved with ticket-specific API 29 Compose coverage for transaction editing, Account recalculation, validation, optional classification, deletion and Budget recalculation, and larger text.
 - 05 opened after both 02 and 03 resolved and is complete with ticket-specific API 29 creation, editing, paired-list, filter, deletion, archived-counterpart, and larger-font verification.
 - 07 opened after 06 resolved and is now complete. Its completion opens issue 10 alongside its existing issue 02 prerequisite.
-- 10 opens after both 02 and 07 resolve.
+- 10 is resolved after 02 and 07. Its Settings/Backup journeys, API 29 picker coverage, persistent Backup round-trip, accessibility examples, and evidence are complete; this opens issue 11.
 - 11 opens after 04, 05, 08, 09, and 10 resolve. Its other prerequisites are included transitively.
 
 ## Delivery notes
@@ -49,6 +49,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - Issue 07 is complete with optional Category and Tag filters, shared matching across Budgets and Overview, migration/reopen and complete-record Backup compatibility, and accessible large-font journeys. On 2026-11-19, host-runner tests passed 15/15, JVM tests passed 15/15, the API 29 Overview restart checks passed for selected and empty states, and the unfiltered connected suite passed 79/79. Screenshots and run details are recorded in issue 07 under `issues/evidence/07/` and `build/overview-persistence/20261119T111721533634Z/`.
 - Issue 08 is complete with the text-only Category and Tag manager, stable-reference rename/archive behavior, preserved archived Budget restrictions, and refreshed entry/filter choices. On 2026-11-19, host-runner tests passed 15/15, Gradle JVM/lint/format/assembly checks passed, selected and empty Overview restart checks passed, and the full API 29 connected suite passed 85/85. Screenshots and logs are recorded in `issues/evidence/08/`; restart evidence is under `build/overview-persistence/20261119T174310562546Z/`.
 - Issue 09 is complete with the redesigned accessible first-run flow, saved unsubmitted choices, retry/loading/saving feedback, the empty current-month Overview, and large-font layouts. On 2026-11-20, Python host tests passed 15/15, Gradle JVM/lint/format/assembly checks passed, selected and empty Overview process-restart checks passed, the large-font first-run journeys passed 4/4, and the full unfiltered API 29 suite passed 92/92 with no failures, errors, or skips. Screenshots, logs, and the connected XML report are recorded in `issues/evidence/09/`; restart evidence is under `build/overview-persistence/20261120T130844944098Z/`.
+- Issue 10 is complete with redesigned Settings surfaces, accessible Backup result notices, and drawer Export routing into the Android document picker. API 29 UI coverage verifies Export/Merge/Overwrite/reset completion and cancellation. A persistent database round-trip verifies full Backup records, Account and month-end values, histories, and independent unrestricted and filtered Budget progress after reopen. The restored Overwrite UI journey also recreates the Activity and verifies visible Overview totals, Budget progress, Account balances, and history. The full unfiltered connected suite passed 95/95 before adding that round-trip test; the final focused BackupImport, BackupImportUi, and SettingsAccessibility run passed 14/14, and JVM/lint/format/assembly checks passed. Screenshots and run details are in `evidence/10/`.
 - Preserve older supported Backups, stable identities, renamed/archived references, and the existing atomic-import ADR throughout the staged implementation.
 - Keep source specifications and earlier resolved issues intact. On future completion, add the ticket's Answer and verification evidence, mark it resolved, and update this map only when its criteria and required checks pass.
 

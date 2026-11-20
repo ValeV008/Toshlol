@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -201,7 +203,10 @@ fun PersonalFinanceApp(
                                 coroutineScope.launch { drawerState.close() }
                                 when (destination) {
                                     "Categories & Tags" -> actions.organizer.open()
-                                    "Export" -> actions.exportBackup()
+                                    "Export" -> {
+                                        actions.navigation.selectArea("Settings")
+                                        actions.exportBackup()
+                                    }
                                     else -> actions.navigation.selectArea(destination)
                                 }
                             },
@@ -228,6 +233,7 @@ fun PersonalFinanceApp(
                         onAreaSelected = actions.navigation.selectArea,
                     )
                 }
+                BackupStatusNotice(actions.backupStatus)
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f)) {
                     when {
                         !uiState.isLoaded ->
@@ -332,7 +338,6 @@ fun PersonalFinanceApp(
                                         exportBackup = actions.exportBackup,
                                         importBackup = actions.importBackup,
                                         resetData = actions.resetData,
-                                        backupStatus = actions.backupStatus,
                                     ),
                             )
                         uiState.isSetupComplete ->
@@ -396,14 +401,13 @@ fun PersonalFinanceApp(
     }
 }
 
-private data class SettingsActions(
+internal data class SettingsActions(
     val openOrganizer: () -> Unit,
     val createTransaction: () -> Unit,
     val createTransfer: () -> Unit,
     val exportBackup: () -> Unit,
     val importBackup: (BackupImportMode) -> Unit,
     val resetData: () -> Unit,
-    val backupStatus: String,
 )
 
 @Composable
@@ -453,27 +457,50 @@ internal fun ShowPersonalFinanceTopNavigation(
 
 @Composable
 @Suppress("ktlint:standard:no-unit-return")
-private fun SettingsScreen(
+internal fun SettingsScreen(
     state: TransactionsUiState,
     actions: SettingsActions,
 ): Unit {
     var confirmation: String by rememberSaveable { mutableStateOf("") }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Settings", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
-        Text("Currency: ${state.currency}")
-        Text("Account: ${state.accountName}")
-        Button(onClick = actions.createTransaction) { Text("Add transaction") }
-        Button(onClick = actions.createTransfer) { Text("Transfer") }
-        Text("Data management", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-        Button(onClick = actions.openOrganizer) { Text("Manage categories and tags") }
-        Button(onClick = actions.exportBackup) { Text("Export Backup") }
-        Button(onClick = { actions.importBackup(BackupImportMode.MERGE) }) { Text("Import Backup (Merge)") }
-        Button(onClick = { confirmation = "overwrite" }) { Text("Import Backup (Overwrite)") }
-        Button(onClick = { confirmation = "reset" }) { Text("Delete all local data") }
-        if (actions.backupStatus.isNotEmpty()) Text(actions.backupStatus)
+        Text(
+            "Settings",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.semantics { heading() }.testTag("settings-title"),
+        )
+        SettingsCard(title = "Finance profile", description = "Your local ledger context.") {
+            Text("Currency: ${state.currency}", style = MaterialTheme.typography.bodyLarge)
+            Text("Account: ${state.accountName}", style = MaterialTheme.typography.bodyLarge)
+            Text("Viewing month: ${state.selectedMonth}", style = MaterialTheme.typography.bodyLarge)
+        }
+        SettingsCard(title = "Quick actions", description = "Record a movement in your ledger.") {
+            SettingsActionButton("Add transaction", actions.createTransaction)
+            SettingsActionButton("Transfer", actions.createTransfer)
+        }
+        SettingsCard(title = "Categories and tags", description = "Organize the labels used by your transactions.") {
+            SettingsActionButton("Manage categories and tags", actions.openOrganizer)
+        }
+        SettingsCard(
+            title = "Back up and restore",
+            description = "Backups include your Accounts, activity, Budgets, classifications, and currency.",
+        ) {
+            SettingsActionButton("Export Backup", actions.exportBackup)
+            SettingsActionButton(
+                label = "Import Backup (Merge)",
+                onClick = { actions.importBackup(BackupImportMode.MERGE) },
+            )
+        }
+        SettingsCard(title = "Replace or clear data", description = "These actions require confirmation before they change your ledger.") {
+            SettingsActionButton("Import Backup (Overwrite)", onClick = { confirmation = "overwrite" }, isDestructive = true)
+            SettingsActionButton("Delete all local data", onClick = { confirmation = "reset" }, isDestructive = true)
+        }
     }
     if (confirmation.isNotEmpty()) {
         val isOverwrite: Boolean = confirmation == "overwrite"
@@ -499,6 +526,71 @@ private fun SettingsScreen(
             },
             dismissButton = { TextButton(onClick = { confirmation = "" }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun SettingsCard(
+    title: String,
+    description: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+): Unit {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            if (description != null) Text(description, style = MaterialTheme.typography.bodyMedium)
+            content()
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun SettingsActionButton(
+    label: String,
+    onClick: () -> Unit,
+    isDestructive: Boolean = false,
+): Unit {
+    if (isDestructive) {
+        TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(label, color = MaterialTheme.colorScheme.error)
+        }
+    } else {
+        Button(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(label)
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+internal fun BackupStatusNotice(message: String): Unit {
+    if (message.isBlank()) return
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .testTag("backup-status")
+                .semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    stateDescription = "Latest data management result"
+                },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Data management result", style = MaterialTheme.typography.titleSmall)
+            Text(message, style = MaterialTheme.typography.bodyMedium)
+        }
     }
 }
 

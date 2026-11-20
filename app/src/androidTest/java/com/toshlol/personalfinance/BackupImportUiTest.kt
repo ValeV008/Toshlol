@@ -2,12 +2,16 @@ package com.toshlol.personalfinance
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.provider.MediaStore
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -20,7 +24,11 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import com.toshlol.personalfinance.data.BackupAccount
+import com.toshlol.personalfinance.data.BackupCategory
+import com.toshlol.personalfinance.data.BackupRecurringBudget
 import com.toshlol.personalfinance.data.BackupSettings
+import com.toshlol.personalfinance.data.BackupTag
+import com.toshlol.personalfinance.data.BackupTransaction
 import com.toshlol.personalfinance.data.BackupTransfer
 import com.toshlol.personalfinance.data.FinanceBackup
 import com.toshlol.personalfinance.data.FinanceBackupCodec
@@ -50,6 +58,22 @@ class BackupImportUiTest {
     @Test
     @Suppress("ktlint:standard:no-unit-return")
     fun settingsLaunchesDocumentPickerForMergeAndCancellationReturnsToSettings(): Unit {
+        createCashAccount()
+        openSettingsAndCapture()
+        createOverwriteBackupDocument()
+        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        cancelMergeAndVerifyLocalProfile(device)
+        cancelOverwriteAndVerifyLocalProfile(device)
+        completeOverwriteFromDownloads(device)
+        assertRestoredOverviewAndBudgetProgress()
+        openSettings()
+        assertRestoredAccountHistory()
+        openSettings()
+        confirmResetPreservingCancellation()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun createCashAccount(): Unit {
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodesWithText("Set up your first account").fetchSemanticsNodes().isNotEmpty()
         }
@@ -58,25 +82,57 @@ class BackupImportUiTest {
         ui.enterText("Account name", "Cash")
         composeRule.onNodeWithText("Create account").performScrollTo().performClick()
         ui.showOverview()
-        composeRule.onNodeWithText("Settings").performClick()
-        createOverwriteBackupDocument()
-        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun openSettingsAndCapture(): Unit {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Settings").performClick()
+        composeRule.onNodeWithTag("settings-title").assertIsDisplayed()
+        composeRule.onNodeWithText("Finance profile").assertIsDisplayed()
+        composeRule.waitForIdle()
+        saveTestScreenshot(TestScreenshotEvidence("backup-import-evidence", "settings.png"))
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun cancelMergeAndVerifyLocalProfile(device: UiDevice): Unit {
         composeRule.onNodeWithText("Import Backup (Merge)").performScrollTo().performClick()
-        assertTrue(
-            "Android document picker did not open",
-            device.wait(Until.hasObject(By.pkg("com.android.documentsui")), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS),
-        )
+        assertDocumentPickerOpen(device, "Android document picker did not open")
         device.pressBack()
-        composeRule.waitUntil(15_000) {
-            composeRule.onAllNodesWithText("Backup import canceled.").fetchSemanticsNodes().isNotEmpty()
-        }
+        waitForBackupStatus("Backup import canceled.")
+        composeRule.waitForIdle()
+        saveTestScreenshot(TestScreenshotEvidence("backup-import-evidence", "settings-import-canceled.png"))
+        assertLocalProfile("EUR", "Cash")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun cancelOverwriteAndVerifyLocalProfile(device: UiDevice): Unit {
+        composeRule.onNodeWithText("Import Backup (Overwrite)").performScrollTo().performClick()
+        composeRule.onNodeWithText("Overwrite local data?").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertLocalProfile("EUR", "Cash")
         composeRule.onNodeWithText("Import Backup (Overwrite)").performScrollTo().performClick()
         composeRule.onNodeWithText("Overwrite local data?").assertIsDisplayed()
         composeRule.onNodeWithText("Choose Backup").performClick()
-        assertTrue(
-            "Overwrite confirmation did not launch document picker",
-            device.wait(Until.hasObject(By.pkg("com.android.documentsui")), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS),
-        )
+        assertDocumentPickerOpen(device, "Overwrite confirmation did not launch document picker")
+        device.pressBack()
+        waitForBackupStatus("Backup import canceled.")
+        assertLocalProfile("EUR", "Cash")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun completeOverwriteFromDownloads(device: UiDevice): Unit {
+        composeRule.onNodeWithText("Import Backup (Overwrite)").performScrollTo().performClick()
+        composeRule.onNodeWithText("Overwrite local data?").assertIsDisplayed()
+        composeRule.onNodeWithText("Choose Backup").performClick()
+        assertDocumentPickerOpen(device, "Confirmed Overwrite did not open the Android document picker")
+        selectBackupFromDownloads(device)
+        returnFromBackupPicker(device)
+        waitForBackupStatus("Backup overwrite completed successfully.", substring = true)
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun selectBackupFromDownloads(device: UiDevice): Unit {
         val rootsButton: UiObject2? = device.wait(Until.findObject(By.desc("Show roots")), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS)
         assertTrue("Android document picker did not show storage locations", rootsButton != null)
         rootsButton!!.click()
@@ -91,33 +147,120 @@ class BackupImportUiTest {
         val backupDocument: UiObject2? = device.wait(Until.findObject(By.text(backupDocumentName)), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS)
         assertTrue("Replacement Backup was not visible in Android Documents", backupDocument != null)
         backupDocument!!.click()
-        returnFromBackupPicker(device)
-        composeRule.waitUntil(15_000) {
-            composeRule
-                .onAllNodesWithText("Backup overwrite completed successfully.", substring = true)
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertRestoredOverviewAndBudgetProgress(): Unit {
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Overview").performClick()
+        ui.showOverview()
+        ui.selectOverviewAccount("Imported account")
+        composeRule.onAllNodesWithText("USD 65.00").assertCountEquals(2)
+        composeRule.onAllNodesWithText("USD 65.00").get(0).assertIsDisplayed()
+        ui.showText("Every expense")
+        ui.showText("Spent  USD 15.00")
+        ui.showText("Food on weekends")
+        ui.showText("Spent  USD 10.00")
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun openSettings(): Unit {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Settings").performClick()
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodesWithText("Currency: USD").fetchSemanticsNodes().isNotEmpty() &&
                 composeRule.onAllNodesWithText("Account: Destination account").fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("Currency: USD").assertIsDisplayed()
-        composeRule.onNodeWithText("Account: Destination account").assertIsDisplayed()
-        composeRule.onNodeWithText("Accounts").performClick()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertRestoredAccountHistory(): Unit {
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Accounts").performClick()
         composeRule.onNodeWithText("Imported account").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("75.00", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("65.00", substring = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("View Imported account history").performScrollTo().performClick()
+        composeRule.onNodeWithText("Balance  USD 65.00").assertIsDisplayed()
+        composeRule.onNodeWithText("Expense · -USD 10.00").assertIsDisplayed()
+        composeRule.onNodeWithText("-USD 25.00 · Transfer out").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("25.00", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Back").performClick()
-        composeRule.onNodeWithText("Back to overview").performClick()
-        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithText("Back").performScrollTo().performClick()
+        composeRule.waitUntil(15_000) {
+            composeRule.onAllNodesWithTag("open-navigation-drawer").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun confirmResetPreservingCancellation(): Unit {
+        composeRule.onNodeWithText("Delete all local data").performScrollTo().performClick()
+        composeRule.onNodeWithText("Delete all local data?").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertLocalProfile("USD", "Destination account")
         composeRule.onNodeWithText("Delete all local data").performScrollTo().performClick()
         composeRule.onNodeWithText("Delete all local data?").assertIsDisplayed()
         composeRule.onNodeWithText("Delete all data").performClick()
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodesWithText("Set up your first account").fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertLocalProfile(
+        currency: String,
+        accountName: String,
+    ): Unit {
+        composeRule.onNodeWithText("Currency: $currency").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Account: $accountName").performScrollTo().assertIsDisplayed()
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun assertDocumentPickerOpen(
+        device: UiDevice,
+        failureMessage: String,
+    ): Unit {
+        assertTrue(
+            failureMessage,
+            device.wait(Until.hasObject(By.pkg("com.android.documentsui")), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS),
+        )
+    }
+
+    @Suppress("ktlint:standard:no-unit-return")
+    private fun waitForBackupStatus(
+        message: String,
+        substring: Boolean = false,
+    ): Unit {
+        composeRule.waitUntil(15_000) {
+            composeRule.onAllNodesWithText(message, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    @Suppress("ktlint:standard:no-unit-return")
+    fun exportDestinationLaunchesDocumentPickerAndShowsCancellationOnSettings(): Unit {
+        composeRule.waitUntil(15_000) {
+            composeRule.onAllNodesWithText("Set up your first account").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithContentDescription("Currency").performClick()
+        composeRule.onNodeWithText("EUR").performClick()
+        ui.enterText("Account name", "Cash")
+        composeRule.onNodeWithText("Create account").performScrollTo().performClick()
+        ui.showOverview()
+        val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        composeRule.onNodeWithTag("open-navigation-drawer").performClick()
+        composeRule.onNodeWithTag("drawer-Export").performClick()
+        assertTrue(
+            "Android document picker did not open for the Export destination",
+            device.wait(Until.hasObject(By.pkg("com.android.documentsui")), DOCUMENT_PICKER_WAIT_TIMEOUT_MILLIS),
+        )
+        device.pressBack()
+        composeRule.waitUntil(15_000) {
+            composeRule.onAllNodesWithTag("backup-status").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("settings-title").assertIsDisplayed()
+        composeRule.onNodeWithText("Backup export canceled.").assertIsDisplayed()
+        composeRule.onNodeWithText("Currency: EUR").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Account: Cash").performScrollTo().assertIsDisplayed()
     }
 
     @Suppress("ktlint:standard:no-unit-return")
@@ -129,7 +272,7 @@ class BackupImportUiTest {
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, "Download")
             }
-        val destination = requireNotNull(context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
+        val destination: Uri = requireNotNull(context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values))
         val backup: FinanceBackup =
             FinanceBackup(
                 schemaVersion = 4,
@@ -139,9 +282,35 @@ class BackupImportUiTest {
                         BackupAccount("imported-account", "Imported account", "BANK", 1L, 2L, 10_000L, 0L, false),
                         BackupAccount("destination-account", "Destination account", "CASH", 1L, 2L, -500L, 0L, false),
                     ),
-                categories = emptyList(),
-                tags = emptyList(),
-                transactions = emptyList(),
+                categories = listOf(BackupCategory("food", "Food", "EXPENSE", false, 3L, 4L)),
+                tags = listOf(BackupTag("weekend", "Weekend", "food", false, 5L, 6L)),
+                transactions =
+                    listOf(
+                        BackupTransaction(
+                            "imported-expense",
+                            "imported-account",
+                            1_000L,
+                            "EXPENSE",
+                            YearMonth.now().atDay(2).toEpochDay(),
+                            "food",
+                            listOf("weekend"),
+                            "Market",
+                            7L,
+                            8L,
+                        ),
+                        BackupTransaction(
+                            "destination-expense",
+                            "destination-account",
+                            500L,
+                            "EXPENSE",
+                            YearMonth.now().atDay(3).toEpochDay(),
+                            null,
+                            emptyList(),
+                            null,
+                            9L,
+                            10L,
+                        ),
+                    ),
                 transfers =
                     listOf(
                         BackupTransfer(
@@ -155,6 +324,27 @@ class BackupImportUiTest {
                         ),
                     ),
                 budgets = emptyList(),
+                recurringBudgets =
+                    listOf(
+                        BackupRecurringBudget(
+                            "unrestricted",
+                            "Every expense",
+                            2_000L,
+                            listOf("imported-account", "destination-account"),
+                            11L,
+                            12L,
+                        ),
+                        BackupRecurringBudget(
+                            "food-weekend",
+                            "Food on weekends",
+                            1_500L,
+                            listOf("imported-account"),
+                            13L,
+                            14L,
+                            categoryIds = listOf("food"),
+                            tagIds = listOf("weekend"),
+                        ),
+                    ),
             )
         context.contentResolver.openOutputStream(destination).use { output ->
             requireNotNull(output).write(FinanceBackupCodec.encode(backup).toByteArray())
@@ -176,22 +366,6 @@ class BackupImportUiTest {
                 )
             if (openButton != null) {
                 openButton.click()
-            } else {
-                val returnedAfterSelection: Boolean =
-                    device.wait(
-                        Until.hasObject(By.pkg(FINANCE_APPLICATION_PACKAGE_NAME)),
-                        DOCUMENT_PICKER_RESULT_WAIT_TIMEOUT_MILLIS,
-                    )
-                val pickerLabels: String =
-                    device
-                        .findObjects(By.pkg("com.android.documentsui"))
-                        .mapNotNull { item: UiObject2 -> item.text ?: item.contentDescription }
-                        .filter { label: String -> label.isNotBlank() }
-                        .joinToString()
-                assertTrue(
-                    "Selecting the backup neither showed the Open action nor returned to the app. Visible labels: $pickerLabels",
-                    returnedAfterSelection,
-                )
             }
         }
         assertTrue(

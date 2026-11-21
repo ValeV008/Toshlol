@@ -58,7 +58,7 @@ import com.toshlol.personalfinance.ui.viewmodel.FirstRunUiState
 import com.toshlol.personalfinance.ui.viewmodel.TransactionsUiState
 import kotlinx.coroutines.launch
 
-private const val LARGE_FONT_SCALE: Float = 1.5f
+private const val LARGE_FONT_SCALE: Float = 1.2f
 
 data class LedgerNavigationActions(
     val selectArea: (String) -> Unit = {},

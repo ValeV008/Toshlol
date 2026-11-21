@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -141,20 +142,7 @@ fun MonthlyLedgerScreen(
                         Text("${state.selectedOverviewAccountIds.size} selected Accounts", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LedgerFilter(
-                        "Category",
-                        state.categories.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
-                        state.selectedCategoryId,
-                        actions.categoryChanged,
-                    )
-                    LedgerFilter(
-                        "Tag",
-                        state.tags.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
-                        state.selectedTagId,
-                        actions.tagChanged,
-                    )
-                }
+                LedgerFilters(state, actions)
                 if (days.isEmpty()) {
                     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
                         Text("No $heading activity for this month and Account selection.", Modifier.fillMaxWidth().padding(18.dp))
@@ -163,18 +151,68 @@ fun MonthlyLedgerScreen(
                     days.forEach { day -> LedgerDayCard(day, direction, state, actions) }
                 }
             }
-            Row(
-                Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
-                Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
-                OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer money") }
-            }
+            LedgerEntryActions(actions)
         }
         if (state.isAccountDrawerOpen) {
             LedgerAccountSelectionDrawer(state, actions)
         }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun LedgerEntryActions(actions: MonthlyLedgerActions): Unit {
+    if (LocalDensity.current.fontScale >= 1.2f) {
+        Column(
+            Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.fillMaxWidth()) { Text("Add expense") }
+            Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.fillMaxWidth()) { Text("Add income") }
+            OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.fillMaxWidth()) { Text("Transfer money") }
+        }
+    } else {
+        Row(
+            Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Button(onClick = { actions.create(TransactionDirection.EXPENSE) }, modifier = Modifier.weight(1f)) { Text("Add expense") }
+            Button(onClick = { actions.create(TransactionDirection.INCOME) }, modifier = Modifier.weight(1f)) { Text("Add income") }
+            OutlinedButton(onClick = actions.createTransfer, modifier = Modifier.weight(1f)) { Text("Transfer money") }
+        }
+    }
+}
+
+@Composable
+@Suppress("ktlint:standard:no-unit-return")
+private fun LedgerFilters(
+    state: TransactionsUiState,
+    actions: MonthlyLedgerActions,
+): Unit {
+    val isLargeFont: Boolean = LocalDensity.current.fontScale >= 1.2f
+
+    @Composable
+    fun Filters(): Unit {
+        val filterModifier: Modifier = if (isLargeFont) Modifier.fillMaxWidth() else Modifier
+        LedgerFilter(
+            "Category",
+            state.categories.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
+            state.selectedCategoryId,
+            actions.categoryChanged,
+            filterModifier,
+        )
+        LedgerFilter(
+            "Tag",
+            state.tags.map { it.id to (it.name + if (it.archived) " (Archived)" else "") },
+            state.selectedTagId,
+            actions.tagChanged,
+            filterModifier,
+        )
+    }
+    if (isLargeFont) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) { Filters() }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Filters() }
     }
 }
 
@@ -320,11 +358,12 @@ private fun LedgerFilter(
     options: List<Pair<String, String>>,
     selectedId: String?,
     onSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
 ): Unit {
     var isExpanded: Boolean by remember { mutableStateOf(false) }
     val selectedName: String = options.firstOrNull { it.first == selectedId }?.second ?: "All $label"
-    Column {
-        OutlinedButton(onClick = { isExpanded = true }) { Text("$label: $selectedName") }
+    Column(modifier) {
+        OutlinedButton(onClick = { isExpanded = true }, modifier = modifier) { Text("$label: $selectedName") }
         DropdownMenu(expanded = isExpanded, onDismissRequest = { isExpanded = false }) {
             DropdownMenuItem(text = { Text("All $label") }, onClick = {
                 onSelected(null)

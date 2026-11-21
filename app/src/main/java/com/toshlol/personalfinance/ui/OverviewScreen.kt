@@ -57,7 +57,7 @@ private val IncomeGreen: Color = Color(0xFF24834A)
 private val ExpenseRed: Color = Color(0xFFBE3B3B)
 private val EDGE_GESTURE_WIDTH = 32.dp
 private val EDGE_GESTURE_DISTANCE = 48.dp
-private const val LARGE_FONT_SCALE: Float = 1.5f
+private const val LARGE_FONT_SCALE: Float = 1.2f
 private const val DRAWER_WIDTH_FRACTION: Float = 0.86f
 private const val DRAWER_OVERLAY_ALPHA: Float = 0.35f
 

@@ -440,6 +440,7 @@ private fun TransferEntryDialog(
                     state.accounts.filterNot { it.isArchived }.forEach { account ->
                         TransferAccountChoice(
                             accountName = account.name,
+                            accountRole = "Source",
                             isSelected = state.transferSourceAccountId == account.id,
                             testTag = "transfer-source-${account.id}",
                             onSelected = { actions.sourceChanged(account.id) },
@@ -449,6 +450,7 @@ private fun TransferEntryDialog(
                     state.accounts.filterNot { it.isArchived }.forEach { account ->
                         TransferAccountChoice(
                             accountName = account.name,
+                            accountRole = "Destination",
                             isSelected = state.transferDestinationAccountId == account.id,
                             testTag = "transfer-destination-${account.id}",
                             onSelected = { actions.destinationChanged(account.id) },
@@ -477,6 +479,7 @@ private fun TransferEntryDialog(
 @Suppress("ktlint:standard:no-unit-return")
 private fun TransferAccountChoice(
     accountName: String,
+    accountRole: String,
     isSelected: Boolean,
     testTag: String,
     onSelected: () -> Unit,
@@ -486,6 +489,7 @@ private fun TransferAccountChoice(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .selectable(selected = isSelected, role = Role.RadioButton, onClick = onSelected)
+            .semantics { contentDescription = "$accountRole Account $accountName" }
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically,
     ) {

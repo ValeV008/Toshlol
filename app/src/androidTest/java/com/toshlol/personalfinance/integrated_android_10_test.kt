@@ -3,8 +3,8 @@
 package com.toshlol.personalfinance
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -27,6 +28,7 @@ import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.util.regex.Pattern
 
 @RunWith(AndroidJUnit4::class)
 class IntegratedAndroid10Test {
@@ -40,11 +42,14 @@ class IntegratedAndroid10Test {
     fun operateRedesignedAppOnAndroid10(): Unit {
         createAccountsThroughSetupAndManagement()
         createCategoryAndTag()
-        recordAndEditIncomeAndExpense()
-        recordAndEditTransferAndReviewBothHistories()
-        createAndEditOverlappingBudgets()
+        recordAndEditIncome()
+        recordAndEditExpense()
+        recordAndEditTransfer()
+        reviewTransferListsAndHistories()
+        createFilteredBudget()
+        editLimitAndCreateOverlappingBudget()
         verifyMonthAndAccountSelection()
-        cancelExportThroughAndroidPicker()
+        verifyRestartAndLargeFont()
     }
 
     private fun createAccountsThroughSetupAndManagement(): Unit {
@@ -78,7 +83,7 @@ class IntegratedAndroid10Test {
         ui.showOverview()
     }
 
-    private fun recordAndEditIncomeAndExpense(): Unit {
+    private fun recordAndEditIncome(): Unit {
         ui.clickText("Add income")
         ui.enterText("Amount", "30.00", "transaction-form")
         ui.enterText("Note (optional)", "Wages", "transaction-form")
@@ -90,16 +95,15 @@ class IntegratedAndroid10Test {
         navigateTo("Income")
         ui.showText("Wages edited", substring = true)
         ui.showText("EUR 30.00")
+    }
+
+    private fun recordAndEditExpense(): Unit {
         navigateTo("Expenses")
         ui.clickText("Add expense")
         ui.enterText("Amount", "12.00", "transaction-form")
         ui.enterText("Note (optional)", "Market", "transaction-form")
         ui.clickText("Food", "transaction-form")
-        composeRule
-            .onNodeWithTag("transaction-tag-${tagId("Weekend")}")
-            .performScrollTo()
-            .performClick()
-            .assertIsOn()
+        ui.clickText("Weekend", "transaction-form")
         ui.clickText("Save")
         navigateTo("Overview")
         ui.showText("Expense · EUR 12.00")
@@ -113,7 +117,7 @@ class IntegratedAndroid10Test {
         capture("expenses-integrated.png")
     }
 
-    private fun recordAndEditTransferAndReviewBothHistories(): Unit {
+    private fun recordAndEditTransfer(): Unit {
         ui.clickText("Transfer money")
         ui.enterText("Amount", "5.00", "transfer-form")
         ui.clickText("Save")
@@ -126,6 +130,9 @@ class IntegratedAndroid10Test {
         ui.clickText("Transfer · EUR 5.00")
         ui.enterText("Amount", "6.00", "transfer-form")
         ui.clickText("Save")
+    }
+
+    private fun reviewTransferListsAndHistories(): Unit {
         navigateTo("Expenses")
         ui.showText("-EUR 6.00 · Transfer out")
         ui.showText("EUR 12.00")
@@ -148,38 +155,39 @@ class IntegratedAndroid10Test {
     }
 
     private fun selectTransferAccounts(): Unit {
-        val cashId: String = accountId("Cash")
-        val reserveId: String = accountId("Reserve")
         composeRule
-            .onNodeWithTag("transfer-source-$cashId")
+            .onNodeWithContentDescription("Source Account Cash")
             .performScrollTo()
             .performClick()
             .assertIsSelected()
         composeRule
-            .onNodeWithTag("transfer-destination-$reserveId")
+            .onNodeWithContentDescription("Destination Account Reserve")
             .performScrollTo()
             .performClick()
             .assertIsSelected()
     }
 
-    private fun createAndEditOverlappingBudgets(): Unit {
+    private fun createFilteredBudget(): Unit {
         navigateTo("Budgets")
         ui.enterText("Budget name", "Food limit")
         ui.enterText("Monthly limit (EUR)", "10.00")
-        composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
-        composeRule.onNodeWithTag("budget-category-${categoryId("Food")}").performScrollTo().performClick()
+        ui.clickText("Cash", "budgets-screen")
+        ui.clickText("Food", "budgets-screen")
         ui.clickText("Save Budget")
         ui.showText("Spent  EUR 12.00")
         ui.showText("Over budget")
         capture("budget-over-limit-integrated.png")
+    }
+
+    private fun editLimitAndCreateOverlappingBudget(): Unit {
         ui.clickText("Edit Budget")
         ui.enterText("Monthly limit (EUR)", "20.00")
         ui.clickText("Save changes")
         ui.showText("Remaining  EUR 8.00")
         ui.enterText("Budget name", "Weekend spending")
         ui.enterText("Monthly limit (EUR)", "15.00")
-        composeRule.onNodeWithTag("budget-account-${accountId("Cash")}").performScrollTo().performClick()
-        composeRule.onNodeWithTag("budget-tag-${tagId("Weekend")}").performScrollTo().performClick()
+        ui.clickText("Cash", "budgets-screen")
+        ui.clickText("Weekend", "budgets-screen")
         ui.clickText("Save Budget")
         ui.showText("Weekend spending")
         assertBothBudgetCardsShowSpending("12.00")
@@ -203,18 +211,95 @@ class IntegratedAndroid10Test {
         ui.clickText("Close")
         navigateTo("Overview")
         ui.showText("No activity for this month and Account selection.")
+        ui.showText("EUR 0.00")
+        composeRule.onAllNodesWithText("0.00").assertCountEquals(3)
         assertBothBudgetCardsShowSpending("12.00")
         capture("overview-empty-selection-with-budget.png")
+        navigateTo("Expenses")
+        ui.showText("EUR 0.00")
+        ui.showText("No Expenses activity for this month and Account selection.")
+        navigateTo("Income")
+        ui.showText("EUR 0.00")
+        ui.showText("No Income activity for this month and Account selection.")
+        navigateTo("Overview")
     }
 
-    private fun cancelExportThroughAndroidPicker(): Unit {
+    private fun verifyRestartAndLargeFont(): Unit {
         val device: UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val originalFontScale: String =
+            device
+                .executeShellCommand("settings get system font_scale")
+                .trim()
+                .toFloatOrNull()
+                ?.toString() ?: "1.0"
+        composeRule.activityRule.scenario.close()
+        try {
+            device.executeShellCommand("settings put system font_scale 1.3")
+            ActivityScenario.launch(MainActivity::class.java).use { scenario: ActivityScenario<MainActivity> ->
+                scenario.recreate()
+                scenario.onActivity { activity: MainActivity ->
+                    assertTrue("System larger-font setting did not apply", activity.resources.configuration.fontScale >= 1.2f)
+                }
+                assertRestartedLargeFontState()
+                completeAndCancelPickerFlows(device)
+            }
+        } finally {
+            device.executeShellCommand("settings put system font_scale $originalFontScale")
+        }
+    }
+
+    private fun assertRestartedLargeFontState(): Unit {
+        ui.showOverview()
+        ui.showText("EUR 0.00")
+        ui.showText("No activity for this month and Account selection.")
+        assertBothBudgetCardsShowSpending("12.00")
+        composeRule.onNodeWithText("Transfer money").performScrollTo().assertIsDisplayed()
+        capture("overview-restarted-large-font.png")
+        navigateTo("Expenses")
+        ui.showText("No Expenses activity for this month and Account selection.")
+        composeRule.onNodeWithText("Transfer money").assertIsDisplayed()
+        capture("expenses-restarted-large-font.png")
+        navigateTo("Overview")
+    }
+
+    private fun completeAndCancelPickerFlows(device: UiDevice): Unit {
         composeRule.onNodeWithTag("open-navigation-drawer").performClick()
         composeRule.onNodeWithTag("drawer-Export").performClick()
+        assertTrue(device.wait(Until.hasObject(By.pkg("com.android.documentsui")), 10_000L))
+        saveExportInDownloads(device)
+        ui.showText("Backup exported successfully.")
+        capture("settings-export-completed.png")
+        ui.clickText("Export Backup")
         assertTrue(device.wait(Until.hasObject(By.pkg("com.android.documentsui")), 10_000L))
         device.pressBack()
         ui.showText("Backup export canceled.")
         capture("settings-export-canceled.png")
+        ui.clickText("Import Backup (Merge)")
+        assertTrue(device.wait(Until.hasObject(By.pkg("com.android.documentsui")), 10_000L))
+        device.pressBack()
+        ui.showText("Backup import canceled.")
+        verifyResetConfirmation()
+    }
+
+    private fun saveExportInDownloads(device: UiDevice): Unit {
+        val rootsButton: androidx.test.uiautomator.UiObject2? = device.wait(Until.findObject(By.desc("Show roots")), 10_000L)
+        assertTrue("Android document picker did not show storage locations", rootsButton != null)
+        rootsButton!!.click()
+        val downloadsLocation: androidx.test.uiautomator.UiObject2? = device.wait(Until.findObject(By.text("Downloads")), 10_000L)
+        assertTrue("Downloads was not available in Android Documents", downloadsLocation != null)
+        downloadsLocation!!.click()
+        device.pressBack()
+        val saveButton: androidx.test.uiautomator.UiObject2? =
+            device.wait(Until.findObject(By.text(Pattern.compile("(?i)^save$"))), 10_000L)
+        assertTrue("Android document picker did not show Save", saveButton != null)
+        saveButton!!.click()
+    }
+
+    private fun verifyResetConfirmation(): Unit {
+        ui.clickText("Delete all local data")
+        ui.showText("Delete all local data?")
+        ui.clickText("Cancel")
+        ui.showText("Currency: EUR")
     }
 
     private fun navigateTo(destination: String): Unit {
@@ -229,28 +314,4 @@ class IntegratedAndroid10Test {
     }
 
     private fun capture(fileName: String): Unit = saveTestScreenshot(TestScreenshotEvidence("integrated-android-10", fileName))
-
-    private fun accountId(name: String): String =
-        kotlinx.coroutines.runBlocking {
-            FinanceTestFixtures(
-                com.toshlol.personalfinance.data.AppDatabase
-                    .getInstance(composeRule.activity),
-            ).accounts.loadSetup().accounts.single { it.name == name }.id
-        }
-
-    private fun categoryId(name: String): String =
-        kotlinx.coroutines.runBlocking {
-            FinanceTestFixtures(
-                com.toshlol.personalfinance.data.AppDatabase
-                    .getInstance(composeRule.activity),
-            ).organization.load().categories.single { it.name == name }.id
-        }
-
-    private fun tagId(name: String): String =
-        kotlinx.coroutines.runBlocking {
-            FinanceTestFixtures(
-                com.toshlol.personalfinance.data.AppDatabase
-                    .getInstance(composeRule.activity),
-            ).organization.load().tags.single { it.name == name }.id
-        }
 }

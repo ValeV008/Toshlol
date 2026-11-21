@@ -53,4 +53,4 @@ Added and passed `IntegratedAndroid10Test.operateRedesignedAppOnAndroid10`, the 
 
 The larger-font screenshots revealed clipped tab/action labels and a squeezed Tag filter. Lowered the responsive layout threshold to 1.2× for top navigation and Overview, stacked ledger actions and filters, and reran the focused journey and complete checklist. The final captures show readable controls. The curated screenshots were spot-checked against the supplied references, with approved adaptations recorded in the evidence.
 
-This issue remains `claimed` for human TalkBack/Switch Access, physical Android 10 touch/focus usability, and visual sign-off. The user plans that manual review at the end. Automated semantics and screenshots do not establish those outcomes.
+This issue remains `claimed` for physical Android 10 touch/focus usability and human visual sign-off, which the user plans to review at the end. The user confirmed TalkBack and Switch Access will not be tested. Their manual outcomes remain unverified; the automated semantics checks do not establish them.

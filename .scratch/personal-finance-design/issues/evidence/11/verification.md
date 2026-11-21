@@ -19,8 +19,8 @@ The 1.3× `overview-restarted-large-font.png` and `expenses-restarted-large-font
 
 Screens were spot-checked against `UI_pics/overview.jpg` and the relevant supplied references for hierarchy, spacing, typography, rounded cards, yellow selected/actions, charcoal headers, pale background, signed red/green amounts, and bottom action placement. Text-only classification controls, labeled actions, Account switches, and selected-month data are intentional adaptations; reference sample amounts are not acceptance values. This is an agent visual check, not human sign-off.
 
-## Human review still needed
+## Manual review disposition
 
-- TalkBack and Switch Access across drawer alternatives, forms, and Android document picker.
+- TalkBack and Switch Access will not be tested, per the user on 2026-11-21. No manual accessibility pass is claimed for those services.
 - Focus movement, gesture discoverability, scrolling, and touch targets on a physical Android 10 device.
 - Human visual sign-off on the curated screenshots and intentional reference adaptations.

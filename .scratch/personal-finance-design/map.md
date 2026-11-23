@@ -18,7 +18,7 @@ The user approved this 11-ticket breakdown, including its sizes and blocking edg
 | [08: Redesigned Category and Tag management](issues/08-redesigned-category-and-tag-management.md) | 01 | resolved |
 | [09: Redesigned first-run setup](issues/09-redesigned-first-run-setup.md) | 01 | resolved |
 | [10: Redesigned Settings and Backup journeys](issues/10-redesigned-settings-and-backup-journeys.md) | 02, 07 | resolved |
-| [11: Integrated Android 10 design verification](issues/11-integrated-android-10-design-verification.md) | 04, 05, 08, 09, 10 | claimed |
+| [11: Integrated Android 10 design verification](issues/11-integrated-android-10-design-verification.md) | 04, 05, 08, 09, 10 | resolved |
 
 The ready-for-agent status is a triage label. A ticket can be started only after every listed blocker is resolved.
 
@@ -30,7 +30,7 @@ The ready-for-agent status is a triage label. A ticket can be started only after
 - 05 opened after both 02 and 03 resolved and is complete with ticket-specific API 29 creation, editing, paired-list, filter, deletion, archived-counterpart, and larger-font verification.
 - 07 opened after 06 resolved and is now complete. Its completion opens issue 10 alongside its existing issue 02 prerequisite.
 - 10 is resolved after 02 and 07. Its Settings/Backup journeys, API 29 picker coverage, persistent Backup round-trip, accessibility examples, and evidence are complete; this opens issue 11.
-- 11 opens after 04, 05, 08, 09, and 10 resolve. Its other prerequisites are included transitively.
+- 11 opened after 04, 05, 08, 09, and 10 resolved. Automated API 29 integration checks passed, and the user reported completing the remaining manual physical-device usability and visual review on 2026-11-23. TalkBack and Switch Access remain explicitly untested by decision.
 
 ## Delivery notes
 
@@ -72,4 +72,4 @@ Numbers reference the parent [User Stories](spec.md#user-stories). Shared requir
 | 11 | 1-85, integrated verification of the completed feature slices |
 
 All ticket files also link the parent's [Implementation Decisions](spec.md#implementation-decisions) and [Testing Decisions](spec.md#testing-decisions), identify their observable criteria, and name the public behavior/UI tests that must verify them. These are planned tests and acceptance criteria, not claims of completed implementation.
-- Issue 11 automated verification completed on 2026-11-21: Python host tests 15/15; JVM/lint/format/assembly passed; selected and empty API 29 process-restart checks passed; the named integrated setup-to-Backup journey passed; and the full unfiltered API 29 connected suite passed 97/97 with zero failures or skips. The integrated review caught clipped 1.3× navigation/actions and a squeezed ledger Tag filter, which were corrected and retested. Restart artifacts are under `build/overview-persistence/20261121T175946733475Z/`; curated screenshots and the run record are in `issues/evidence/11/`. Issue 11 remains claimed for later physical-device usability and human visual sign-off. The user confirmed TalkBack and Switch Access will not be tested, so their manual outcomes remain unverified.
+- Issue 11 resolved on 2026-11-23. Automated verification completed on 2026-11-21: Python host tests 15/15; JVM/lint/format/assembly passed; selected and empty API 29 process-restart checks passed; the named integrated setup-to-Backup journey passed; and the full unfiltered API 29 connected suite passed 97/97 with zero failures or skips. The integrated review caught clipped 1.3× navigation/actions and a squeezed ledger Tag filter, which were corrected and retested. Restart artifacts are under `build/overview-persistence/20261121T175946733475Z/`; curated screenshots and the run record are in `issues/evidence/11/`. The user reported completing the remaining physical-device usability and human visual review; no additional manual findings were provided. TalkBack and Switch Access remain explicitly untested by decision.

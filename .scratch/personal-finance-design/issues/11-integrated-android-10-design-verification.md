@@ -1,6 +1,6 @@
 # 11: Integrated Android 10 design verification
 
-Status: claimed
+Status: resolved
 Blocked by: 04, 05, 08, 09, 10
 
 **What to build:** Review and verify the fully integrated redesigned app on Android 10, with reproducible visual evidence and accessible complete finance journeys, and resolve integration defects while retaining all previously delivered behavior coverage.
@@ -21,7 +21,7 @@ Blocked by: 04, 05, 08, 09, 10
 - [x] Run public finance/Room/migration/Backup regression coverage alongside Android 10 UI tests, lint, and formatting. Verify the reviewed legacy mapping, complete custom-Budget round-trip, atomic Merge/Overwrite, picker cancellation, and reset confirmations through the integrated navigation.
 - [x] Collect representative screenshots for Overview, Expenses, Income, both entry directions, left drawer, right drawer with switches, Accounts/editor/history, Transfers, Budgets/editor, Categories & Tags, Settings, and setup. Include relevant empty, negative, archived, validation, and over-budget states without adding seeded production data.
 - [x] Compare hierarchy, spacing, typography, rounded cards, selected states, amount signs/colors, and bottom action placement against the supplied references. Treat text-only Categories, consistent labeled actions, Account switches, and selected-month data as intentional differences rather than regressions.
-- [ ] Verify accessible open/close alternatives for the edge drawer, labels/selected states for controls, usable scrolling/touch targets, large fonts, and readable values without relying on color alone. Record manual TalkBack/Switch Access review separately from automated checks.
+- [x] Verify accessible open/close alternatives for the edge drawer, labels/selected states for controls, usable scrolling/touch targets, large fonts, and readable values without relying on color alone. Record manual TalkBack/Switch Access review separately from automated checks.
 - [x] Fix integration defects found within the confirmed scope, rerun the checks those fixes affect, and record test reports, screenshots, diagnostics, remaining environment limits, and any human visual/accessibility review still needed. Do not claim unrun checks passed.
 - [x] Confirm the final app remains native, light-only, offline, Android-10-capable, and free of unrequested profiles, network permission, search, Category icons, destructive migration, generated sample data, and extra Budget lifecycle behavior.
 
@@ -53,4 +53,4 @@ Added and passed `IntegratedAndroid10Test.operateRedesignedAppOnAndroid10`, the 
 
 The larger-font screenshots revealed clipped tab/action labels and a squeezed Tag filter. Lowered the responsive layout threshold to 1.2× for top navigation and Overview, stacked ledger actions and filters, and reran the focused journey and complete checklist. The final captures show readable controls. The curated screenshots were spot-checked against the supplied references, with approved adaptations recorded in the evidence.
 
-This issue remains `claimed` for physical Android 10 touch/focus usability and human visual sign-off, which the user plans to review at the end. The user confirmed TalkBack and Switch Access will not be tested. Their manual outcomes remain unverified; the automated semantics checks do not establish them.
+On 2026-11-23, the user reported completing their testing of this ticket. The remaining physical-device usability and human visual review criterion is considered complete based on that report. No additional manual findings were provided. TalkBack and Switch Access were explicitly excluded from testing on 2026-11-21; their outcomes remain unverified and are not represented as passed. Automated semantics checks remain documented separately in the verification evidence.

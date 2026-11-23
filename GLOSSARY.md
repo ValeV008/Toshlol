@@ -5,11 +5,23 @@ This glossary defines the language for the personal finance ledger, budgeting, a
 ## Ledger
 
 **Transaction**:
-A recorded income or expense with a positive amount, a date, and a mandatory Account; Category and Tags are optional.
+A recorded income or expense with a positive amount, a date, and a mandatory Account; Category and Tags are optional. Its Income or Expense direction is fixed, and its amount can be allocated across Transaction split parts.
 _Avoid_: Entry, record
 
+**Transaction split**:
+The allocation of one Transaction into two or more related Transaction split parts that share an Account, date, and Income or Expense direction. Creating a Transaction split preserves the original amount; its current total is the sum of its parts.
+_Avoid_: Shared bill, transfer
+
+**Transaction split part**:
+A separately displayed portion of a Transaction split with its own amount and optional Category, Tags, and Note. Its amount and classification can change independently, Account and date remain shared, and its Income or Expense direction is fixed.
+_Avoid_: Separate payment
+
+**Unsplit**:
+The recombination of all parts of a Transaction split into one Transaction for their current combined amount, with a chosen Category, Tags, and Note.
+_Avoid_: Refund, reversal
+
 **Note**:
-Optional free text that preserves context about a Transaction.
+Optional free text that preserves context about a Transaction or Transaction split part.
 _Avoid_: Description
 
 **Transfer**:
@@ -29,11 +41,11 @@ The signed amount in an Account at the end of a selected calendar month, includi
 _Avoid_: Monthly net
 
 **Category**:
-A user-created classification for either Income or Expense Transactions, never both; Expense Categories may also have monthly Budgets. Categories are optional on Transactions and may be archived.
+A user-created classification for either Income or Expense Transactions and their Transaction split parts, never both; Expense Categories may also have monthly Budgets. Categories are optional and may be archived.
 _Avoid_: Type, bucket
 
 **Tag**:
-A reusable label for Transactions; a Tag associated with a Category can only be assigned to Transactions using that Category.
+A reusable label for Transactions or Transaction split parts; a Tag associated with a Category can only be assigned where that Category is used.
 _Avoid_: Label, keyword
 
 **Budget**:
@@ -55,5 +67,5 @@ An import operation that replaces the complete local dataset with the validated 
 _Avoid_: Reset, merge
 
 **Archive**:
-The lifecycle state that prevents an Account, Category, or Tag from new use while preserving its historical references and displayed name; archived Accounts retain their final balance and history.
-_Avoid_: Delete, remove
+A soft-deletion state that prevents an Account, Category, or Tag from new use while preserving its historical references and displayed name. Archived Accounts leave the main Account selection but retain read-only history and existing Budget references.
+_Avoid_: Permanent deletion

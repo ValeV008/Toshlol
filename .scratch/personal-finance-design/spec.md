@@ -198,10 +198,10 @@ The following names describe proposed tests and required observable results, not
 
 | Reference | Role and agreed adaptation |
 | --- | --- |
-| [overview.jpg](../../UI_pics/overview.jpg) | Palette, balance/Account cards, recent activity, three actions; sum selected Accounts' month-end balances. |
-| [expenses.jpg](../../UI_pics/expenses.jpg) | Monthly Expense summary, day-grouped cards, hierarchy, tabs; consistent labeled actions and no Category icons. |
-| [incomes.jpg](../../UI_pics/incomes.jpg) | Parallel Income layout and green amounts; consistent actions and no Category icons. |
-| [add_expense.jpg](../../UI_pics/add_expense.jpg) | Direction/amount/Note/keypad layout; optional text-only Categories plus Account/date/Tag choices. |
-| [add_income.jpg](../../UI_pics/add_income.jpg) | Parallel Income entry with the same optional classification and Account behavior. |
-| [sidemenu.jpg](../../UI_pics/sidemenu.jpg) | Left drawer, retaining Budgets and all agreed destinations without cloud-profile details. |
-| [sidemenu_right.jpg](../../UI_pics/sidemenu_right.jpg) | Right drawer with added switches, archived labels, month-end balances, and empty persistent initial selection. |
+| [overview.jpg](../../UI_pics_old/overview.jpg) | Palette, balance/Account cards, recent activity, three actions; sum selected Accounts' month-end balances. |
+| [expenses.jpg](../../UI_pics_old/expenses.jpg) | Monthly Expense summary, day-grouped cards, hierarchy, tabs; consistent labeled actions and no Category icons. |
+| [incomes.jpg](../../UI_pics_old/incomes.jpg) | Parallel Income layout and green amounts; consistent actions and no Category icons. |
+| [add_expense.jpg](../../UI_pics_old/add_expense.jpg) | Direction/amount/Note/keypad layout; optional text-only Categories plus Account/date/Tag choices. |
+| [add_income.jpg](../../UI_pics_old/add_income.jpg) | Parallel Income entry with the same optional classification and Account behavior. |
+| [sidemenu.jpg](../../UI_pics_old/sidemenu.jpg) | Left drawer, retaining Budgets and all agreed destinations without cloud-profile details. |
+| [sidemenu_right.jpg](../../UI_pics_old/sidemenu_right.jpg) | Right drawer with added switches, archived labels, month-end balances, and empty persistent initial selection. |

@@ -17,7 +17,7 @@ Curated PNGs in this directory cover setup, Overview, Expenses, Income, both ent
 
 The 1.3× `overview-restarted-large-font.png` and `expenses-restarted-large-font.png` captures revealed clipped navigation/action labels and a squeezed Tag filter in the first run. The app now switches to a single current-area title and stacked Overview and ledger actions at 1.2×, and stacks ledger filters at that scale. The final focused journey passed and the new captures show readable full labels and amounts. Earlier failed test-navigation and synchronization artifacts are preserved under `build/integrated-test-baseline-01/` through `-04/`.
 
-Screens were spot-checked against `UI_pics/overview.jpg` and the relevant supplied references for hierarchy, spacing, typography, rounded cards, yellow selected/actions, charcoal headers, pale background, signed red/green amounts, and bottom action placement. Text-only classification controls, labeled actions, Account switches, and selected-month data are intentional adaptations; reference sample amounts are not acceptance values. This is an agent visual check, not human sign-off.
+Screens were spot-checked against `UI_pics_old/overview.jpg` and the relevant supplied references for hierarchy, spacing, typography, rounded cards, yellow selected/actions, charcoal headers, pale background, signed red/green amounts, and bottom action placement. Text-only classification controls, labeled actions, Account switches, and selected-month data are intentional adaptations; reference sample amounts are not acceptance values. This is an agent visual check, not human sign-off.
 
 ## Manual review disposition
 
